@@ -84,7 +84,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun sendOtp(email: String, type: String): ApiResult<Unit> {
         return try {
-            val res = authApi.sendMailOtp(sendOtpRequestDto(email, type))
+            val res = authApi.sendOtp(sendOtpRequestDto(email, type))
             ApiResult.Success(Unit)
         } catch (e: HttpException) {
             ApiResult.Error(message = "send OTP failed: ${e.message}", throwable = e)

@@ -22,7 +22,7 @@ class StartViewModel @Inject constructor(
         viewModelScope.launch {
             val token = tokenProvider.getAccessToken()
             _startDestination.value =
-                if (token.isNullOrBlank()) Routes.LOGIN else Routes.PROFILE
+                if (token.isNullOrBlank()) Routes.LOGIN else Routes.HOME
         }
     }
 }

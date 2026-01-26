@@ -6,4 +6,5 @@ object Routes {
     const val REGISTER = "register"
     const val PROFILE = "profile"
     const val OTP_SENDED = "otp_sended_screen"
+    const val HOME = "home"
 }

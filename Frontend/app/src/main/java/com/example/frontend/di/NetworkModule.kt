@@ -4,8 +4,10 @@ import com.example.frontend.core.config.AppConfig
 import com.example.frontend.core.network.JwtInterceptor
 import com.example.frontend.core.network.TokenProvider
 import com.example.frontend.data.remote.api.AuthApi
+import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.repository.AuthRepositoryImpl
 import com.example.frontend.domain.repository.AuthRepository
+import com.example.frontend.domain.repository.PostRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -65,5 +67,19 @@ object NetworkModule {
         tokenDataStore: com.example.frontend.data.datastore.TokenDataStore
     ): AuthRepository {
         return AuthRepositoryImpl(authApi, tokenDataStore)
+    }
+
+    @Provides
+    @Singleton
+    fun providePostApi(retrofit: Retrofit): PostApi {
+        return retrofit.create(PostApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun providePostRepository(
+        postApi: PostApi
+    ): PostRepository {
+        return com.example.frontend.data.repository.PostRepositoryImpl(postApi)
     }
 }

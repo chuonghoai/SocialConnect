@@ -107,4 +107,12 @@ dependencies {
     // Preview
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
+
+    // Media3 (ExoPlayer)
+    implementation("androidx.media3:media3-exoplayer:1.9.0")
+    implementation("androidx.media3:media3-ui:1.9.0")
+    implementation("androidx.media3:media3-common:1.2.0")
+
+    // Icons Media
+    implementation("androidx.compose.material:material-icons-extended:1.6.0")
 }
