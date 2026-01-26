@@ -40,8 +40,8 @@ fun BottomBar(
                         restoreState = true
                     }
                 },
-                icon = { BottomBarIcon(item.icon) },
-                label = { Text(item.label) }
+                icon = { BottomBarIcon(item.icon) }
+//                label = { Text(item.label) }
             )
         }
     }
