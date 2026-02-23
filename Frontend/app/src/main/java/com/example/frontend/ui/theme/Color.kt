@@ -12,14 +12,12 @@ val Pink40 = Color(0xFF7D5260)
 
 val OrangePrimary = Color(0xFFF2994A)
 val OrangeSecondary = Color(0xFFFFB347)
-val OrangeLight = Color(0xFFFFF4E8)
+val OrangeLight = Color(0xFFE8B464)
 
-// Màu trung tính cho Light Mode
 val BackgroundLight = Color(0xFFFDFDFD)
 val BlackText = Color(0xFF333333)
 val GrayText = Color(0xFF828282)
 
-// Màu trung tính cho Dark Mode
 val DarkBackground = Color(0xFF121212)
 val WhiteText = Color(0xFFFFFFFF)
 val LightGrayText = Color(0xFFBDBDBD)

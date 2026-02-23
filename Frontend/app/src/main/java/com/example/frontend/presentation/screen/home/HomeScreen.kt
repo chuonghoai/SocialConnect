@@ -34,6 +34,16 @@ import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.User
 import com.example.frontend.ui.theme.OrangePrimary
 import java.time.LocalDateTime
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.FloatingActionButtonDefaults
+import androidx.compose.material3.SmallFloatingActionButton
+import com.example.frontend.ui.theme.OrangeLight
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,6 +55,7 @@ fun HomeScreen(
     val pullRefreshState = rememberPullToRefreshState()
 
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -52,6 +63,12 @@ fun HomeScreen(
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
 
             totalItems > 0 && lastVisibleItem >= totalItems - 3
+        }
+    }
+
+    val showScrollToTop by remember {
+        derivedStateOf {
+            listState.firstVisibleItemIndex > 1
         }
     }
 
@@ -135,6 +152,18 @@ fun HomeScreen(
                             }
                         }
                     }
+
+                    ScrollToTopButton(
+                        visible = showScrollToTop,
+                        onClick = {
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(0)
+                            }
+                        },
+                        modifier = Modifier
+                            .align(Alignment.BottomEnd)
+                            .padding(end = 16.dp, bottom = 16.dp)
+                    )
                 }
             }
         }
@@ -380,5 +409,31 @@ fun formatTimeAgo(timeString: String): String {
         timeString.substring(0, 10)
     } catch (e: Exception) {
         "Vừa xong"
+    }
+}
+
+@Composable
+fun ScrollToTopButton(
+    visible: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    AnimatedVisibility(
+        visible = visible,
+        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
+        exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
+        modifier = modifier
+    ) {
+        SmallFloatingActionButton(
+            onClick = onClick,
+            containerColor = OrangeLight,
+            contentColor = Color.White,
+            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
+        ) {
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowUp,
+                contentDescription = "Cuộn lên trên cùng"
+            )
+        }
     }
 }
