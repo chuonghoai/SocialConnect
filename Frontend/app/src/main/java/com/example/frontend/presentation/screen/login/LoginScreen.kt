@@ -72,8 +72,6 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(Modifier.height(56.dp))
-
             // Ảnh app icon
             IconImage()
             Spacer(Modifier.height(58.dp))

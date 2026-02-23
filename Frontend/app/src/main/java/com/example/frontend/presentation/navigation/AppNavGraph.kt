@@ -1,6 +1,12 @@
 package com.example.frontend.presentation.navigation
 
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsBottomHeight
+import androidx.compose.foundation.layout.windowInsetsTopHeight
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -42,6 +48,10 @@ fun AppNavGraph(
     val showBottomBar = currentBaseRoute in bottomBarRoutes
 
     Scaffold(
+        modifier = Modifier.fillMaxSize(),
+        topBar = {
+            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
+        },
         bottomBar = {
             if (showBottomBar) {
                 BottomBar(
@@ -49,12 +59,15 @@ fun AppNavGraph(
                     items = bottomNavItems(currentUser?.avatarUrl)
                 )
             }
+            else {
+                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.statusBars))
+            }
         }
-    ) { paddingValues ->
+    ) { innerPadding ->
         NavHost(
             navController = navController,
             startDestination = Routes.SPLASH,
-            modifier = Modifier.padding(paddingValues)
+            modifier = Modifier.padding(innerPadding)
         ) {
             composable(Routes.SPLASH) {
                 val vm: StartViewModel = hiltViewModel()

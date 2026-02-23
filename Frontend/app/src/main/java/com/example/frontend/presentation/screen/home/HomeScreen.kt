@@ -3,15 +3,14 @@ package com.example.frontend.presentation.screen.home
 import android.net.Uri
 import android.widget.MediaController
 import android.widget.VideoView
-import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -22,9 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
-import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,31 +34,8 @@ import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.User
 import com.example.frontend.ui.theme.OrangePrimary
 import java.time.LocalDateTime
-import java.time.format.DateTimeFormatter
-import java.time.temporal.ChronoUnit
-import androidx.annotation.OptIn
-import androidx.media3.common.MediaItem
-import androidx.media3.common.Player
-import androidx.media3.common.util.UnstableApi
-import androidx.media3.exoplayer.ExoPlayer
-import androidx.media3.ui.PlayerView
-import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.*
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material.icons.rounded.FastForward
-import androidx.compose.material.icons.rounded.FastRewind
-import androidx.compose.material.icons.rounded.Speed
-import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.ui.input.pointer.pointerInput
-import androidx.compose.ui.platform.LocalLifecycleOwner
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import kotlinx.coroutines.delay
-import java.util.concurrent.TimeUnit
 
-@ExperimentalMaterial3Api
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     currentUser: User?,
@@ -70,21 +44,36 @@ fun HomeScreen(
     val uiState by viewModel.uiState.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
 
-    // Tự động load dữ liệu lần đầu
+    val listState = rememberLazyListState()
+
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val totalItems = listState.layoutInfo.totalItemsCount
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+
+            totalItems > 0 && lastVisibleItem >= totalItems - 3
+        }
+    }
+
     LaunchedEffect(Unit) {
         if (uiState is HomeUiState.Loading) {
             viewModel.load()
         }
     }
 
-    Scaffold(
-        topBar = { HomeTopBar() },
-        containerColor = MaterialTheme.colorScheme.background
-    ) { paddingValues ->
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) {
+            viewModel.loadMore()
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        HomeHeader()
+
         Box(
             modifier = Modifier
-                .fillMaxSize()
-                .padding(paddingValues)
+                .weight(1f)
+                .fillMaxWidth()
         ) {
             when (val state = uiState) {
                 is HomeUiState.Loading -> {
@@ -112,27 +101,37 @@ fun HomeScreen(
 
                 is HomeUiState.Success -> {
                     val posts = state.posts
-                    // Xử lý Pull to Refresh
                     PullToRefreshBox(
                         state = pullRefreshState,
-                        isRefreshing = false, // Có thể quản lý state refreshing riêng nếu muốn
+                        isRefreshing = false,
                         onRefresh = { viewModel.load() },
                         modifier = Modifier.fillMaxSize()
                     ) {
                         LazyColumn(
+                            state = listState,
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 16.dp)
                         ) {
-                            // Phần tạo bài viết mới
                             item {
-                                if (currentUser != null) {
-                                    CreatePostSection(currentUser)
-                                }
+                                if (currentUser != null) CreatePostSection(currentUser)
                             }
 
-                            // Danh sách bài viết
                             items(posts) { post ->
                                 PostCard(post)
+                            }
+
+                            if (state.isLoadingMore) {
+                                item {
+                                    Box(
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(32.dp),
+                                            color = OrangePrimary
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -143,9 +142,9 @@ fun HomeScreen(
 }
 
 @Composable
-fun HomeTopBar() {
+fun HomeHeader() {
     Surface(
-        shadowElevation = 1.dp,
+        shadowElevation = 0.dp,
         color = MaterialTheme.colorScheme.background
     ) {
         Row(
@@ -247,7 +246,6 @@ fun PostCard(post: Post) {
         shape = RectangleShape // Facebook style thường là hình chữ nhật full width
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
-            // Header: Avatar + Tên + Thời gian
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = post.userAvatar,
@@ -297,7 +295,7 @@ fun PostCard(post: Post) {
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            // Content: Media (Ảnh/Video)
+            // Content: Media
             if (post.cdnUrl.isNotEmpty()) {
                 PostMediaContent(post)
             }
@@ -327,7 +325,6 @@ fun PostMediaContent(post: Post) {
                 MaterialTheme.colorScheme.outlineVariant,
                 RoundedCornerShape(8.dp)
             )
-            .background(Color.Black) // Nền đen cho video
     ) {
         if (post.kind == "IMAGE") {
             AsyncImage(
@@ -337,298 +334,26 @@ fun PostMediaContent(post: Post) {
                 contentScale = ContentScale.FillWidth
             )
         } else if (post.kind == "VIDEO") {
-            // Gọi component Video Player tùy biến
-            ExoVideoPlayer(videoUrl = post.cdnUrl)
-        }
-    }
-}
-
-@OptIn(UnstableApi::class)
-@Composable
-fun ExoVideoPlayer(videoUrl: String) {
-    val context = LocalContext.current
-    val lifecycleOwner = LocalLifecycleOwner.current
-
-    // 1. Khởi tạo ExoPlayer
-    val exoPlayer = remember {
-        ExoPlayer.Builder(context).build().apply {
-            val mediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
-            setMediaItem(mediaItem)
-            prepare()
-            playWhenReady = false // Không tự động play để tránh ồn ào khi lướt feed
-            repeatMode = Player.REPEAT_MODE_ONE
-        }
-    }
-
-    // State quản lý UI
-    var isPlaying by remember { mutableStateOf(false) }
-    var isMuted by remember { mutableStateOf(false) }
-    var currentTime by remember { mutableLongStateOf(0L) }
-    var duration by remember { mutableLongStateOf(0L) }
-    var isControlsVisible by remember { mutableStateOf(true) } // Mặc định hiện controls
-    var isSpeedUp by remember { mutableStateOf(false) } // Trạng thái đang tua nhanh x2
-    var showSeekOverlay by remember { mutableStateOf<String?>(null) } // +5s hoặc -5s
-
-    // 2. Quản lý vòng đời (Pause khi app background, Release khi lướt qua)
-    DisposableEffect(lifecycleOwner) {
-        val observer = LifecycleEventObserver { _, event ->
-            if (event == Lifecycle.Event.ON_PAUSE) {
-                exoPlayer.pause()
-            }
-        }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-            exoPlayer.release()
-        }
-    }
-
-    // 3. Listener cập nhật state từ Player -> Compose
-    DisposableEffect(exoPlayer) {
-        val listener = object : Player.Listener {
-            override fun onIsPlayingChanged(playing: Boolean) {
-                isPlaying = playing
-            }
-            override fun onPlaybackStateChanged(playbackState: Int) {
-                if (playbackState == Player.STATE_READY) {
-                    duration = exoPlayer.duration.coerceAtLeast(0L)
-                }
-            }
-        }
-        exoPlayer.addListener(listener)
-        onDispose { exoPlayer.removeListener(listener) }
-    }
-
-    // 4. Vòng lặp cập nhật thời gian chạy (progress bar)
-    LaunchedEffect(isPlaying) {
-        while (isPlaying) {
-            currentTime = exoPlayer.currentPosition.coerceAtLeast(0L)
-            delay(500) // Cập nhật mỗi 0.5s
-        }
-    }
-
-    // Logic ẩn controls sau 3s nếu không thao tác
-    LaunchedEffect(isControlsVisible, isPlaying) {
-        if (isControlsVisible && isPlaying) {
-            delay(3000)
-            isControlsVisible = false
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(16f / 9f) // Tỉ lệ khung hình (có thể sửa thành dynamic nếu cần)
-    ) {
-        // A. Render Video Surface
-        AndroidView(
-            factory = {
-                PlayerView(context).apply {
-                    player = exoPlayer
-                    useController = false // Tắt UI mặc định của ExoPlayer
-                    resizeMode = androidx.media3.ui.AspectRatioFrameLayout.RESIZE_MODE_FIT
-                }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
-
-        // B. Lớp phủ nhận diện cử chỉ (Gestures Overlay)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onDoubleTap = { offset ->
-                            // Logic Double Tap: Tua nhanh/lùi 5s
-                            val screenWidth = size.width
-                            val isForward = offset.x > screenWidth / 2
-                            val seekAmount = 5000L // 5 giây
-
-                            if (isForward) {
-                                exoPlayer.seekTo(exoPlayer.currentPosition + seekAmount)
-                                showSeekOverlay = "+5s"
-                            } else {
-                                exoPlayer.seekTo(exoPlayer.currentPosition - seekAmount)
-                                showSeekOverlay = "-5s"
-                            }
-                            // Reset overlay sau 1s
-                            currentTime = exoPlayer.currentPosition // Update UI ngay
-                        },
-                        onTap = {
-                            isControlsVisible = !isControlsVisible
-                        },
-                        onPress = {
-                            // Logic Nhấn giữ (Long Press): Speed x2
-                            // Sự kiện onPress chạy ngay khi chạm vào
-                            // Ta dùng tryAwaitRelease để biết khi nào thả tay ra
-                            val pressStartTime = System.currentTimeMillis()
-
-                            try {
-                                // Đợi một chút để phân biệt với tap thường (optional)
-                                if (tryAwaitRelease()) {
-                                    // Đã thả tay ra (đây là thao tác Click/Tap bình thường)
-                                } else {
-                                    // User đang giữ tay -> Set speed x2
-                                    // (Lưu ý: tryAwaitRelease trả về false nếu bị cancel hoặc timeout,
-                                    // nhưng ở đây ta setup logic đơn giản hơn ở dưới)
-                                }
-                            } finally {
-                                // Khi thả tay: Reset speed
-                                exoPlayer.setPlaybackSpeed(1f)
-                                isSpeedUp = false
-                            }
-                        }
-                    )
-                }
-                // Xử lý riêng phần Long Press để mượt mà hơn vì detectTapGestures ở trên đôi khi bị conflict
-                .pointerInput(Unit) {
-                    awaitPointerEventScope {
-                        while (true) {
-                            val down = awaitPointerEvent().changes.firstOrNull()
-                            if (down != null && down.pressed) {
-                                // Khi nhấn xuống: Đợi 500ms xem có phải là giữ không
-                                try {
-                                    withTimeout(500) {
-                                        // Chờ xem có nhấc lên không
-                                        val up = awaitPointerEvent()
-                                    }
-                                    // Nếu nhấc lên sớm -> Tap, không làm gì ở đây
-                                } catch (e: Exception) {
-                                    // Timeout -> Đã giữ quá 500ms -> Speed x2
-                                    isSpeedUp = true
-                                    exoPlayer.setPlaybackSpeed(2.0f)
-                                    // Chờ cho đến khi thả ra
-                                    do {
-                                        val event = awaitPointerEvent()
-                                    } while (event.changes.any { it.pressed })
-
-                                    // Thả ra -> Reset
-                                    exoPlayer.setPlaybackSpeed(1.0f)
-                                    isSpeedUp = false
-                                }
-                            }
+            // Sử dụng AndroidView để nhúng VideoView cũ
+            AndroidView(
+                factory = { ctx ->
+                    VideoView(ctx).apply {
+                        setVideoURI(Uri.parse(post.cdnUrl))
+                        val controller = MediaController(ctx)
+                        controller.setAnchorView(this)
+                        setMediaController(controller)
+                        setOnPreparedListener {
+                            it.isLooping = true
+                            start()
                         }
                     }
-                }
-        ) {
-            // C. Overlay hiển thị "+5s" / "-5s" / "2x Speed"
-            if (showSeekOverlay != null) {
-                LaunchedEffect(showSeekOverlay) {
-                    delay(800)
-                    showSeekOverlay = null
-                }
-                Box(
-                    modifier = Modifier.align(Alignment.Center).background(Color.Black.copy(0.5f), CircleShape).padding(16.dp)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            imageVector = if (showSeekOverlay == "+5s") Icons.Rounded.FastForward else Icons.Rounded.FastRewind,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(32.dp)
-                        )
-                        Text(text = showSeekOverlay!!, color = Color.White, fontWeight = FontWeight.Bold)
-                    }
-                }
-            }
-
-            if (isSpeedUp) {
-                Box(
-                    modifier = Modifier.align(Alignment.TopCenter).padding(top = 16.dp).background(Color.Black.copy(0.5f), RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Rounded.Speed, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
-                        Spacer(Modifier.width(4.dp))
-                        Text("Speed 2x >>", color = Color.White, fontSize = 12.sp)
-                    }
-                }
-            }
-
-            // D. UI Controls (Play/Pause, Seekbar, Mute...)
-            if (isControlsVisible) {
-                // Dim background nhẹ để icon nổi bật
-                Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.3f)))
-
-                // 1. Center Play/Pause Button
-                IconButton(
-                    onClick = {
-                        if (isPlaying) exoPlayer.pause() else exoPlayer.play()
-                    },
-                    modifier = Modifier
-                        .align(Alignment.Center)
-                        .size(56.dp)
-                        .background(Color.Black.copy(0.4f), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                        contentDescription = "Toggle Play",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-
-                // 2. Bottom Controls Bar
-                Column(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .fillMaxWidth()
-                        .padding(8.dp)
-                ) {
-                    // Time & Mute Row
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        // Current / Duration
-                        Text(
-                            text = "${formatVideoTime(currentTime)} / ${formatVideoTime(duration)}",
-                            color = Color.White,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-
-                        // Mute Button
-                        IconButton(onClick = {
-                            isMuted = !isMuted
-                            exoPlayer.volume = if (isMuted) 0f else 1f
-                        }) {
-                            Icon(
-                                imageVector = if (isMuted) Icons.Filled.VolumeOff else Icons.Filled.VolumeUp,
-                                contentDescription = "Mute",
-                                tint = Color.White
-                            )
-                        }
-                    }
-
-                    // Seek Bar (Slider)
-                    Slider(
-                        value = currentTime.toFloat(),
-                        onValueChange = {
-                            currentTime = it.toLong() // Update UI mượt mà khi kéo
-                        },
-                        onValueChangeFinished = {
-                            exoPlayer.seekTo(currentTime) // Seek thật khi thả tay
-                        },
-                        valueRange = 0f..duration.toFloat().coerceAtLeast(1f),
-                        colors = SliderDefaults.colors(
-                            thumbColor = OrangePrimary,
-                            activeTrackColor = OrangePrimary,
-                            inactiveTrackColor = Color.White.copy(alpha = 0.5f)
-                        ),
-                        modifier = Modifier.height(10.dp)
-                    )
-                }
-            }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(16f / 9f)
+            )
         }
     }
-}
-
-fun formatVideoTime(millis: Long): String {
-    val totalSeconds = millis / 1000
-    val minutes = totalSeconds / 60
-    val seconds = totalSeconds % 60
-    return String.format("%02d:%02d", minutes, seconds)
 }
 
 @Composable
@@ -651,13 +376,8 @@ fun InteractionItem(iconRes: Int, count: String) {
 
 fun formatTimeAgo(timeString: String): String {
     return try {
-        // Giả sử định dạng server trả về là chuẩn ISO hoặc tương tự.
-        // Cần điều chỉnh formatter tùy theo backend của bạn.
-        // Ví dụ này dùng logic đơn giản, bạn có thể thay thế bằng thư viện PrettyTime
         val now = LocalDateTime.now()
-        // Lưu ý: Cần parse đúng định dạng string từ backend.
-        // Ở đây demo trả về string gốc hoặc xử lý đơn giản
-        timeString.substring(0, 10) // Lấy ngày tháng năm tạm
+        timeString.substring(0, 10)
     } catch (e: Exception) {
         "Vừa xong"
     }

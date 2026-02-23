@@ -59,13 +59,10 @@ fun RegisterScreen(
     ) {
         TopWaveDecoration()
 
-        Spacer(Modifier.height(18.dp))
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .statusBarsPadding(),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {

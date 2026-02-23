@@ -3,9 +3,11 @@ package com.example.frontend.di
 import com.example.frontend.core.config.AppConfig
 import com.example.frontend.core.network.JwtInterceptor
 import com.example.frontend.core.network.TokenProvider
+import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.remote.api.AuthApi
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.repository.AuthRepositoryImpl
+import com.example.frontend.data.repository.PostRepositoryImpl
 import com.example.frontend.domain.repository.AuthRepository
 import com.example.frontend.domain.repository.PostRepository
 import dagger.Module
@@ -78,8 +80,9 @@ object NetworkModule {
     @Provides
     @Singleton
     fun providePostRepository(
-        postApi: PostApi
+        postApi: PostApi,
+        postDao: PostDao
     ): PostRepository {
-        return com.example.frontend.data.repository.PostRepositoryImpl(postApi)
+        return PostRepositoryImpl(postApi, postDao)
     }
 }

@@ -30,14 +30,10 @@ fun OtpVerificationScreen(
     onRegisterClick: () -> Unit,
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
-    // Lấy state từ ViewModel (Giả sử bạn đã thêm otpCode vào UI State)
     val state by viewModel.uiState.collectAsState()
 
-    // Tự động trigger hành động khi nhập đủ 6 số
     LaunchedEffect(state.otp) {
         if (state.otp.length == 6) {
-            // Ẩn bàn phím để trải nghiệm tốt hơn
-            // focusManager.clearFocus() -> Có thể thêm nếu cần
             viewModel.register(onRegisterClick)
         }
     }
@@ -45,20 +41,17 @@ fun OtpVerificationScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFF6ED)) // Màu nền giống RegisterScreen
+            .background(Color(0xFFFFF6ED))
     ) {
-        // Decoration (Sử dụng lại hàm vẽ sóng từ file cũ)
         TopWaveDecoration()
 
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .statusBarsPadding()
                 .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
 
-            // --- HEADER: Nút Back ---
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -81,7 +74,6 @@ fun OtpVerificationScreen(
 
             Spacer(Modifier.height(40.dp))
 
-            // --- TITLE ---
             Text(
                 text = "Xác thực OTP",
                 style = MaterialTheme.typography.headlineSmall.copy(
