@@ -32,7 +32,6 @@ data class UserEntity(
             friendCount = friendCount,
             caption = caption,
             avatarUrl = avatarUrl,
-            myPosts = emptyList()
         )
     }
 }

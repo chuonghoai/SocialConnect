@@ -94,55 +94,63 @@ fun HomeScreen(
                 .weight(1f)
                 .fillMaxWidth()
         ) {
-            when (val state = uiState) {
-                is HomeUiState.Loading -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = OrangePrimary)
+            PullToRefreshBox(
+                state = pullRefreshState,
+                isRefreshing = uiState is HomeUiState.Loading,
+                onRefresh = { viewModel.load(isRefresh = true) },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    item {
+                        if (currentUser != null) CreatePostSection(currentUser)
                     }
-                }
 
-                is HomeUiState.Error -> {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(text = state.message, color = Color.Red)
-                            Button(onClick = { viewModel.load() }) {
-                                Text("Thử lại")
+                    when (val state = uiState) {
+                        is HomeUiState.Loading -> {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 50.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = OrangePrimary)
+                                }
                             }
                         }
-                    }
-                }
 
-                is HomeUiState.Success -> {
-                    val posts = state.posts
-                    PullToRefreshBox(
-                        state = pullRefreshState,
-                        isRefreshing = false,
-                        onRefresh = { viewModel.load() },
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        LazyColumn(
-                            state = listState,
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(bottom = 16.dp)
-                        ) {
+                        is HomeUiState.Error -> {
                             item {
-                                if (currentUser != null) CreatePostSection(currentUser)
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 50.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(text = state.message, color = Color.Red)
+                                    Spacer(modifier = Modifier.height(12.dp))
+                                    Button(onClick = { viewModel.load() }) {
+                                        Text("Thử lại")
+                                    }
+                                }
                             }
+                        }
 
-                            items(posts) { post ->
+                        is HomeUiState.Success -> {
+                            items(state.posts) { post ->
                                 PostCard(post)
                             }
 
                             if (state.isLoadingMore) {
                                 item {
                                     Box(
-                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         CircularProgressIndicator(
@@ -154,19 +162,19 @@ fun HomeScreen(
                             }
                         }
                     }
-
-                    ScrollToTopButton(
-                        visible = showScrollToTop,
-                        onClick = {
-                            coroutineScope.launch {
-                                listState.animateScrollToItem(0)
-                            }
-                        },
-                        modifier = Modifier
-                            .align(Alignment.BottomEnd)
-                            .padding(end = 16.dp, bottom = 16.dp)
-                    )
                 }
+
+                ScrollToTopButton(
+                    visible = showScrollToTop,
+                    onClick = {
+                        coroutineScope.launch {
+                            listState.animateScrollToItem(0)
+                        }
+                    },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(end = 16.dp, bottom = 16.dp)
+                )
             }
         }
     }

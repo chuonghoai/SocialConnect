@@ -3,7 +3,7 @@ package com.example.frontend.presentation.screen.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
-import com.example.frontend.domain.usecase.UserUseCase.GetNewsFeedUseCase
+import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,20 +22,20 @@ class HomeViewModel @Inject constructor(
     private var isFetching = false
     private var isLastPage = false
 
-    fun load() {
+    fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {
             _uiState.value = HomeUiState.Loading
 
             isLastPage = false
             isFetching = true
 
-            when (val result = getNewsFeedUseCase(afterId = null)) {
+            when (val result = getNewsFeedUseCase(afterId = null, isRefresh = isRefresh)) {
                 is ApiResult.Success -> {
                     _uiState.value = HomeUiState.Success(posts = result.data)
                     if (result.data.isEmpty()) isLastPage = true
                 }
                 is ApiResult.Error -> _uiState.value =
-                    HomeUiState.Error(result.message.ifBlank { "Failed to load news feed" })
+                    HomeUiState.Error(result.message)
             }
             isFetching = false
         }

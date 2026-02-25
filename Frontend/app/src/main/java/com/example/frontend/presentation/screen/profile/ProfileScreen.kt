@@ -7,6 +7,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -15,6 +16,8 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.GridView
 import androidx.compose.material3.*
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -35,6 +38,7 @@ import com.example.frontend.ui.component.ScrollToTopButton
 import com.example.frontend.ui.theme.OrangePrimary
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
     onLoggedOut: () -> Unit,
@@ -42,59 +46,137 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val pullRefreshState = rememberPullToRefreshState()
 
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
+    // Get current user
+    val currentUser = (uiState as? ProfileUiState.Success)?.user
+
+    // trigger scroll to top
     val showScrollToTop by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 1
         }
     }
 
-    LaunchedEffect(Unit) { viewModel.load() }
+    // trigger load more user's post
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val totalItems = listState.layoutInfo.totalItemsCount
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            totalItems > 0 && lastVisibleItem >= totalItems - 3
+        }
+    }
 
-    Box(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        when (val state = uiState) {
-            is ProfileUiState.Loading -> {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            }
-            is ProfileUiState.Error -> {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) viewModel.loadMorePosts()
+    }
+
+    LaunchedEffect(Unit) {
+        if (uiState is ProfileUiState.Loading) {
+            viewModel.load()
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
+        ProfileTopBar(onBackClick = onBackClick, onMoreClick = {})
+
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            PullToRefreshBox(
+                state = pullRefreshState,
+                isRefreshing = uiState is ProfileUiState.Loading,
+                onRefresh = { viewModel.load(isRefresh = true) },
+                modifier = Modifier.fillMaxSize()
+            ) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
-                    Text(state.message, color = MaterialTheme.colorScheme.error)
-                    Spacer(Modifier.height(12.dp))
-                    Button(onClick = { viewModel.load() }) { Text("Thử lại") }
-                    Spacer(Modifier.height(12.dp))
-                    TextButton(onClick = { viewModel.logout(onLoggedOut) }) { Text("Đăng xuất") }
-                }
-            }
-            is ProfileUiState.Success -> {
-                val user = state.user
-                LazyColumn(modifier = Modifier.fillMaxSize()) {
-                    // Profile tabs
                     item {
-                        ProfileTopBar(onBackClick = onBackClick, onMoreClick = {})
-                        ProfileInfoSection(user = user)
+                        ProfileInfoSection(user = currentUser)
                         ProfileTabs()
                         Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
                     }
 
-                    // User's post
-                    items(user.myPosts) { post ->
-                        PostCard(post = post)
-                        Spacer(modifier = Modifier.height(8.dp))
+                    when (val state = uiState) {
+                        is ProfileUiState.Loading -> {
+                            item {
+                                Box(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 50.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = OrangePrimary)
+                                }
+                            }
+                        }
+
+                        is ProfileUiState.Error -> {
+                            item {
+                                Column(
+                                    modifier = Modifier.fillMaxWidth().padding(top = 50.dp, bottom = 32.dp),
+                                    horizontalAlignment = Alignment.CenterHorizontally
+                                ) {
+                                    Text(
+                                        text = state.message,
+                                        color = MaterialTheme.colorScheme.error,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.padding(horizontal = 16.dp)
+                                    )
+                                    Spacer(Modifier.height(16.dp))
+                                    Button(onClick = { viewModel.load(isRefresh = true) }) { Text("Thử lại") }
+                                    Spacer(Modifier.height(12.dp))
+                                    TextButton(onClick = { viewModel.logout(onLoggedOut) }) { Text("Đăng xuất") }
+                                }
+                            }
+                        }
+
+                        is ProfileUiState.Success -> {
+                            // Loading spinner
+                            if (state.isPostsLoading) {
+                                item {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(color = OrangePrimary)
+                                    }
+                                }
+                            }
+                            // Error when get user's post data
+                            else if (state.postsError != null) {
+                                item {
+                                    Text(
+                                        text = state.postsError,
+                                        color = MaterialTheme.colorScheme.error,
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        textAlign = TextAlign.Center
+                                    )
+                                }
+                            }
+                            // List user's post
+                            else {
+                                items(state.posts) { post ->
+                                    PostCard(post = post)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                }
+                            }
+
+                            // Loading spinner
+                            if (state.isLoadingMore) {
+                                item {
+                                    Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
+                                        CircularProgressIndicator(modifier = Modifier.size(32.dp), color = OrangePrimary)
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
                 ScrollToTopButton(
                     visible = showScrollToTop,
                     onClick = {
-                        coroutineScope.launch {
-                            listState.animateScrollToItem(0)
-                        }
+                        coroutineScope.launch { listState.animateScrollToItem(0) }
                     },
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
@@ -134,66 +216,111 @@ private fun ProfileTopBar(onBackClick: () -> Unit, onMoreClick: () -> Unit) {
 }
 
 @Composable
-private fun ProfileInfoSection(user: User) {
+private fun ProfileInfoSection(user: User?) {
+    // Info render when have network error or server error
+    val skeletonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 24.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Avatar
-        AsyncImage(
-            model = user.avatarUrl,
-            contentDescription = "Avatar",
-            modifier = Modifier
-                .size(90.dp)
-                .clip(CircleShape)
-                .border(2.dp, OrangePrimary, CircleShape),
-            contentScale = ContentScale.Crop,
-            error = painterResource(R.drawable.icon_user)
-        )
-        Spacer(Modifier.height(12.dp))
-
-        // Display name
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                text = user.displayName,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+        // User data != null
+        if (user != null) {
+            // Avartar
+            AsyncImage(
+                model = user.avatarUrl,
+                contentDescription = "Avatar",
+                modifier = Modifier
+                    .size(90.dp)
+                    .clip(CircleShape)
+                    .border(2.dp, OrangePrimary, CircleShape),
+                contentScale = ContentScale.Crop,
+                error = painterResource(R.drawable.icon_user)
             )
-            Spacer(Modifier.width(4.dp))
-            Icon(
-                imageVector = Icons.Default.CheckCircle,
-                contentDescription = "Verified",
-                tint = OrangePrimary,
-                modifier = Modifier.size(16.dp)
-            )
-        }
-        Text(
-            text = "@${user.username}",
-            style = MaterialTheme.typography.bodyMedium,
-            color = Color.Gray
-        )
-        Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
-        // Post and friend count
-        Row(
-            modifier = Modifier.fillMaxWidth(0.6f),
-            horizontalArrangement = Arrangement.SpaceEvenly
-        ) {
-            StatItem(count = user.postCount.toString(), label = "Bài đăng")
-            StatItem(count = user.friendCount.toString(), label = "Bạn bè")
-        }
-        Spacer(Modifier.height(16.dp))
+            // Display name
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = user.displayName,
+                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                )
+                Spacer(Modifier.width(4.dp))
+                Icon(
+                    imageVector = Icons.Default.CheckCircle,
+                    contentDescription = "Verified",
+                    tint = OrangePrimary,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
 
-        // Caption
-        if (!user.caption.isNullOrBlank()) {
+            // Username
             Text(
-                text = user.caption,
+                text = "@${user.username}",
                 style = MaterialTheme.typography.bodyMedium,
-                textAlign = TextAlign.Center,
-                fontSize = 13.sp,
-                lineHeight = 20.sp
+                color = Color.Gray
             )
+            Spacer(Modifier.height(16.dp))
+
+            // Post and friend count
+            Row(
+                modifier = Modifier.fillMaxWidth(0.6f),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                StatItem(count = user.postCount.toString(), label = "Bài đăng")
+                StatItem(count = user.friendCount.toString(), label = "Bạn bè")
+            }
+            Spacer(Modifier.height(16.dp))
+
+            // Caption
+            if (!user.caption.isNullOrBlank()) {
+                Text(
+                    text = user.caption,
+                    style = MaterialTheme.typography.bodyMedium,
+                    textAlign = TextAlign.Center,
+                    fontSize = 13.sp,
+                    lineHeight = 20.sp
+                )
+            }
+        }
+        else {
+            // User data == null
+            Box(
+                modifier = Modifier
+                    .size(90.dp)
+                    .clip(CircleShape)
+                    .background(skeletonColor)
+            )
+            Spacer(Modifier.height(12.dp))
+
+            Box(modifier = Modifier.width(140.dp).height(24.dp).background(skeletonColor, RoundedCornerShape(4.dp)))
+            Spacer(Modifier.height(6.dp))
+
+            Box(modifier = Modifier.width(100.dp).height(16.dp).background(skeletonColor, RoundedCornerShape(4.dp)))
+            Spacer(Modifier.height(24.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(0.6f),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(modifier = Modifier.size(36.dp, 24.dp).background(skeletonColor, RoundedCornerShape(4.dp)))
+                    Spacer(Modifier.height(6.dp))
+                    Box(modifier = Modifier.size(60.dp, 16.dp).background(skeletonColor, RoundedCornerShape(4.dp)))
+                }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Box(modifier = Modifier.size(36.dp, 24.dp).background(skeletonColor, RoundedCornerShape(4.dp)))
+                    Spacer(Modifier.height(6.dp))
+                    Box(modifier = Modifier.size(60.dp, 16.dp).background(skeletonColor, RoundedCornerShape(4.dp)))
+                }
+            }
+            Spacer(Modifier.height(20.dp))
+
+            Box(modifier = Modifier.width(220.dp).height(14.dp).background(skeletonColor, RoundedCornerShape(4.dp)))
+            Spacer(Modifier.height(6.dp))
+            Box(modifier = Modifier.width(160.dp).height(14.dp).background(skeletonColor, RoundedCornerShape(4.dp)))
         }
     }
 }

@@ -17,4 +17,10 @@ interface PostDao {
 
     @Query("DELETE FROM posts")
     suspend fun clearAllPosts()
+
+    @Query("SELECT * FROM posts WHERE userId = :userId ORDER BY createdAt DESC")
+    suspend fun getPostsByUserId(userId: String): List<PostEntity>
+
+    @Query("DELETE FROM posts WHERE userId = :userId")
+    suspend fun clearUserPosts(userId: String)
 }

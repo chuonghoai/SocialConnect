@@ -11,6 +11,5 @@ data class User(
     val postCount: Long,
     val friendCount: Long,
     val caption: String?,
-    val avatarUrl: String?,
-    val myPosts: List<Post> = emptyList()
+    val avatarUrl: String?
 )

@@ -24,23 +24,33 @@ class AuthRepositoryImpl @Inject constructor(
 
     private val gson = Gson()
 
-    override suspend fun getMe(): ApiResult<User> {
+    override suspend fun getMe(isRefresh: Boolean): ApiResult<User> {
         return try {
+            if (isRefresh) {
+                userDao.clearUser()
+            }
+
             val user = authApi.me()
-            userDao.clearUser()
+
+            if (!isRefresh) {
+                userDao.clearUser()
+            }
             userDao.insertUser(user.toEntity())
             ApiResult.Success(user)
-        } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = e.message(), throwable = e)
+
         } catch (e: IOException) {
-            val localUser = userDao.getUser()
-            if (localUser != null) {
-                ApiResult.Success(localUser.toDomain())
-            } else {
-                ApiResult.Error(message = "Không thể tải thông tin người dùng", throwable = e)
+            if (!isRefresh) {
+                val localUser = userDao.getUser()
+                if (localUser != null) {
+                    return ApiResult.Success(localUser.toDomain())
+                }
             }
+            ApiResult.Error(message = "Lỗi mạng: Vui lòng kiểm tra lại kết nối Internet.", throwable = e)
+
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()}). Vui lòng thử lại sau.", throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
+            ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
         }
     }
 

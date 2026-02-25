@@ -6,5 +6,5 @@ import javax.inject.Inject
 class GetMeUseCase @Inject constructor(
     private val authRepository: AuthRepository
 ) {
-    suspend operator fun invoke() = authRepository.getMe()
+    suspend operator fun invoke(isRefresh: Boolean = false) = authRepository.getMe(isRefresh)
 }
