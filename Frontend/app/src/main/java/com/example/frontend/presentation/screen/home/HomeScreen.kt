@@ -44,6 +44,8 @@ import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.SmallFloatingActionButton
 import com.example.frontend.ui.theme.OrangeLight
 import kotlinx.coroutines.launch
+import com.example.frontend.ui.component.PostCard
+import com.example.frontend.ui.component.ScrollToTopButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -170,6 +172,7 @@ fun HomeScreen(
     }
 }
 
+// Header
 @Composable
 fun HomeHeader() {
     Surface(
@@ -214,6 +217,8 @@ fun HomeHeader() {
     }
 }
 
+
+// Create new post
 @Composable
 fun CreatePostSection(user: User) {
     Surface(
@@ -260,179 +265,6 @@ fun CreatePostSection(user: User) {
                 contentDescription = "Add Image",
                 modifier = Modifier.size(24.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-    }
-}
-
-@Composable
-fun PostCard(post: Post) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RectangleShape // Facebook style thường là hình chữ nhật full width
-    ) {
-        Column(modifier = Modifier.padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = post.userAvatar,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape)
-                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.icon_user)
-                )
-                Spacer(Modifier.width(12.dp))
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = post.displayName,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            painter = painterResource(id = R.drawable.icon_earth),
-                            contentDescription = null,
-                            modifier = Modifier.size(12.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = formatTimeAgo(post.createdAt),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-                IconButton(onClick = {}) {
-                    Icon(
-                        Icons.Default.MoreHoriz,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-
-            // Content: Text
-            Text(
-                text = post.content,
-                modifier = Modifier.padding(vertical = 12.dp),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-
-            // Content: Media
-            if (post.cdnUrl.isNotEmpty()) {
-                PostMediaContent(post)
-            }
-
-            Spacer(Modifier.height(12.dp))
-
-            // Footer: Like/Comment/Share
-            Row(modifier = Modifier.fillMaxWidth()) {
-                InteractionItem(R.drawable.icon_hearth, post.likeCount.toString())
-                Spacer(Modifier.width(24.dp))
-                InteractionItem(R.drawable.icon_message, post.commentCount.toString())
-                Spacer(Modifier.width(24.dp))
-                InteractionItem(R.drawable.icon_share, post.shareCount.toString())
-            }
-        }
-    }
-}
-
-@Composable
-fun PostMediaContent(post: Post) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .border(
-                0.5.dp,
-                MaterialTheme.colorScheme.outlineVariant,
-                RoundedCornerShape(8.dp)
-            )
-    ) {
-        if (post.kind == "IMAGE") {
-            AsyncImage(
-                model = post.cdnUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.FillWidth
-            )
-        } else if (post.kind == "VIDEO") {
-            // Sử dụng AndroidView để nhúng VideoView cũ
-            AndroidView(
-                factory = { ctx ->
-                    VideoView(ctx).apply {
-                        setVideoURI(Uri.parse(post.cdnUrl))
-                        val controller = MediaController(ctx)
-                        controller.setAnchorView(this)
-                        setMediaController(controller)
-                        setOnPreparedListener {
-                            it.isLooping = true
-                            start()
-                        }
-                    }
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(16f / 9f)
-            )
-        }
-    }
-}
-
-@Composable
-fun InteractionItem(iconRes: Int, count: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Icon(
-            painter = painterResource(id = iconRes),
-            contentDescription = null,
-            modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = count,
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-fun formatTimeAgo(timeString: String): String {
-    return try {
-        val now = LocalDateTime.now()
-        timeString.substring(0, 10)
-    } catch (e: Exception) {
-        "Vừa xong"
-    }
-}
-
-@Composable
-fun ScrollToTopButton(
-    visible: Boolean,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    AnimatedVisibility(
-        visible = visible,
-        enter = fadeIn() + slideInVertically(initialOffsetY = { it / 2 }),
-        exit = fadeOut() + slideOutVertically(targetOffsetY = { it / 2 }),
-        modifier = modifier
-    ) {
-        SmallFloatingActionButton(
-            onClick = onClick,
-            containerColor = OrangeLight,
-            contentColor = Color.White,
-            elevation = FloatingActionButtonDefaults.elevation(defaultElevation = 4.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.KeyboardArrowUp,
-                contentDescription = "Cuộn lên trên cùng"
             )
         }
     }

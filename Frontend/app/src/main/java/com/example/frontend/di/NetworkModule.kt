@@ -3,7 +3,9 @@ package com.example.frontend.di
 import com.example.frontend.core.config.AppConfig
 import com.example.frontend.core.network.JwtInterceptor
 import com.example.frontend.core.network.TokenProvider
+import com.example.frontend.data.datastore.TokenDataStore
 import com.example.frontend.data.local.dao.PostDao
+import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.remote.api.AuthApi
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.repository.AuthRepositoryImpl
@@ -66,9 +68,10 @@ object NetworkModule {
     @Singleton
     fun provideAuthRepository(
         authApi: AuthApi,
-        tokenDataStore: com.example.frontend.data.datastore.TokenDataStore
+        tokenDataStore: TokenDataStore,
+        userDao: UserDao
     ): AuthRepository {
-        return AuthRepositoryImpl(authApi, tokenDataStore)
+        return AuthRepositoryImpl(authApi, tokenDataStore, userDao)
     }
 
     @Provides

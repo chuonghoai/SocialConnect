@@ -1,26 +1,21 @@
 package com.example.frontend.data.remote.api
 
-import com.example.frontend.data.remote.dto.LoginRequestDto
-import com.example.frontend.data.remote.dto.LoginResponseDto
-import com.example.frontend.data.remote.dto.MeResponseDto
-import com.example.frontend.data.remote.dto.PostResponseDto
-import com.example.frontend.data.remote.dto.RegisterRequestDto
-import com.example.frontend.data.remote.dto.sendOtpRequestDto
-import com.example.frontend.data.remote.dto.sendOtpResponseDto
+import com.example.frontend.domain.model.Token
+import com.example.frontend.domain.model.User
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 
 interface AuthApi {
     @GET(ApiRoutes.ME)
-    suspend fun me(): MeResponseDto
+    suspend fun me(): User
 
     @POST(ApiRoutes.LOGIN)
-    suspend fun login(@Body req: LoginRequestDto): LoginResponseDto
+    suspend fun login(@Body req: Map<String, String>): Token
 
     @POST(ApiRoutes.REGISTER)
-    suspend fun register(@Body req: RegisterRequestDto): LoginResponseDto
+    suspend fun register(@Body req: Map<String, String>): Token
 
     @POST(ApiRoutes.SEND_MAIL_OTP)
-    suspend fun sendOtp(@Body req: sendOtpRequestDto): sendOtpResponseDto
+    suspend fun sendOtp(@Body req: Map<String, String>): Map<String, String>
 }

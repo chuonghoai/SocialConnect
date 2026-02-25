@@ -49,18 +49,12 @@ fun AppNavGraph(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        topBar = {
-            Spacer(Modifier.windowInsetsTopHeight(WindowInsets.statusBars))
-        },
         bottomBar = {
             if (showBottomBar) {
                 BottomBar(
                     navController = navController,
                     items = bottomNavItems(currentUser?.avatarUrl)
                 )
-            }
-            else {
-                Spacer(Modifier.windowInsetsBottomHeight(WindowInsets.statusBars))
             }
         }
     ) { innerPadding ->
@@ -97,7 +91,6 @@ fun AppNavGraph(
                         }
                     },
                     onRegisterClick = { navController.navigate(Routes.REGISTER) },
-
                 )
             }
 
@@ -132,11 +125,9 @@ fun AppNavGraph(
                             popUpTo(Routes.PROFILE) { inclusive = true }
                         }
                     },
-                    onProfileUpdate = {
-                        sessionViewModel.fetchCurrentUser()
-                    },
-                    navController = navController,
-                    userAvatarUrl = currentUser?.avatarUrl
+                    onBackClick = {
+                        navController.popBackStack()
+                    }
                 )
             }
 

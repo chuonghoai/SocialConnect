@@ -3,7 +3,6 @@ package com.example.frontend.data.repository
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.entity.toEntity
-import com.example.frontend.data.mapper.toDomain
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
@@ -20,15 +19,14 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun getNewsFeed(afterId: String?): ApiResult<List<Post>> {
         return try {
-            val dtoList = postApi.getNewsFeed(lastPostId = afterId)
-            val domainPosts = dtoList.map { it.toDomain() }
+            val posts = postApi.getNewsFeed(lastPostId = afterId)
 
             if (afterId == null) {
                 postDao.clearAllPosts()
             }
-            postDao.insertPosts(domainPosts.map { it.toEntity() })
+            postDao.insertPosts(posts.map { it.toEntity() })
 
-            ApiResult.Success(domainPosts)
+            ApiResult.Success(posts)
 
         } catch (e: IOException) {
             val localPosts = postDao.getAllPosts().map { it.toDomain() }

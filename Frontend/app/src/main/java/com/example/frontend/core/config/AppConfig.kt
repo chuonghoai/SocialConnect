@@ -1,5 +1,7 @@
 package com.example.frontend.core.config
 
+import com.example.frontend.BuildConfig
+
 object AppConfig {
-    const val BASE_URL = "http://192.168.1.122:8081/"
+    val BASE_URL = BuildConfig.BASE_URL
 }

@@ -1,7 +1,7 @@
 package com.example.frontend.data.remote.api
 
 import retrofit2.http.Query
-import com.example.frontend.data.remote.dto.PostResponseDto
+import com.example.frontend.domain.model.Post
 import retrofit2.http.GET
 
 interface PostApi {
@@ -9,5 +9,8 @@ interface PostApi {
     suspend fun getNewsFeed(
         @Query("after") lastPostId: String? = null,
         @Query("limit") limit: Int = 10
-    ) : List<PostResponseDto>
+    ) : List<Post>
+
+    @GET(ApiRoutes.GET_VIDEO)
+    suspend fun getVideo(): List<Post>
 }

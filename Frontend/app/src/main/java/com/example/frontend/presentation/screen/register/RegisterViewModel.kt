@@ -3,8 +3,8 @@ package com.example.frontend.presentation.screen.register
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
-import com.example.frontend.domain.usecase.RegisterUseCase
-import com.example.frontend.domain.usecase.SendOtpUseCase
+import com.example.frontend.domain.usecase.AuthUseCase.RegisterUseCase
+import com.example.frontend.domain.usecase.AuthUseCase.SendOtpUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
