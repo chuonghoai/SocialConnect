@@ -24,14 +24,14 @@ fun bottomNavItems(userAvatarUrl: String?): List<BottomNavItem> = listOf(
         icon = BottomNavIcon.Drawable(R.drawable.icon_home)
     ),
     BottomNavItem(
-        route = "film",
-        label = "FIlm",
-        icon = BottomNavIcon.Drawable(R.drawable.icon_film)
-    ),
-    BottomNavItem(
         route = "search",
         label = "Search",
         icon = BottomNavIcon.Drawable(R.drawable.icon_search)
+    ),
+    BottomNavItem(
+        route = "film",
+        label = "FIlm",
+        icon = BottomNavIcon.Drawable(R.drawable.icon_film)
     ),
     BottomNavItem(
         route = "notification",

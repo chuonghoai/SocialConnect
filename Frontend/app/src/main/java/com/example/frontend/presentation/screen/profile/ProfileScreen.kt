@@ -46,12 +46,10 @@ fun ProfileScreen(
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
-
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-
-    // Get current user
     val currentUser = (uiState as? ProfileUiState.Success)?.user
 
     // trigger scroll to top
@@ -86,7 +84,7 @@ fun ProfileScreen(
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             PullToRefreshBox(
                 state = pullRefreshState,
-                isRefreshing = uiState is ProfileUiState.Loading,
+                isRefreshing = isRefreshing,
                 onRefresh = { viewModel.load(isRefresh = true) },
                 modifier = Modifier.fillMaxSize()
             ) {

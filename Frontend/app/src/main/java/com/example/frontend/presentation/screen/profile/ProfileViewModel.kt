@@ -21,26 +21,38 @@ class ProfileViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
-
     private var isFetchingPosts = false
     private var isLastPage = false
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {
-            if (!isRefresh && _uiState.value !is ProfileUiState.Success)
+            if (isRefresh) {
+                _isRefreshing.value = true
+            } else if (_uiState.value !is ProfileUiState.Success) {
                 _uiState.value = ProfileUiState.Loading
+            }
 
             when (val userResult = getMeUseCase(isRefresh = isRefresh)) {
                 is ApiResult.Success -> {
                     val user = userResult.data
-                    _uiState.value = ProfileUiState.Success(user = user, isPostsLoading = true)
+
+                    val currentState = _uiState.value as? ProfileUiState.Success
+                    _uiState.value = ProfileUiState.Success(
+                        user = user,
+                        posts = currentState?.posts ?: emptyList(),
+                        isPostsLoading = !isRefresh
+                    )
 
                     isLastPage = false
                     loadUserPosts(user.id, isRefresh)
                 }
                 is ApiResult.Error -> _uiState.value = ProfileUiState.Error(userResult.message)
             }
+
+            if (isRefresh) _isRefreshing.value = false
         }
     }
 

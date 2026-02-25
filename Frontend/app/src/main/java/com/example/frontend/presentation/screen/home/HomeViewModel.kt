@@ -17,6 +17,8 @@ class HomeViewModel @Inject constructor(
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
+    private val _isRefreshing = MutableStateFlow(false)
+    val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
     private var isFetching = false
@@ -24,7 +26,11 @@ class HomeViewModel @Inject constructor(
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {
-            _uiState.value = HomeUiState.Loading
+            if (isRefresh) {
+                _isRefreshing.value = true
+            } else {
+                _uiState.value = HomeUiState.Loading
+            }
 
             isLastPage = false
             isFetching = true
@@ -34,10 +40,11 @@ class HomeViewModel @Inject constructor(
                     _uiState.value = HomeUiState.Success(posts = result.data)
                     if (result.data.isEmpty()) isLastPage = true
                 }
-                is ApiResult.Error -> _uiState.value =
-                    HomeUiState.Error(result.message)
+                is ApiResult.Error -> _uiState.value = HomeUiState.Error(result.message)
             }
+
             isFetching = false
+            if (isRefresh) _isRefreshing.value = false
         }
     }
 

@@ -54,8 +54,8 @@ fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val isRefreshing by viewModel.isRefreshing.collectAsState()
     val pullRefreshState = rememberPullToRefreshState()
-
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
 
@@ -96,7 +96,7 @@ fun HomeScreen(
         ) {
             PullToRefreshBox(
                 state = pullRefreshState,
-                isRefreshing = uiState is HomeUiState.Loading,
+                isRefreshing = isRefreshing,
                 onRefresh = { viewModel.load(isRefresh = true) },
                 modifier = Modifier.fillMaxSize()
             ) {
