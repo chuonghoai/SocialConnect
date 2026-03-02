@@ -1,5 +1,6 @@
 package com.example.frontend.presentation.navigation
 
+import android.net.Uri
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -163,17 +164,23 @@ fun AppNavGraph(
             composable(Routes.CONVERSATION_LIST) {
                 ConversationScreen(
                     onBackClick = { navController.popBackStack() },
-                    onNavigateToChat = { conversationId ->
-                        navController.navigate(Routes.CHAT.replace("{conversationId}", conversationId))
+                    onNavigateToChat = { conversationId, conversationName, conversationAvatar ->
+                        val encodedName = Uri.encode(conversationName)
+                        val encodedAvatar = Uri.encode(conversationAvatar)
+                        navController.navigate("${Routes.CHAT_BASE}/$conversationId?name=$encodedName&avatar=$encodedAvatar")
                     }
                 )
             }
 
             composable(Routes.CHAT) { backStackEntry ->
                 val conversationId = backStackEntry.arguments?.getString("conversationId") ?: "0"
+                val conversationName = backStackEntry.arguments?.getString("name")?.let(Uri::decode) ?: "Người dùng $conversationId"
+                val conversationAvatar = backStackEntry.arguments?.getString("avatar")?.let(Uri::decode)
 
                 ChatScreen(
                     conversationId = conversationId,
+                    conversationName = conversationName,
+                    conversationAvatarUrl = conversationAvatar,
                     onBackClick = { navController.popBackStack() }
                 )
             }
