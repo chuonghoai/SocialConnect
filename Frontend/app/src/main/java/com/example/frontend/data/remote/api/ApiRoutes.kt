@@ -6,6 +6,6 @@ object ApiRoutes {
     const val REGISTER = "api/auth/register"
     const val SEND_MAIL_OTP = "api/send-otp"
     const val NEWS_FEED = "api/posts/newsfeed"
-    const val GET_VIDEO = "/video"
+    const val GET_VIDEO = "/videos"
     const val USER_POSTS = "api/posts/user/{userId}"
 }

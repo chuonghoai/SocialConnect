@@ -2,6 +2,7 @@ package com.example.frontend.presentation.navigation.bottomnav
 
 import androidx.annotation.DrawableRes
 import com.example.frontend.R
+import com.example.frontend.presentation.navigation.Routes
 
 sealed class BottomNavIcon {
     data class Drawable(@DrawableRes val resId: Int) : BottomNavIcon()
@@ -19,27 +20,27 @@ data class BottomNavItem(
 
 fun bottomNavItems(userAvatarUrl: String?): List<BottomNavItem> = listOf(
     BottomNavItem(
-        route = "home",
+        route = Routes.HOME,
         label = "Home",
         icon = BottomNavIcon.Drawable(R.drawable.icon_home)
     ),
     BottomNavItem(
-        route = "search",
+        route = Routes.SEARCH,
         label = "Search",
         icon = BottomNavIcon.Drawable(R.drawable.icon_search)
     ),
     BottomNavItem(
-        route = "film",
-        label = "FIlm",
+        route = Routes.VIDEO,
+        label = "VIDEO",
         icon = BottomNavIcon.Drawable(R.drawable.icon_film)
     ),
     BottomNavItem(
-        route = "notification",
+        route = Routes.NOTIFICATION,
         label = "Notification",
         icon = BottomNavIcon.Drawable(R.drawable.icon_notification)
     ),
     BottomNavItem(
-        route = "profile",
+        route = Routes.PROFILE,
         label = "Profile",
         icon = BottomNavIcon.Avatar(
             avatarUrl = userAvatarUrl,

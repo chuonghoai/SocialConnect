@@ -13,7 +13,10 @@ interface PostApi {
     ) : List<Post>
 
     @GET(ApiRoutes.GET_VIDEO)
-    suspend fun getVideo(): List<Post>
+    suspend fun getVideo(
+        @Query("after") lastPostId: String? = null,
+        @Query("limit") limit: Int = 10
+    ): List<Post>
 
     @GET(ApiRoutes.USER_POSTS)
     suspend fun getUserPosts(

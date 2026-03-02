@@ -12,7 +12,7 @@ import com.example.frontend.data.local.entity.UserEntity
         PostEntity::class,
         UserEntity::class
     ],
-    version = 2,
+    version = 1,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

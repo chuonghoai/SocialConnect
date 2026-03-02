@@ -10,4 +10,5 @@ interface PostRepository {
         afterId: String? = null,
         isRefresh: Boolean = false
     ): ApiResult<List<Post>>
+    suspend fun getVideos(afterId: String? = null, isRefresh: Boolean = false): ApiResult<List<Post>>
 }

@@ -74,4 +74,35 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "Lỗi không xác định", throwable = e)
         }
     }
+
+    override suspend fun getVideos(afterId: String?, isRefresh: Boolean): ApiResult<List<Post>> {
+        return try {
+            if (isRefresh && afterId == null) {
+                postDao.clearCachedVideos()
+            }
+
+            val videos = postApi.getVideo(lastPostId = afterId)
+
+            if (afterId == null && !isRefresh) {
+                postDao.clearCachedVideos()
+            }
+            postDao.insertPosts(videos.map { it.toEntity() })
+
+            ApiResult.Success(videos)
+
+        } catch (e: IOException) {
+            if (!isRefresh && afterId == null) {
+                val localVideos = postDao.getCachedVideos().map { it.toDomain() }
+                if (localVideos.isNotEmpty()) {
+                    return ApiResult.Success(localVideos)
+                }
+            }
+            ApiResult.Error(message = "Lỗi mạng: Vui lòng kiểm tra lại kết nối Internet.", throwable = e)
+
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()}). Vui lòng thử lại sau.", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
+        }
+    }
 }

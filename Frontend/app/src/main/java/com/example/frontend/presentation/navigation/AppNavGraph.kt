@@ -26,6 +26,7 @@ import com.example.frontend.presentation.screen.login.LoginScreen
 import com.example.frontend.presentation.screen.profile.ProfileScreen
 import com.example.frontend.presentation.screen.register.OtpVerificationScreen
 import com.example.frontend.presentation.screen.register.RegisterScreen
+import com.example.frontend.presentation.screen.video.VideoScreen
 import com.example.frontend.presentation.viewmodel.SessionViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -43,6 +44,7 @@ fun AppNavGraph(
 
     val bottomBarRoutes = setOf(
         Routes.HOME,
+        Routes.VIDEO,
         Routes.PROFILE
     )
     val showBottomBar = currentBaseRoute in bottomBarRoutes
@@ -134,6 +136,12 @@ fun AppNavGraph(
             composable(Routes.HOME) {
                 HomeScreen(
                     currentUser = currentUser
+                )
+            }
+
+            composable(Routes.VIDEO) {
+                VideoScreen(
+
                 )
             }
         }

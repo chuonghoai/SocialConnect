@@ -23,4 +23,10 @@ interface PostDao {
 
     @Query("DELETE FROM posts WHERE userId = :userId")
     suspend fun clearUserPosts(userId: String)
+
+    @Query("SELECT * FROM posts WHERE kind = 'VIDEO' ORDER BY createdAt DESC")
+    suspend fun getCachedVideos(): List<PostEntity>
+
+    @Query("DELETE FROM posts WHERE kind = 'VIDEO'")
+    suspend fun clearCachedVideos()
 }
