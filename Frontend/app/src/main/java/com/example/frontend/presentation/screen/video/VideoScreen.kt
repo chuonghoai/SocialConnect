@@ -2,12 +2,10 @@ package com.example.frontend.presentation.screen.video
 
 import android.net.Uri
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.pager.VerticalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -16,12 +14,11 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.material3.*
-import androidx.compose.material3.pulltorefresh.PullToRefreshBox
-import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
@@ -39,90 +36,96 @@ import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.domain.model.Post
-import com.example.frontend.ui.theme.OrangePrimary
 import kotlinx.coroutines.delay
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.annotation.OptIn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
     val uiState by viewModel.uiState.collectAsState()
-    val isRefreshing by viewModel.isRefreshing.collectAsState()
-    val pullRefreshState = rememberPullToRefreshState()
-    val listState = rememberLazyListState()
-
-    // Trigger load more
-    val shouldLoadMore by remember {
-        derivedStateOf {
-            val totalItems = listState.layoutInfo.totalItemsCount
-            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisibleItem >= totalItems - 2
-        }
-    }
-
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) viewModel.loadMore()
-    }
 
     LaunchedEffect(Unit) {
         if (uiState is VideoUiState.Loading) viewModel.load()
     }
 
-    Column(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-        // 1. Header luôn hiển thị trên cùng
-        VideoHeader()
+    // Box ngoài cùng chứa toàn bộ màn hình
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        when (val state = uiState) {
+            is VideoUiState.Loading -> {
+                CircularProgressIndicator(
+                    color = Color.White,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            is VideoUiState.Error -> {
+                Column(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(state.message, color = Color.Red)
+                    Spacer(Modifier.height(12.dp))
+                    Button(onClick = { viewModel.load() }) { Text("Thử lại") }
+                }
+            }
+            is VideoUiState.Success -> {
+                val posts = state.posts
+                // Khởi tạo trạng thái của Pager (mỗi trang là 1 video)
+                val pagerState = rememberPagerState(pageCount = { posts.size })
 
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            PullToRefreshBox(
-                state = pullRefreshState,
-                isRefreshing = isRefreshing,
-                onRefresh = { viewModel.load(isRefresh = true) },
-                modifier = Modifier.fillMaxSize()
-            ) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    when (val state = uiState) {
-                        is VideoUiState.Loading -> {
-                            item {
-                                Box(Modifier.fillMaxWidth().padding(50.dp), contentAlignment = Alignment.Center) {
-                                    CircularProgressIndicator(color = OrangePrimary)
-                                }
-                            }
-                        }
-                        is VideoUiState.Error -> {
-                            item {
-                                Column(Modifier.fillMaxWidth().padding(50.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Text(state.message, color = Color.Red)
-                                    Spacer(Modifier.height(12.dp))
-                                    Button(onClick = { viewModel.load() }) { Text("Thử lại") }
-                                }
-                            }
-                        }
-                        is VideoUiState.Success -> {
-                            items(state.posts) { post ->
-                                ReelVideoItem(post = post)
-                                Divider(thickness = 1.dp, color = Color.DarkGray)
-                            }
-                            if (state.isLoadingMore) {
-                                item {
-                                    Box(Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator(color = OrangePrimary)
-                                    }
-                                }
-                            }
-                        }
+                // Tự động load thêm khi cuộn gần cuối danh sách (cách 2 video)
+                LaunchedEffect(pagerState.currentPage) {
+                    if (pagerState.currentPage >= posts.size - 2) {
+                        viewModel.loadMore()
                     }
+                }
+
+                // 1. VerticalPager: Giải quyết yêu cầu tự nhảy từng item và phủ kín
+                VerticalPager(
+                    state = pagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    // Kiểm tra xem video này có đang hiển thị trên màn hình không
+                    val isVisible = pagerState.currentPage == page
+                    ReelVideoItem(post = posts[page], isVisible = isVisible)
+                }
+
+                if (state.isLoadingMore) {
+                    CircularProgressIndicator(
+                        color = Color.White,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 120.dp) // Né Bottom bar
+                            .size(32.dp)
+                    )
                 }
             }
         }
+
+        // 2. Video Header: Đặt ở đây (sau VerticalPager) để nó nổi (overlay) đè lên trên Video
+        VideoHeader(modifier = Modifier.align(Alignment.TopCenter))
     }
 }
 
 @Composable
-fun VideoHeader() {
+fun VideoHeader(modifier: Modifier = Modifier) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(56.dp)
-            .padding(horizontal = 16.dp),
+            // Gradient trong suốt: Từ đen mờ ở trên cùng chuyển dần sang trong suốt ở dưới
+            .background(
+                Brush.verticalGradient(
+                    colors = listOf(
+                        Color.Black.copy(alpha = 0.6f),
+                        Color.Black.copy(alpha = 0.2f),
+                        Color.Transparent
+                    )
+                )
+            )
+            // Padding status bar để thanh trạng thái điện thoại (giờ/pin) không đè vào chữ
+            .statusBarsPadding(),
+//            .padding(horizontal = 16.dp, vertical = 12.dp),
+//            .height(50.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
@@ -133,40 +136,44 @@ fun VideoHeader() {
             modifier = Modifier.size(28.dp)
         )
         Text(
-            text = "AliceApp", // Tên App
+            text = "AliceApp",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
             color = Color.White
         )
-        Spacer(modifier = Modifier.size(28.dp)) // Để cân bằng title ở giữa
+        Spacer(modifier = Modifier.size(28.dp)) // Spacer rỗng để cân bằng title ở giữa
     }
 }
 
 @Composable
-fun ReelVideoItem(post: Post) {
+fun ReelVideoItem(post: Post, isVisible: Boolean) {
+    // ĐẨY STATE LÊN ĐÂY: Quản lý trạng thái âm thanh ngay tại Item
+    var isMuted by remember { mutableStateOf(false) }
+
     Box(
         modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(9f / 16f) // Chỉnh tỷ lệ để vừa màn hình
+            .fillMaxSize()
             .background(Color.Black)
     ) {
-        // 1. Trình phát Video
-        ReelVideoPlayer(videoUrl = post.cdnUrl)
+        // Trình phát Video (Truyền isMuted vào)
+        ReelVideoPlayer(videoUrl = post.cdnUrl, isVisible = isVisible, isMuted = isMuted)
 
-        // 2. Lớp phủ nội dung (Bên phải & Dưới cùng)
+        // Lớp phủ nội dung (Info & Nút tương tác)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
                 .fillMaxWidth()
-                .padding(16.dp)
+                .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                // Info bên trái
+                // Nội dung Text bên trái
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
                             model = post.userAvatar,
                             contentDescription = null,
-                            modifier = Modifier.size(36.dp).clip(CircleShape),
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape),
                             contentScale = ContentScale.Crop,
                             error = painterResource(R.drawable.icon_user)
                         )
@@ -178,30 +185,53 @@ fun ReelVideoItem(post: Post) {
                             fontSize = 16.sp
                         )
                     }
-                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(12.dp))
                     Text(text = post.content, color = Color.White, fontSize = 14.sp)
                 }
 
-                // Các nút tương tác bên phải
+                // Các Icon tương tác bên phải (ĐÃ ĐƯỢC GOM CHUNG)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     InteractionIcon(iconRes = R.drawable.icon_hearth, text = post.likeCount.toString())
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(20.dp))
                     InteractionIcon(iconRes = R.drawable.icon_message, text = post.commentCount.toString())
-                    Spacer(Modifier.height(16.dp))
+                    Spacer(Modifier.height(20.dp))
                     InteractionIcon(iconRes = R.drawable.icon_share, text = post.shareCount.toString())
-                    Spacer(Modifier.height(16.dp))
-                    Icon(Icons.Default.MoreHoriz, contentDescription = "More", tint = Color.White)
+                    Spacer(Modifier.height(20.dp))
+                    Icon(
+                        Icons.Default.MoreHoriz,
+                        contentDescription = "More",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                    Spacer(Modifier.height(20.dp))
+
+                    // NÚT MUTE ĐÃ ĐƯỢC CHUYỂN VÀO ĐÂY
+                    IconButton(
+                        onClick = { isMuted = !isMuted },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                            contentDescription = "Mute",
+                            tint = Color.White,
+                            modifier = Modifier.fillMaxSize()
+                        )
+                    }
                 }
             }
         }
     }
 }
 
+@OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
-fun ReelVideoPlayer(videoUrl: String) {
+fun ReelVideoPlayer(
+    videoUrl: String,
+    isVisible: Boolean,
+    isMuted: Boolean
+) {
     val context = LocalContext.current
     var isPlaying by remember { mutableStateOf(true) }
-    var isMuted by remember { mutableStateOf(false) }
     var isSpeedUp by remember { mutableStateOf(false) }
     var showRewindIndicator by remember { mutableStateOf(false) }
     var showForwardIndicator by remember { mutableStateOf(false) }
@@ -210,17 +240,22 @@ fun ReelVideoPlayer(videoUrl: String) {
         ExoPlayer.Builder(context).build().apply {
             setMediaItem(MediaItem.fromUri(Uri.parse(videoUrl)))
             prepare()
-            playWhenReady = true
             repeatMode = Player.REPEAT_MODE_ONE
         }
     }
 
-    // Quản lý trạng thái Player
-    LaunchedEffect(isPlaying) { if (isPlaying) exoPlayer.play() else exoPlayer.pause() }
+    // Tối ưu hóa: CHỈ phát video nếu màn hình này đang được focus (isVisible == true)
+    LaunchedEffect(isVisible, isPlaying) {
+        if (isVisible && isPlaying) {
+            exoPlayer.play()
+        } else {
+            exoPlayer.pause()
+        }
+    }
+
     LaunchedEffect(isMuted) { exoPlayer.volume = if (isMuted) 0f else 1f }
     LaunchedEffect(isSpeedUp) { exoPlayer.setPlaybackSpeed(if (isSpeedUp) 2f else 1f) }
 
-    // Hủy Player khi rời khỏi màn hình
     DisposableEffect(Unit) {
         onDispose { exoPlayer.release() }
     }
@@ -230,48 +265,61 @@ fun ReelVideoPlayer(videoUrl: String) {
             factory = {
                 PlayerView(it).apply {
                     player = exoPlayer
-                    useController = false // Ẩn controller mặc định
+                    useController = false
+                    // SỬA Ở ĐÂY: Thuộc tính này cực kỳ quan trọng.
+                    // Nó sẽ "zoom" video lên để cắt bỏ viền đen, lấp đầy 100% diện tích màn hình.
+                    resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+
                     layoutParams = android.view.ViewGroup.LayoutParams(
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT,
                         android.view.ViewGroup.LayoutParams.MATCH_PARENT
                     )
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize() // Đảm bảo View chiếm toàn bộ
         )
 
         // Lớp xử lý thao tác vuốt / chạm vô hình
-        Row(modifier = Modifier.fillMaxSize()) {
-            // Nửa trái: Tua lùi 5s
-            Box(
-                modifier = Modifier.weight(1f).fillMaxHeight()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onDoubleTap = {
+        // ĐÃ XÓA Row() VÀ Box() CŨ, THAY BẰNG 1 BOX DUY NHẤT DƯỚI ĐÂY:
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .pointerInput(Unit) {
+                    detectTapGestures(
+                        onPress = {
+                            val pressStartTime = System.currentTimeMillis()
+                            tryAwaitRelease()
+                            val pressDuration = System.currentTimeMillis() - pressStartTime
+                            // Nhả tay ra thì tắt chế độ x2
+                            if (pressDuration > 300) {
+                                isSpeedUp = false
+                            }
+                        },
+                        onLongPress = {
+                            // Đè lâu thì bật x2
+                            isSpeedUp = true
+                        },
+                        onDoubleTap = { offset ->
+                            // Lấy chiều rộng màn hình để chia đôi
+                            val screenWidth = size.width
+                            if (offset.x < screenWidth / 2) {
+                                // Double tap nửa TRÁI -> Tua LẠI
                                 exoPlayer.seekTo((exoPlayer.currentPosition - 5000).coerceAtLeast(0))
                                 showRewindIndicator = true
-                            },
-                            onTap = { isPlaying = !isPlaying }
-                        )
-                    }
-            )
-
-            // Nửa phải: Tua tới 5s
-            Box(
-                modifier = Modifier.weight(1f).fillMaxHeight()
-                    .pointerInput(Unit) {
-                        detectTapGestures(
-                            onDoubleTap = {
+                            } else {
+                                // Double tap nửa PHẢI -> Tua TỚI
                                 exoPlayer.seekTo((exoPlayer.currentPosition + 5000).coerceAtMost(exoPlayer.duration))
                                 showForwardIndicator = true
-                            },
-                            onTap = { isPlaying = !isPlaying }
-                        )
-                    }
-            )
-        }
+                            }
+                        },
+                        onTap = {
+                            // Chạm 1 lần -> Play/Pause
+                            isPlaying = !isPlaying
+                        }
+                    )
+                }
+        )
 
-        // Gesture: Nhấn giữ x2 tốc độ (Bao trùm toàn màn hình để không bị chặn bởi 2 Box trên)
         Box(
             modifier = Modifier.fillMaxSize()
                 .pointerInput(Unit) {
@@ -280,22 +328,21 @@ fun ReelVideoPlayer(videoUrl: String) {
                             val pressStartTime = System.currentTimeMillis()
                             tryAwaitRelease()
                             val pressDuration = System.currentTimeMillis() - pressStartTime
-                            // Nếu giữ lâu hơn 300ms thì xem như LongPress
                             if (pressDuration > 300) {
-                                isSpeedUp = false // Nhả ra thì về bình thường
+                                isSpeedUp = false
                             }
                         },
                         onLongPress = {
-                            isSpeedUp = true // Giữ thì x2
+                            isSpeedUp = true
                         }
                     )
                 }
         )
 
-        // Các Icon hiển thị phản hồi người dùng
+        // Icon báo hiệu
         if (!isPlaying) {
             Icon(
-                painter = painterResource(R.drawable.icon_play_video), // Bạn cần có icon play tròn
+                painter = painterResource(R.drawable.icon_play_video),
                 contentDescription = "Play",
                 tint = Color.White.copy(alpha = 0.7f),
                 modifier = Modifier.align(Alignment.Center).size(64.dp)
@@ -308,26 +355,12 @@ fun ReelVideoPlayer(videoUrl: String) {
                 color = Color.White,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 16.dp)
+                    .padding(top = 100.dp) // Dịch xuống tránh lẹm vào Header
                     .background(Color.Black.copy(0.5f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             )
         }
 
-        // Nút Mute ở góc phải giữa màn hình (hoặc tùy bạn đặt)
-        IconButton(
-            onClick = { isMuted = !isMuted },
-            modifier = Modifier.align(Alignment.CenterEnd).padding(end = 16.dp, bottom = 100.dp)
-        ) {
-            Icon(
-                imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                contentDescription = "Mute",
-                tint = Color.White,
-                modifier = Modifier.size(28.dp)
-            )
-        }
-
-        // Hiệu ứng nhấp nháy khi tua (ẩn sau 500ms)
         LaunchedEffect(showRewindIndicator) {
             if (showRewindIndicator) { delay(500); showRewindIndicator = false }
         }
@@ -340,8 +373,13 @@ fun ReelVideoPlayer(videoUrl: String) {
 @Composable
 fun InteractionIcon(iconRes: Int, text: String) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Icon(painter = painterResource(id = iconRes), contentDescription = null, modifier = Modifier.size(28.dp), tint = Color.White)
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = null,
+            modifier = Modifier.size(32.dp),
+            tint = Color.White
+        )
         Spacer(Modifier.height(4.dp))
-        Text(text = text, color = Color.White, fontSize = 12.sp)
+        Text(text = text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }
