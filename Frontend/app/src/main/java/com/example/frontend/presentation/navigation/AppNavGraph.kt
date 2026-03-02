@@ -21,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.frontend.presentation.navigation.bottomnav.BottomBar
 import com.example.frontend.presentation.navigation.bottomnav.bottomNavItems
+import com.example.frontend.presentation.screen.chat.ChatScreen
 import com.example.frontend.presentation.screen.conversation.ConversationScreen
 import com.example.frontend.presentation.screen.home.HomeScreen
 import com.example.frontend.presentation.screen.login.LoginScreen
@@ -151,6 +152,18 @@ fun AppNavGraph(
 
             composable(Routes.CONVERSATION_LIST) {
                 ConversationScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onNavigateToChat = { conversationId ->
+                        navController.navigate(Routes.CHAT.replace("{conversationId}", conversationId))
+                    }
+                )
+            }
+
+            composable(Routes.CHAT) { backStackEntry ->
+                val conversationId = backStackEntry.arguments?.getString("conversationId") ?: "0"
+
+                ChatScreen(
+                    conversationId = conversationId,
                     onBackClick = { navController.popBackStack() }
                 )
             }

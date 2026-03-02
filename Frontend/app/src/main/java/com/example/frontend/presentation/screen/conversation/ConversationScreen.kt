@@ -46,7 +46,8 @@ val mockConversations = listOf(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConversationScreen(
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    onNavigateToChat: (String) -> Unit = {}
 ) {
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
         // Top Bar
@@ -67,18 +68,24 @@ fun ConversationScreen(
         // Danh sách hiển thị
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(mockConversations) { conv ->
-                ConversationItem(conversation = conv)
+                ConversationItem(
+                    conversation = conv,
+                    onClick = { onNavigateToChat(conv.id) }
+                )
             }
         }
     }
 }
 
 @Composable
-fun ConversationItem(conversation: MockConversation) {
+fun ConversationItem(
+    conversation: MockConversation,
+    onClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* Chuyển đến màn hình chat chi tiết */ }
+            .clickable { onClick() }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
