@@ -101,46 +101,6 @@ fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
                 }
             }
         }
-
-        // 2. Video Header: Đặt ở đây (sau VerticalPager) để nó nổi (overlay) đè lên trên Video
-        VideoHeader(modifier = Modifier.align(Alignment.TopCenter))
-    }
-}
-
-@Composable
-fun VideoHeader(modifier: Modifier = Modifier) {
-    Row(
-        modifier = modifier
-            .fillMaxWidth()
-            // Gradient trong suốt: Từ đen mờ ở trên cùng chuyển dần sang trong suốt ở dưới
-            .background(
-                Brush.verticalGradient(
-                    colors = listOf(
-                        Color.Black.copy(alpha = 0.6f),
-                        Color.Black.copy(alpha = 0.2f),
-                        Color.Transparent
-                    )
-                )
-            )
-            // Padding status bar để thanh trạng thái điện thoại (giờ/pin) không đè vào chữ
-            .statusBarsPadding(),
-//            .padding(horizontal = 16.dp, vertical = 12.dp),
-//            .height(50.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-        Icon(
-            imageVector = Icons.Default.Add,
-            contentDescription = "Add Video",
-            tint = Color.White,
-            modifier = Modifier.size(28.dp)
-        )
-        Text(
-            text = "AliceApp",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
-            color = Color.White
-        )
-        Spacer(modifier = Modifier.size(28.dp)) // Spacer rỗng để cân bằng title ở giữa
     }
 }
 
@@ -179,7 +139,7 @@ fun ReelVideoItem(post: Post, isVisible: Boolean) {
                         )
                         Spacer(Modifier.width(8.dp))
                         Text(
-                            text = "@${post.displayName}",
+                            text = "${post.displayName}",
                             color = Color.White,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
@@ -299,41 +259,12 @@ fun ReelVideoPlayer(
                             // Đè lâu thì bật x2
                             isSpeedUp = true
                         },
-                        onDoubleTap = { offset ->
-                            // Lấy chiều rộng màn hình để chia đôi
-                            val screenWidth = size.width
-                            if (offset.x < screenWidth / 2) {
-                                // Double tap nửa TRÁI -> Tua LẠI
-                                exoPlayer.seekTo((exoPlayer.currentPosition - 5000).coerceAtLeast(0))
-                                showRewindIndicator = true
-                            } else {
-                                // Double tap nửa PHẢI -> Tua TỚI
-                                exoPlayer.seekTo((exoPlayer.currentPosition + 5000).coerceAtMost(exoPlayer.duration))
-                                showForwardIndicator = true
-                            }
+                        onDoubleTap = {
+                            /* TODO */
                         },
                         onTap = {
                             // Chạm 1 lần -> Play/Pause
                             isPlaying = !isPlaying
-                        }
-                    )
-                }
-        )
-
-        Box(
-            modifier = Modifier.fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTapGestures(
-                        onPress = {
-                            val pressStartTime = System.currentTimeMillis()
-                            tryAwaitRelease()
-                            val pressDuration = System.currentTimeMillis() - pressStartTime
-                            if (pressDuration > 300) {
-                                isSpeedUp = false
-                            }
-                        },
-                        onLongPress = {
-                            isSpeedUp = true
                         }
                     )
                 }
