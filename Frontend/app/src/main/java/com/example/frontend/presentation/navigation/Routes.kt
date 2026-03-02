@@ -10,4 +10,5 @@ object Routes {
     const val VIDEO = "video"
     const val SEARCH = "search"
     const val NOTIFICATION = "notification"
+    const val CONVERSATION_LIST = "conversation_list"
 }

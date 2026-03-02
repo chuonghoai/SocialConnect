@@ -51,6 +51,7 @@ import com.example.frontend.ui.component.ScrollToTopButton
 @Composable
 fun HomeScreen(
     currentUser: User?,
+    onNavigateToMessages: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -87,7 +88,7 @@ fun HomeScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        HomeHeader()
+        HomeHeader(onNavigateToMessages = onNavigateToMessages)
 
         Box(
             modifier = Modifier
@@ -182,7 +183,7 @@ fun HomeScreen(
 
 // Header
 @Composable
-fun HomeHeader() {
+fun HomeHeader(onNavigateToMessages: () -> Unit = {}) {
     Surface(
         shadowElevation = 0.dp,
         color = MaterialTheme.colorScheme.background
@@ -212,7 +213,7 @@ fun HomeHeader() {
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                IconButton(onClick = { /* Action Messages */ }) {
+                IconButton(onClick = onNavigateToMessages) {
                     Icon(
                         painter = painterResource(id = R.drawable.icon_message),
                         contentDescription = "Messages",

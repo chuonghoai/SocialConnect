@@ -21,6 +21,7 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.frontend.presentation.navigation.bottomnav.BottomBar
 import com.example.frontend.presentation.navigation.bottomnav.bottomNavItems
+import com.example.frontend.presentation.screen.conversation.ConversationScreen
 import com.example.frontend.presentation.screen.home.HomeScreen
 import com.example.frontend.presentation.screen.login.LoginScreen
 import com.example.frontend.presentation.screen.profile.ProfileScreen
@@ -135,13 +136,22 @@ fun AppNavGraph(
 
             composable(Routes.HOME) {
                 HomeScreen(
-                    currentUser = currentUser
+                    currentUser = currentUser,
+                    onNavigateToMessages = {
+                        navController.navigate(Routes.CONVERSATION_LIST)
+                    }
                 )
             }
 
             composable(Routes.VIDEO) {
                 VideoScreen(
 
+                )
+            }
+
+            composable(Routes.CONVERSATION_LIST) {
+                ConversationScreen(
+                    onBackClick = { navController.popBackStack() }
                 )
             }
         }
