@@ -25,6 +25,7 @@ import com.example.frontend.presentation.screen.chat.ChatScreen
 import com.example.frontend.presentation.screen.conversation.ConversationScreen
 import com.example.frontend.presentation.screen.home.HomeScreen
 import com.example.frontend.presentation.screen.login.LoginScreen
+import com.example.frontend.presentation.screen.notification.NotificationScreen
 import com.example.frontend.presentation.screen.profile.ProfileScreen
 import com.example.frontend.presentation.screen.register.OtpVerificationScreen
 import com.example.frontend.presentation.screen.register.RegisterScreen
@@ -49,6 +50,7 @@ fun AppNavGraph(
         Routes.HOME,
         Routes.SEARCH,
         Routes.VIDEO,
+        Routes.NOTIFICATION,
         Routes.PROFILE
     )
     val showBottomBar = currentBaseRoute in bottomBarRoutes
@@ -152,6 +154,10 @@ fun AppNavGraph(
 
             composable(Routes.VIDEO) {
                 VideoScreen()
+            }
+
+            composable(Routes.NOTIFICATION) {
+                NotificationScreen()
             }
 
             composable(Routes.CONVERSATION_LIST) {
