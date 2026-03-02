@@ -11,5 +11,6 @@ object Routes {
     const val SEARCH = "search"
     const val NOTIFICATION = "notification"
     const val CONVERSATION_LIST = "conversation_list"
-    const val CHAT = "chat/{conversationId}"
+    const val CHAT_BASE = "chat"
+    const val CHAT = "chat/{conversationId}?name={name}&avatar={avatar}"
 }

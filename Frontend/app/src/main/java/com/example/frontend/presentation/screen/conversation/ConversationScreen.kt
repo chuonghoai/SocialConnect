@@ -6,8 +6,11 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.outlined.Map
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -47,32 +50,110 @@ val mockConversations = listOf(
 @Composable
 fun ConversationScreen(
     onBackClick: () -> Unit = {},
-    onNavigateToChat: (String) -> Unit = {}
+    onNavigateToChat: (String, String, String) -> Unit = { _, _, _ -> }
 ) {
-    Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        // Top Bar
-        TopAppBar(
-            title = { Text("Đoạn chat", fontWeight = FontWeight.Bold) },
-            navigationIcon = {
-                IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
-            colors = TopAppBarDefaults.topAppBarColors(
-                containerColor = MaterialTheme.colorScheme.surface
-            )
-        )
-
-        Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color(0xFFF2F0F4))
+    ) {
+        ConversationHeader(onBackClick = onBackClick)
 
         // Danh sách hiển thị
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(mockConversations) { conv ->
                 ConversationItem(
                     conversation = conv,
-                    onClick = { onNavigateToChat(conv.id) }
+                    onClick = { onNavigateToChat(conv.id, conv.name, conv.avatarUrl) }
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun ConversationHeader(onBackClick: () -> Unit) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(horizontal = 18.dp, vertical = 12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBackClick, modifier = Modifier.size(34.dp)) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF111111),
+                    modifier = Modifier.size(30.dp)
+                )
+            }
+
+            Spacer(Modifier.width(10.dp))
+
+            Text(
+                text = "Trò chuyện",
+                fontSize = 22.sp,
+                lineHeight = 28.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color(0xFF131313),
+                modifier = Modifier.weight(1f)
+            )
+
+            Box {
+                IconButton(onClick = {}, modifier = Modifier.size(36.dp)) {
+                    Icon(
+                        imageVector = Icons.Outlined.Map,
+                        contentDescription = "Map",
+                        tint = Color(0xFF1C1C1C),
+                        modifier = Modifier.size(31.dp)
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 2.dp, y = (-1).dp)
+                        .size(17.dp)
+                        .background(Color(0xFFB6191D), CircleShape),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "3",
+                        color = Color.White,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+
+        Spacer(Modifier.height(12.dp))
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(46.dp)
+                .clip(RoundedCornerShape(24.dp))
+                .background(Color(0xFFF5EDE2))
+                .padding(horizontal = 18.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "Tìm kiếm",
+                color = Color(0xFF9B948C),
+                fontSize = 17.sp,
+                modifier = Modifier.weight(1f)
+            )
+            Icon(
+                imageVector = Icons.Outlined.Search,
+                contentDescription = "Search",
+                tint = Color(0xFF4B4B4B),
+                modifier = Modifier.size(27.dp)
+            )
         }
     }
 }
