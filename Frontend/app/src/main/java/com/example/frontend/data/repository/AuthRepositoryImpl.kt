@@ -2,6 +2,7 @@ package com.example.frontend.data.repository
 
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.datastore.TokenDataStore
+import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.AuthApi
@@ -19,7 +20,8 @@ import com.google.gson.reflect.TypeToken
 class AuthRepositoryImpl @Inject constructor(
     private val authApi: AuthApi,
     private val tokenDataStore: TokenDataStore,
-    private val userDao: UserDao
+    private val userDao: UserDao,
+    private val postDao: PostDao
 ) : AuthRepository {
 
     private val gson = Gson()
@@ -87,6 +89,7 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout() {
         tokenDataStore.clear()
         userDao.clearUser()
+        postDao.clearAllPosts()
     }
 
     override suspend fun register(

@@ -31,6 +31,7 @@ import com.example.frontend.presentation.screen.profile.ProfileScreen
 import com.example.frontend.presentation.screen.register.OtpVerificationScreen
 import com.example.frontend.presentation.screen.register.RegisterScreen
 import com.example.frontend.presentation.screen.search.SearchScreen
+import com.example.frontend.presentation.screen.setting.SettingScreen
 import com.example.frontend.presentation.screen.video.VideoScreen
 import com.example.frontend.presentation.viewmodel.SessionViewModel
 
@@ -136,6 +137,9 @@ fun AppNavGraph(
                     },
                     onBackClick = {
                         navController.popBackStack()
+                    },
+                    onNavigateToSetting = {
+                        navController.navigate(Routes.SETTING)
                     }
                 )
             }
@@ -159,6 +163,18 @@ fun AppNavGraph(
 
             composable(Routes.NOTIFICATION) {
                 NotificationScreen()
+            }
+
+            composable(Routes.SETTING) {
+                SettingScreen(
+                    onBackClick = { navController.popBackStack() },
+                    onLoggedOut = {
+                        sessionViewModel.clearSession()
+                        navController.navigate(Routes.LOGIN) {
+                            popUpTo(Routes.SPLASH) { inclusive = true }
+                        }
+                    }
+                )
             }
 
             composable(Routes.CONVERSATION_LIST) {

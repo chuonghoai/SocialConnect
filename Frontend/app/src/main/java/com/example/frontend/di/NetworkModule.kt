@@ -69,9 +69,10 @@ object NetworkModule {
     fun provideAuthRepository(
         authApi: AuthApi,
         tokenDataStore: TokenDataStore,
-        userDao: UserDao
+        userDao: UserDao,
+        postDao: PostDao
     ): AuthRepository {
-        return AuthRepositoryImpl(authApi, tokenDataStore, userDao)
+        return AuthRepositoryImpl(authApi, tokenDataStore, userDao, postDao)
     }
 
     @Provides

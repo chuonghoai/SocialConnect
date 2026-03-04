@@ -43,6 +43,7 @@ import kotlinx.coroutines.launch
 fun ProfileScreen(
     onLoggedOut: () -> Unit,
     onBackClick: () -> Unit = {},
+    onNavigateToSetting: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -79,7 +80,7 @@ fun ProfileScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
-        ProfileTopBar(onBackClick = onBackClick, onMoreClick = {})
+        ProfileTopBar(onBackClick = onBackClick, onMoreClick = onNavigateToSetting)
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             PullToRefreshBox(
@@ -207,7 +208,11 @@ private fun ProfileTopBar(onBackClick: () -> Unit, onMoreClick: () -> Unit) {
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
         )
         IconButton(onClick = onMoreClick) {
-            Icon(Icons.Default.MoreVert, contentDescription = "More", modifier = Modifier.size(28.dp))
+            Icon(
+                Icons.Default.MoreVert,
+                contentDescription = "More",
+                modifier = Modifier.size(28.dp)
+            )
         }
     }
     Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
