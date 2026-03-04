@@ -29,4 +29,7 @@ interface PostDao {
 
     @Query("DELETE FROM posts WHERE kind = 'VIDEO'")
     suspend fun clearCachedVideos()
+
+    @Query("UPDATE posts SET isLiked = :isLiked, likeCount = :likeCount WHERE id = :postId")
+    suspend fun updateLikeStatus(postId: String, isLiked: Boolean, likeCount: Int)
 }

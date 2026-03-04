@@ -92,11 +92,11 @@ fun RegisterScreen(
 
             Spacer(Modifier.height(6.dp))
 
-            // Username
+            // Email
             RoundedInputField(
                 value = state.email,
                 onValueChange = viewModel::setEmail,
-                placeholder = "Tên đăng nhập",
+                placeholder = "Email",
                 leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
                 enabled = !state.loading,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),

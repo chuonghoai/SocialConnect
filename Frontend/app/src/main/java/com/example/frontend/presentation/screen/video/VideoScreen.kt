@@ -49,7 +49,6 @@ fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
         if (uiState is VideoUiState.Loading) viewModel.load()
     }
 
-    // Box ngoài cùng chứa toàn bộ màn hình
     Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
         when (val state = uiState) {
             is VideoUiState.Loading -> {
@@ -70,22 +69,18 @@ fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
             }
             is VideoUiState.Success -> {
                 val posts = state.posts
-                // Khởi tạo trạng thái của Pager (mỗi trang là 1 video)
                 val pagerState = rememberPagerState(pageCount = { posts.size })
 
-                // Tự động load thêm khi cuộn gần cuối danh sách (cách 2 video)
                 LaunchedEffect(pagerState.currentPage) {
                     if (pagerState.currentPage >= posts.size - 2) {
                         viewModel.loadMore()
                     }
                 }
 
-                // 1. VerticalPager: Giải quyết yêu cầu tự nhảy từng item và phủ kín
                 VerticalPager(
                     state = pagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
-                    // Kiểm tra xem video này có đang hiển thị trên màn hình không
                     val isVisible = pagerState.currentPage == page
                     ReelVideoItem(post = posts[page], isVisible = isVisible)
                 }
@@ -95,7 +90,7 @@ fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
                         color = Color.White,
                         modifier = Modifier
                             .align(Alignment.BottomCenter)
-                            .padding(bottom = 120.dp) // Né Bottom bar
+                            .padding(bottom = 120.dp)
                             .size(32.dp)
                     )
                 }
@@ -106,7 +101,6 @@ fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
 
 @Composable
 fun ReelVideoItem(post: Post, isVisible: Boolean) {
-    // ĐẨY STATE LÊN ĐÂY: Quản lý trạng thái âm thanh ngay tại Item
     var isMuted by remember { mutableStateOf(false) }
 
     Box(
@@ -114,10 +108,8 @@ fun ReelVideoItem(post: Post, isVisible: Boolean) {
             .fillMaxSize()
             .background(Color.Black)
     ) {
-        // Trình phát Video (Truyền isMuted vào)
         ReelVideoPlayer(videoUrl = post.cdnUrl, isVisible = isVisible, isMuted = isMuted)
 
-        // Lớp phủ nội dung (Info & Nút tương tác)
         Column(
             modifier = Modifier
                 .align(Alignment.BottomStart)
@@ -125,7 +117,6 @@ fun ReelVideoItem(post: Post, isVisible: Boolean) {
                 .padding(start = 16.dp, end = 16.dp, bottom = 24.dp)
         ) {
             Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.Bottom) {
-                // Nội dung Text bên trái
                 Column(modifier = Modifier.weight(1f)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
@@ -149,7 +140,6 @@ fun ReelVideoItem(post: Post, isVisible: Boolean) {
                     Text(text = post.content, color = Color.White, fontSize = 14.sp)
                 }
 
-                // Các Icon tương tác bên phải (ĐÃ ĐƯỢC GOM CHUNG)
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     InteractionIcon(iconRes = R.drawable.icon_hearth, text = post.likeCount.toString())
                     Spacer(Modifier.height(20.dp))
@@ -165,7 +155,6 @@ fun ReelVideoItem(post: Post, isVisible: Boolean) {
                     )
                     Spacer(Modifier.height(20.dp))
 
-                    // NÚT MUTE ĐÃ ĐƯỢC CHUYỂN VÀO ĐÂY
                     IconButton(
                         onClick = { isMuted = !isMuted },
                         modifier = Modifier.size(28.dp)
@@ -204,7 +193,6 @@ fun ReelVideoPlayer(
         }
     }
 
-    // Tối ưu hóa: CHỈ phát video nếu màn hình này đang được focus (isVisible == true)
     LaunchedEffect(isVisible, isPlaying) {
         if (isVisible && isPlaying) {
             exoPlayer.play()
@@ -226,8 +214,6 @@ fun ReelVideoPlayer(
                 PlayerView(it).apply {
                     player = exoPlayer
                     useController = false
-                    // SỬA Ở ĐÂY: Thuộc tính này cực kỳ quan trọng.
-                    // Nó sẽ "zoom" video lên để cắt bỏ viền đen, lấp đầy 100% diện tích màn hình.
                     resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM
 
                     layoutParams = android.view.ViewGroup.LayoutParams(
@@ -236,11 +222,9 @@ fun ReelVideoPlayer(
                     )
                 }
             },
-            modifier = Modifier.fillMaxSize() // Đảm bảo View chiếm toàn bộ
+            modifier = Modifier.fillMaxSize()
         )
 
-        // Lớp xử lý thao tác vuốt / chạm vô hình
-        // ĐÃ XÓA Row() VÀ Box() CŨ, THAY BẰNG 1 BOX DUY NHẤT DƯỚI ĐÂY:
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -250,27 +234,23 @@ fun ReelVideoPlayer(
                             val pressStartTime = System.currentTimeMillis()
                             tryAwaitRelease()
                             val pressDuration = System.currentTimeMillis() - pressStartTime
-                            // Nhả tay ra thì tắt chế độ x2
                             if (pressDuration > 300) {
                                 isSpeedUp = false
                             }
                         },
                         onLongPress = {
-                            // Đè lâu thì bật x2
                             isSpeedUp = true
                         },
                         onDoubleTap = {
                             /* TODO */
                         },
                         onTap = {
-                            // Chạm 1 lần -> Play/Pause
                             isPlaying = !isPlaying
                         }
                     )
                 }
         )
 
-        // Icon báo hiệu
         if (!isPlaying) {
             Icon(
                 painter = painterResource(R.drawable.icon_play_video),
@@ -286,7 +266,7 @@ fun ReelVideoPlayer(
                 color = Color.White,
                 modifier = Modifier
                     .align(Alignment.TopCenter)
-                    .padding(top = 100.dp) // Dịch xuống tránh lẹm vào Header
+                    .padding(top = 100.dp)
                     .background(Color.Black.copy(0.5f), RoundedCornerShape(12.dp))
                     .padding(horizontal = 12.dp, vertical = 6.dp)
             )

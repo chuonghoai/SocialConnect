@@ -12,5 +12,6 @@ data class Post(
     val likeCount: Int,
     val commentCount: Int,
     val shareCount: Int,
-    val cdnUrl: String
+    val cdnUrl: String,
+    val isLiked: Boolean = false
 )

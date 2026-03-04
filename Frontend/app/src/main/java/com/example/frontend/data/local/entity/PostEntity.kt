@@ -18,7 +18,8 @@ data class PostEntity(
     val likeCount: Int,
     val commentCount: Int,
     val shareCount: Int,
-    val cdnUrl: String
+    val cdnUrl: String,
+    val isLiked: Boolean
 ) {
     fun toDomain(): Post {
         return Post(
@@ -33,7 +34,8 @@ data class PostEntity(
             likeCount = likeCount,
             commentCount = commentCount,
             shareCount = shareCount,
-            cdnUrl = cdnUrl
+            cdnUrl = cdnUrl,
+            isLiked = isLiked
         )
     }
 }
@@ -51,6 +53,7 @@ fun Post.toEntity(): PostEntity {
         likeCount = likeCount,
         commentCount = commentCount,
         shareCount = shareCount,
-        cdnUrl = cdnUrl
+        cdnUrl = cdnUrl,
+        isLiked = isLiked
     )
 }

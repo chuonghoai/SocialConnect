@@ -8,4 +8,5 @@ object ApiRoutes {
     const val NEWS_FEED = "api/posts/newsfeed"
     const val GET_VIDEO = "/videos"
     const val USER_POSTS = "api/posts/user/{userId}"
+    const val LIKE_POST = "api/posts/{postId}/like"
 }

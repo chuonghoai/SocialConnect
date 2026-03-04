@@ -143,7 +143,12 @@ fun HomeScreen(
 
                         is HomeUiState.Success -> {
                             items(state.posts) { post ->
-                                PostCard(post)
+                                PostCard(
+                                    post = post,
+                                    onLikeClick = {
+                                        viewModel.toggleLike(post.id)
+                                    }
+                                )
                             }
 
                             if (state.isLoadingMore) {
@@ -249,7 +254,7 @@ fun CreatePostSection(user: User) {
                     .clip(CircleShape)
                     .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
                 contentScale = ContentScale.Crop,
-                error = painterResource(R.drawable.icon_user) // Ảnh mặc định nếu lỗi
+                error = painterResource(R.drawable.icon_user)
             )
             Spacer(Modifier.width(12.dp))
             Box(

@@ -27,7 +27,10 @@ import com.example.frontend.domain.model.Post
 import java.time.LocalDateTime
 
 @Composable
-fun PostCard(post: Post) {
+fun PostCard(
+    post: Post,
+    onLikeClick: () -> Unit = {}
+) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -90,8 +93,16 @@ fun PostCard(post: Post) {
 
             Spacer(Modifier.height(12.dp))
 
-            Row(modifier = Modifier.fillMaxWidth()) {
-                InteractionItem(R.drawable.icon_hearth, post.likeCount.toString())
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LikeComponent(
+                    isLiked = post.isLiked,
+                    likeCount = post.likeCount,
+                    onLikeClick = onLikeClick,
+                    isVertical = false
+                )
                 Spacer(Modifier.width(24.dp))
                 InteractionItem(R.drawable.icon_message, post.commentCount.toString())
                 Spacer(Modifier.width(24.dp))

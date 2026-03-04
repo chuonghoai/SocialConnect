@@ -105,4 +105,19 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
         }
     }
+
+    override suspend fun likePost(postId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit> {
+        return try {
+            postApi.likePost(postId)
+            postDao.updateLikeStatus(postId, isLiked, likeCount)
+
+            ApiResult.Success(Unit)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi kết nối mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Lỗi không xác định", throwable = e)
+        }
+    }
 }

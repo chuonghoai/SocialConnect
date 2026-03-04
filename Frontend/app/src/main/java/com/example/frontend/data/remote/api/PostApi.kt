@@ -3,6 +3,7 @@ package com.example.frontend.data.remote.api
 import retrofit2.http.Query
 import com.example.frontend.domain.model.Post
 import retrofit2.http.GET
+import retrofit2.http.POST
 import retrofit2.http.Path
 
 interface PostApi {
@@ -24,4 +25,7 @@ interface PostApi {
         @Query("after") lastPostId: String? = null,
         @Query("limit") limit: Int = 10
     ): List<Post>
+
+    @POST(ApiRoutes.LIKE_POST)
+    suspend fun likePost(@Path("postId") postId: String)
 }

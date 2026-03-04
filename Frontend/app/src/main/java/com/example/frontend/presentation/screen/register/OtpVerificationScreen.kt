@@ -94,18 +94,16 @@ fun OtpVerificationScreen(
 
             Spacer(Modifier.height(50.dp))
 
-            // --- OTP INPUT (6 Ô) ---
+            // Otp input
             OtpInputField(
                 otpText = state.otp,
                 onOtpChange = { newValue ->
-                    // Chỉ cho phép nhập số và tối đa 6 ký tự
                     if (newValue.length <= 6 && newValue.all { it.isDigit() }) {
-                        viewModel.updateOtp(newValue) // Cần thêm hàm này vào ViewModel
+                        viewModel.updateOtp(newValue)
                     }
                 }
             )
 
-            // Hiển thị lỗi nếu có
             if (!state.error.isNullOrBlank()) {
                 Spacer(Modifier.height(16.dp))
                 Text(
@@ -118,10 +116,8 @@ fun OtpVerificationScreen(
 
             Spacer(modifier = Modifier.weight(1f))
 
-            // --- CONFIRM BUTTON ---
             Button(
                 onClick = { viewModel.register(onRegisterClick) },
-                // Disable nút nếu chưa nhập đủ 6 số hoặc đang loading
                 enabled = state.otp.length == 6 && !state.loading,
                 modifier = Modifier
                     .fillMaxWidth(0.78f)
@@ -129,7 +125,7 @@ fun OtpVerificationScreen(
                     .padding(bottom = 32.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFF9C98A), // Màu cam nhạt giống RegisterScreen
+                    containerColor = Color(0xFFF9C98A),
                     contentColor = Color.White,
                     disabledContainerColor = Color(0xFFE0E0E0),
                     disabledContentColor = Color(0xFFA0A0A0)
@@ -166,7 +162,7 @@ private fun OtpInputField(
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
         decorationBox = {
             Row(
-                horizontalArrangement = Arrangement.Center, // Căn giữa các ô
+                horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 repeat(6) { index ->
@@ -175,14 +171,13 @@ private fun OtpInputField(
                         else -> ""
                     }
 
-                    // Xác định ô đang được focus (là ô tiếp theo cần nhập)
                     val isFocused = index == otpText.length
 
                     Box(
                         modifier = Modifier
-                            .width(45.dp) // Kích thước mỗi ô
+                            .width(45.dp)
                             .height(50.dp)
-                            .padding(horizontal = 4.dp) // Khoảng cách giữa các ô
+                            .padding(horizontal = 4.dp)
                             .background(
                                 color = Color.White,
                                 shape = RoundedCornerShape(12.dp)
@@ -210,8 +205,6 @@ private fun OtpInputField(
     )
 }
 
-// Cần copy lại hàm TopWaveDecoration từ RegisterScreen hoặc public nó ra dùng chung
-// Để code chạy được độc lập, tôi để lại ở đây:
 @Composable
 private fun TopWaveDecoration() {
     androidx.compose.foundation.Canvas(

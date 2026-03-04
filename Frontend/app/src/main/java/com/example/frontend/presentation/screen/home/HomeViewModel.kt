@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
+import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -13,7 +14,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getNewsFeedUseCase: GetNewsFeedUseCase
+    private val getNewsFeedUseCase: GetNewsFeedUseCase,
+    private val likePostUseCase: LikePostUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -76,6 +78,45 @@ class HomeViewModel @Inject constructor(
                 }
             }
             isFetching = false
+        }
+    }
+
+    fun toggleLike(postId: String) {
+        val currentState = _uiState.value
+        if (currentState !is HomeUiState.Success) return
+
+        val originalPosts = currentState.posts
+
+        var targetIsLiked = false
+        var targetLikeCount = 0
+
+        val updatedPosts = currentState.posts.map { post ->
+            if (post.id == postId) {
+                val newIsLiked = !post.isLiked
+                val newLikeCount = if (newIsLiked) post.likeCount + 1 else post.likeCount - 1
+
+                targetIsLiked = newIsLiked
+                targetLikeCount = newLikeCount
+
+                post.copy(isLiked = newIsLiked, likeCount = newLikeCount)
+            } else {
+                post
+            }
+        }
+        _uiState.value = currentState.copy(posts = updatedPosts)
+
+        viewModelScope.launch {
+            when (val result = likePostUseCase(postId, targetIsLiked, targetLikeCount)) {
+                is ApiResult.Success -> {
+                    //
+                }
+                is ApiResult.Error -> {
+                    val currentLatestState = _uiState.value
+                    if (currentLatestState is HomeUiState.Success) {
+                        _uiState.value = currentLatestState.copy(posts = originalPosts)
+                    }
+                }
+            }
         }
     }
 }
