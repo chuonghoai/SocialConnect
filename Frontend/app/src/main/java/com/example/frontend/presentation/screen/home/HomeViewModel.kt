@@ -3,8 +3,10 @@ package com.example.frontend.presentation.screen.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.core.util.AppNotificationManager
 import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
 import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
+import com.example.frontend.ui.component.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -15,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getNewsFeedUseCase: GetNewsFeedUseCase,
-    private val likePostUseCase: LikePostUseCase
+    private val likePostUseCase: LikePostUseCase,
+    private val notificationManager: AppNotificationManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -115,6 +118,11 @@ class HomeViewModel @Inject constructor(
                     if (currentLatestState is HomeUiState.Success) {
                         _uiState.value = currentLatestState.copy(posts = originalPosts)
                     }
+
+                    notificationManager.showMessage(
+                        message = result.message.ifBlank { "Lỗi kết nối mạng" },
+                        type = NotificationType.ERROR
+                    )
                 }
             }
         }
