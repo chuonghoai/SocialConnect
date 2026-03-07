@@ -24,7 +24,7 @@ object DatabaseModule {
             AppDatabase::class.java,
             "social_app_db"
         )
-            .fallbackToDestructiveMigration()
+            .fallbackToDestructiveMigration(true)
             .build()
     }
 

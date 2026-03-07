@@ -18,4 +18,10 @@ interface AuthApi {
 
     @POST(ApiRoutes.SEND_MAIL_OTP)
     suspend fun sendOtp(@Body req: Map<String, String>): Map<String, String>
+
+    @POST(ApiRoutes.VERIFY_FORGOT_PASSWORD_OTP)
+    suspend fun verifyForgotPasswordOtp(@Body req: Map<String, String>): Map<String, String>
+
+    @POST(ApiRoutes.RESET_PASSWORD)
+    suspend fun resetPassword(@Body req: Map<String, String>): Map<String, String>
 }

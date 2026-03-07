@@ -12,7 +12,6 @@ import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlin.jvm.java
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
 
@@ -99,8 +98,13 @@ class AuthRepositoryImpl @Inject constructor(
     ): ApiResult<Unit> {
         return try {
             val body = mapOf("email" to email, "password" to password, "mailOtp" to mailOtp)
-            val res = authApi.register(body)
-            tokenDataStore.saveAccessToken(res.accessToken)
+            authApi.register(body)
+
+            // Sau đăng ký thành công, bắt buộc đăng nhập lại
+            tokenDataStore.clear()
+            userDao.clearUser()
+            postDao.clearAllPosts()
+
             ApiResult.Success(Unit)
         } catch (e: HttpException) {
             ApiResult.Error(message = "Register failed: ${e.message}", throwable = e)
@@ -120,6 +124,45 @@ class AuthRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "send OTP failed: ${e.message}", throwable = e)
         } catch (e: IOException) {
             ApiResult.Error(message = "Network error", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
+        }
+    }
+
+    override suspend fun verifyForgotPasswordOtp(email: String, otp: String): ApiResult<Unit> {
+        return try {
+            val body = mapOf("email" to email, "mailOtp" to otp)
+            authApi.verifyForgotPasswordOtp(body)
+            ApiResult.Success(Unit)
+        } catch (e: HttpException) {
+            ApiResult.Error(message = "Xác thực OTP thất bại: ${e.message}", throwable = e)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi kết nối mạng", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
+        }
+    }
+
+    override suspend fun resetPassword(email: String, otp: String, newPassword: String): ApiResult<Unit> {
+        return try {
+            val body = mapOf(
+                "email" to email,
+                "mailOtp" to otp,
+                "newPassword" to newPassword,
+                "password" to newPassword
+            )
+            authApi.resetPassword(body)
+
+            // Sau reset password thành công, bắt buộc đăng nhập lại
+            tokenDataStore.clear()
+            userDao.clearUser()
+            postDao.clearAllPosts()
+
+            ApiResult.Success(Unit)
+        } catch (e: HttpException) {
+            ApiResult.Error(message = "Đặt lại mật khẩu thất bại: ${e.message}", throwable = e)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi kết nối mạng", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
         }

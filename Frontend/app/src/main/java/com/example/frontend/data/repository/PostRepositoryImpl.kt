@@ -1,5 +1,7 @@
 package com.example.frontend.data.repository
 
+import android.util.Log
+import com.google.gson.JsonParseException
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.entity.toEntity
@@ -16,6 +18,10 @@ class PostRepositoryImpl @Inject constructor(
     private val postApi: PostApi,
     private val postDao: PostDao
 ) : PostRepository {
+
+    companion object {
+        private const val TAG = "PostRepositoryImpl"
+    }
 
     override suspend fun getNewsFeed(afterId: String?, isRefresh: Boolean): ApiResult<List<Post>> {
         return try {
@@ -43,8 +49,14 @@ class PostRepositoryImpl @Inject constructor(
 
         } catch (e: HttpException) {
             ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()}). Vui lòng thử lại sau.", throwable = e)
+        } catch (e: JsonParseException) {
+            ApiResult.Error(message = "Dữ liệu từ server không đúng định dạng.", throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
+            Log.e(TAG, "getNewsFeed() unexpected error", e)
+            ApiResult.Error(
+                message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi không xác định.",
+                throwable = e
+            )
         }
     }
 
@@ -70,8 +82,11 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "Lỗi mạng", throwable = e)
         } catch (e: HttpException) {
             ApiResult.Error(code = e.code(), message = "Lỗi máy chủ", throwable = e)
+        } catch (e: JsonParseException) {
+            ApiResult.Error(message = "Dữ liệu từ server không đúng định dạng.", throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Lỗi không xác định", throwable = e)
+            Log.e(TAG, "getUserPosts() unexpected error", e)
+            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Lỗi không xác định", throwable = e)
         }
     }
 
@@ -101,8 +116,14 @@ class PostRepositoryImpl @Inject constructor(
 
         } catch (e: HttpException) {
             ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()}). Vui lòng thử lại sau.", throwable = e)
+        } catch (e: JsonParseException) {
+            ApiResult.Error(message = "Dữ liệu từ server không đúng định dạng.", throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
+            Log.e(TAG, "getVideos() unexpected error", e)
+            ApiResult.Error(
+                message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi không xác định.",
+                throwable = e
+            )
         }
     }
 

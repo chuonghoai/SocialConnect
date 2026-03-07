@@ -50,6 +50,22 @@ class RegisterViewModel @Inject constructor(
             return
         }
 
+        if (!u.contains("@")) {
+            _uiState.value = _uiState.value.copy(
+                loading = false,
+                error = "Email không hợp lệ"
+            )
+            return
+        }
+
+        if (p != cp) {
+            _uiState.value = _uiState.value.copy(
+                loading = false,
+                error = "Mật khẩu xác nhận không khớp"
+            )
+            return
+        }
+
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
             when (val res = sendOtpUseCase(e, "REGISTER")) {
