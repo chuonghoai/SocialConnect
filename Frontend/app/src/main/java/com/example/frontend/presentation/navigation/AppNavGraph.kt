@@ -1,6 +1,8 @@
 package com.example.frontend.presentation.navigation
 
 import android.net.Uri
+import androidx.compose.animation.AnimatedContentTransitionScope
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
@@ -44,6 +46,8 @@ import com.example.frontend.presentation.viewmodel.MainViewModel
 import com.example.frontend.presentation.viewmodel.SessionViewModel
 import com.example.frontend.ui.component.AppNotification
 import androidx.navigation.compose.navigation
+import com.example.frontend.presentation.screen.create_post.CreatePostScreen
+import com.example.frontend.presentation.screen.create_post.CreatePostViewModel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -211,7 +215,37 @@ fun AppNavGraph(
                         currentUser = currentUser,
                         onNavigateToMessages = {
                             navController.navigate(Routes.CONVERSATION_LIST)
+                        },
+                        onCreatePostClick = {
+                            navController.navigate(Routes.CREATE_POST)
                         }
+                    )
+                }
+
+                composable(
+                    route = Routes.CREATE_POST,
+                    // Hiệu ứng trượt từ dưới lên khi mở
+                    enterTransition = {
+                        slideIntoContainer(
+                            towards = AnimatedContentTransitionScope.SlideDirection.Up,
+                            animationSpec = tween(400)
+                        )
+                    },
+                    // Hiệu ứng trượt từ trên xuống khi đóng
+                    popExitTransition = {
+                        slideOutOfContainer(
+                            towards = AnimatedContentTransitionScope.SlideDirection.Down,
+                            animationSpec = tween(400)
+                        )
+                    }
+                ) {
+                    val createPostViewModel: CreatePostViewModel = hiltViewModel()
+                    val currentUser by sessionViewModel.currentUser.collectAsState()
+
+                    CreatePostScreen(
+                        currentUser = currentUser,
+                        viewModel = createPostViewModel,
+                        onBackClick = { navController.popBackStack() }
                     )
                 }
 

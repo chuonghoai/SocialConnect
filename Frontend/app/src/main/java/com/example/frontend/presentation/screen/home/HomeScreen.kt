@@ -39,9 +39,11 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.FloatingActionButtonDefaults
 import androidx.compose.material3.SmallFloatingActionButton
+import com.example.frontend.presentation.navigation.Routes
 import com.example.frontend.ui.theme.OrangeLight
 import kotlinx.coroutines.launch
 import com.example.frontend.ui.component.PostCard
@@ -52,6 +54,7 @@ import com.example.frontend.ui.component.ScrollToTopButton
 fun HomeScreen(
     currentUser: User?,
     onNavigateToMessages: () -> Unit = {},
+    onCreatePostClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -88,7 +91,7 @@ fun HomeScreen(
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
-        HomeHeader(onNavigateToMessages = onNavigateToMessages)
+        HomeHeader(onNavigateToMessages = onNavigateToMessages, onCreatePostClick = onCreatePostClick)
 
         Box(
             modifier = Modifier
@@ -107,7 +110,7 @@ fun HomeScreen(
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     item {
-                        if (currentUser != null) CreatePostSection(currentUser)
+                        if (currentUser != null) CreatePostSection(currentUser, onCreatePostClick)
                     }
 
                     when (val state = uiState) {
@@ -188,7 +191,10 @@ fun HomeScreen(
 
 // Header
 @Composable
-fun HomeHeader(onNavigateToMessages: () -> Unit = {}) {
+fun HomeHeader(
+    onNavigateToMessages: () -> Unit = {},
+    onCreatePostClick: () -> Unit = {}
+) {
     Surface(
         shadowElevation = 0.dp,
         color = MaterialTheme.colorScheme.background
@@ -210,7 +216,7 @@ fun HomeHeader(onNavigateToMessages: () -> Unit = {}) {
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { /* Action New Post */ }) {
+                IconButton(onClick = onCreatePostClick) {
                     Icon(
                         painter = painterResource(id = R.drawable.icon_plus),
                         contentDescription = "New Post",
@@ -234,7 +240,7 @@ fun HomeHeader(onNavigateToMessages: () -> Unit = {}) {
 
 // Create new post
 @Composable
-fun CreatePostSection(user: User) {
+fun CreatePostSection(user: User, onCreatePostClick: () -> Unit = {}) {
     Surface(
         modifier = Modifier
             .fillMaxWidth()
@@ -260,12 +266,15 @@ fun CreatePostSection(user: User) {
             Box(
                 modifier = Modifier
                     .weight(1f)
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable { onCreatePostClick() }
                     .border(
                         1.dp,
                         MaterialTheme.colorScheme.outlineVariant,
                         RoundedCornerShape(24.dp)
                     )
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                contentAlignment = Alignment.CenterStart
             ) {
                 Text(
                     "Bạn đang nghĩ gì?",
@@ -277,7 +286,10 @@ fun CreatePostSection(user: User) {
             Icon(
                 painter = painterResource(id = R.drawable.icon_image),
                 contentDescription = "Add Image",
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier
+                    .size(24.dp)
+                    .clip(CircleShape)
+                    .clickable { onCreatePostClick() },
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
