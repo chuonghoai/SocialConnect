@@ -100,7 +100,6 @@ class AuthRepositoryImpl @Inject constructor(
             val body = mapOf("email" to email, "password" to password, "mailOtp" to mailOtp)
             authApi.register(body)
 
-            // Sau đăng ký thành công, bắt buộc đăng nhập lại
             tokenDataStore.clear()
             userDao.clearUser()
             postDao.clearAllPosts()

@@ -43,6 +43,7 @@ import com.example.frontend.presentation.screen.video.VideoScreen
 import com.example.frontend.presentation.viewmodel.MainViewModel
 import com.example.frontend.presentation.viewmodel.SessionViewModel
 import com.example.frontend.ui.component.AppNotification
+import androidx.navigation.compose.navigation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,33 +119,39 @@ fun AppNavGraph(
                     )
                 }
 
-                composable(Routes.REGISTER) {
-                    RegisterScreen(
-                        onLoginClick = { navController.popBackStack() },
-                        onSendOtpClick = {
-                            navController.navigate(Routes.OTP_SENDED) {
-                                popUpTo(Routes.REGISTER) { inclusive = true }
-                            }
+                navigation(startDestination = Routes.REGISTER, route = "register_flow") {
+                    composable(Routes.REGISTER) { backStackEntry ->
+                        val parentEntry = remember(backStackEntry) {
+                            navController.getBackStackEntry("register_flow")
                         }
-                    )
-                }
+                        val sharedViewModel: RegisterViewModel = hiltViewModel(parentEntry)
 
-                composable(Routes.OTP_SENDED) {
-                    val parentEntry = remember {
-                        navController.getBackStackEntry(Routes.REGISTER)
+                        RegisterScreen(
+                            viewModel = sharedViewModel,
+                            onLoginClick = { navController.popBackStack() },
+                            onSendOtpClick = {
+                                navController.navigate(Routes.OTP_SENDED)
+                            }
+                        )
                     }
-                    val registerViewModel: RegisterViewModel = hiltViewModel(parentEntry)
 
-                    OtpVerificationScreen(
-                        viewModel = registerViewModel,
-                        onBackClick = { navController.popBackStack() },
-                        onRegisterClick = {
-                            sessionViewModel.clearSession()
-                            navController.navigate(Routes.LOGIN) {
-                                popUpTo(Routes.REGISTER) { inclusive = true }
-                            }
+                    composable(Routes.OTP_SENDED) { backStackEntry ->
+                        val parentEntry = remember(backStackEntry) {
+                            navController.getBackStackEntry("register_flow")
                         }
-                    )
+                        val sharedViewModel: RegisterViewModel = hiltViewModel(parentEntry)
+
+                        OtpVerificationScreen(
+                            viewModel = sharedViewModel,
+                            onBackClick = { navController.popBackStack() },
+                            onRegisterClick = {
+                                sessionViewModel.fetchCurrentUser()
+                                navController.navigate(Routes.LOGIN) {
+                                    popUpTo("register_flow") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
                 }
 
                 composable(Routes.FORGOT_PASSWORD_EMAIL) {

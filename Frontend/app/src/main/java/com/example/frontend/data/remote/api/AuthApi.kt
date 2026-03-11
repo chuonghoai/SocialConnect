@@ -14,7 +14,7 @@ interface AuthApi {
     suspend fun login(@Body req: Map<String, String>): Token
 
     @POST(ApiRoutes.REGISTER)
-    suspend fun register(@Body req: Map<String, String>): Token
+    suspend fun register(@Body req: Map<String, String>): Map<String, String>
 
     @POST(ApiRoutes.SEND_MAIL_OTP)
     suspend fun sendOtp(@Body req: Map<String, String>): Map<String, String>
