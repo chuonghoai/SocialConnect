@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -26,18 +27,23 @@ import com.example.frontend.presentation.navigation.bottomnav.BottomBar
 import com.example.frontend.presentation.navigation.bottomnav.bottomNavItems
 import com.example.frontend.presentation.screen.chat.ChatScreen
 import com.example.frontend.presentation.screen.conversation.ConversationScreen
+import com.example.frontend.presentation.screen.forgotpassword.ForgotPasswordEmailScreen
+import com.example.frontend.presentation.screen.forgotpassword.ForgotPasswordOtpScreen
+import com.example.frontend.presentation.screen.forgotpassword.ForgotPasswordResetScreen
 import com.example.frontend.presentation.screen.home.HomeScreen
 import com.example.frontend.presentation.screen.login.LoginScreen
 import com.example.frontend.presentation.screen.notification.NotificationScreen
 import com.example.frontend.presentation.screen.profile.ProfileScreen
 import com.example.frontend.presentation.screen.register.OtpVerificationScreen
 import com.example.frontend.presentation.screen.register.RegisterScreen
+import com.example.frontend.presentation.screen.register.RegisterViewModel
 import com.example.frontend.presentation.screen.search.SearchScreen
 import com.example.frontend.presentation.screen.setting.SettingScreen
 import com.example.frontend.presentation.screen.video.VideoScreen
 import com.example.frontend.presentation.viewmodel.MainViewModel
 import com.example.frontend.presentation.viewmodel.SessionViewModel
 import com.example.frontend.ui.component.AppNotification
+import androidx.navigation.compose.navigation
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -109,27 +115,75 @@ fun AppNavGraph(
                             }
                         },
                         onRegisterClick = { navController.navigate(Routes.REGISTER) },
+                        onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD_EMAIL) }
                     )
                 }
 
-                composable(Routes.REGISTER) {
-                    RegisterScreen(
-                        onLoginClick = { navController.popBackStack() },
-                        onSendOtpClick = {
-                            navController.navigate(Routes.OTP_SENDED) {
-                                popUpTo(Routes.REGISTER) { inclusive = true }
+                navigation(startDestination = Routes.REGISTER, route = "register_flow") {
+                    composable(Routes.REGISTER) { backStackEntry ->
+                        val parentEntry = remember(backStackEntry) {
+                            navController.getBackStackEntry("register_flow")
+                        }
+                        val sharedViewModel: RegisterViewModel = hiltViewModel(parentEntry)
+
+                        RegisterScreen(
+                            viewModel = sharedViewModel,
+                            onLoginClick = { navController.popBackStack() },
+                            onSendOtpClick = {
+                                navController.navigate(Routes.OTP_SENDED)
                             }
+                        )
+                    }
+
+                    composable(Routes.OTP_SENDED) { backStackEntry ->
+                        val parentEntry = remember(backStackEntry) {
+                            navController.getBackStackEntry("register_flow")
+                        }
+                        val sharedViewModel: RegisterViewModel = hiltViewModel(parentEntry)
+
+                        OtpVerificationScreen(
+                            viewModel = sharedViewModel,
+                            onBackClick = { navController.popBackStack() },
+                            onRegisterClick = {
+                                sessionViewModel.fetchCurrentUser()
+                                navController.navigate(Routes.LOGIN) {
+                                    popUpTo("register_flow") { inclusive = true }
+                                }
+                            }
+                        )
+                    }
+                }
+
+                composable(Routes.FORGOT_PASSWORD_EMAIL) {
+                    ForgotPasswordEmailScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onOtpSent = { email ->
+                            val encodedEmail = Uri.encode(email)
+                            navController.navigate("${Routes.FORGOT_PASSWORD_OTP_BASE}?email=$encodedEmail")
                         }
                     )
                 }
 
-                composable(Routes.OTP_SENDED) {
-                    OtpVerificationScreen(
+                composable(Routes.FORGOT_PASSWORD_OTP) { backStackEntry ->
+                    val email = backStackEntry.arguments?.getString("email")?.let(Uri::decode).orEmpty()
+
+                    ForgotPasswordOtpScreen(
                         onBackClick = { navController.popBackStack() },
-                        onRegisterClick = {
-                            sessionViewModel.fetchCurrentUser()
-                            navController.navigate(Routes.HOME) {
-                                popUpTo(Routes.OTP_SENDED) { inclusive = true }
+                        onOtpVerified = { _, otp ->
+                            val encodedEmail = Uri.encode(email)
+                            val encodedOtp = Uri.encode(otp)
+                            navController.navigate("${Routes.FORGOT_PASSWORD_RESET_BASE}?email=$encodedEmail&otp=$encodedOtp")
+                        }
+                    )
+                }
+
+                composable(Routes.FORGOT_PASSWORD_RESET) {
+                    ForgotPasswordResetScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onResetDone = {
+                            sessionViewModel.clearSession()
+                            navController.navigate(Routes.LOGIN) {
+                                popUpTo(Routes.LOGIN) { inclusive = true }
                             }
                         }
                     )

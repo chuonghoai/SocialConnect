@@ -25,38 +25,26 @@ class RegisterViewModel @Inject constructor(
     fun setConfirmPassword(v: String) { _uiState.value = _uiState.value.copy(confirmPassword = v) }
     fun updateOtp(v: String) { _uiState.value = _uiState.value.copy(otp = v) }
 
-    var u = String()
-    var p = String()
-    var cp = String()
-    var e = String()
-    var otp = String()
-
     fun sendOtp(onSendOtpClick: () -> Unit) {
-        u = _uiState.value.email
-        p = _uiState.value.password
-        cp = _uiState.value.confirmPassword
-        e = _uiState.value.email
+        val state = _uiState.value
 
-        if (u.isBlank() || p.isBlank() || cp.isBlank()) {
-            _uiState.value = _uiState.value.copy(
-                loading = false,
-                error = when {
-                    u.isBlank() && p.isBlank() -> "Vui lòng nhập email và mật khẩu"
-                    u.isBlank() -> "Vui lòng nhập tên đăng nhập"
-                    p.isBlank() -> "Vui lòng nhập mật khẩu"
-                    else -> "Vui lòng nhập lại mật khẩu"
-                }
-            )
+        if (state.email.isBlank() || state.password.isBlank() || state.confirmPassword.isBlank()) {
+            _uiState.value = state.copy(loading = false, error = "Vui lòng nhập đầy đủ thông tin")
+            return
+        }
+
+        if (state.password != state.confirmPassword) {
+            _uiState.value = state.copy(loading = false, error = "Mật khẩu không khớp")
             return
         }
 
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(loading = true, error = null)
-            when (val res = sendOtpUseCase(e, "REGISTER")) {
+            _uiState.value = state.copy(loading = true, error = null)
+            when (val res = sendOtpUseCase(state.email, "REGISTER")) {
                 is ApiResult.Success -> onSendOtpClick()
                 is ApiResult.Error -> _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = res.message.ifBlank { "Send OTP failed" }
+                    error = res.message.ifBlank { "Lỗi gửi OTP" }
                 )
             }
             _uiState.value = _uiState.value.copy(loading = false)
@@ -64,14 +52,14 @@ class RegisterViewModel @Inject constructor(
     }
 
     fun register(onRegisterClick: () -> Unit) {
-        otp = _uiState.value.otp
+        val state = _uiState.value
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(loading = true, error = null)
-            when (val res = registerUseCase(e, p, otp)) {
+            _uiState.value = state.copy(loading = true, error = null)
+            when (val res = registerUseCase(state.email, state.password, state.otp)) {
                 is ApiResult.Success -> onRegisterClick()
                 is ApiResult.Error -> _uiState.value = _uiState.value.copy(
                     loading = false,
-                    error = res.message.ifBlank { "Register failed" }
+                    error = res.message.ifBlank { "Đăng ký thất bại" }
                 )
             }
             _uiState.value = _uiState.value.copy(loading = false)

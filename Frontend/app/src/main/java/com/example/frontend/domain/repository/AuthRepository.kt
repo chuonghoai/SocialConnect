@@ -10,4 +10,6 @@ interface AuthRepository {
     suspend fun register(email: String, password: String, mailOtp: String): ApiResult<Unit>
 
     suspend fun sendOtp(email: String, type: String): ApiResult<Unit>
+    suspend fun verifyForgotPasswordOtp(email: String, otp: String): ApiResult<Unit>
+    suspend fun resetPassword(email: String, otp: String, newPassword: String): ApiResult<Unit>
 }

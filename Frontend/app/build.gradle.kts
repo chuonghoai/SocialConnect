@@ -7,10 +7,17 @@ plugins {
     id("com.google.dagger.hilt.android")
 }
 
-val localProperties = Properties()
-val localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localProperties.load(localPropertiesFile.inputStream())
+val envProperties = Properties()
+val envFiles = listOf(
+    // Load generated file first, then let local.properties override.
+    // This helps when emulator needs BASE_URL = 10.0.2.2.
+    rootProject.file("gradle/local.properties"),
+    rootProject.file("local.properties")
+)
+envFiles.forEach { file ->
+    if (file.exists()) {
+        envProperties.load(file.inputStream())
+    }
 }
 
 android {
@@ -35,12 +42,12 @@ android {
         buildConfigField(
             "String",
             "BASE_URL",
-            localProperties.getProperty("BASE_URL") ?: "\"http://10.0.2.2:8081/\""
+            envProperties.getProperty("BASE_URL") ?: "\"http://10.0.2.2:8081/\""
         )
         buildConfigField(
             "String",
             "CLOUDINARY_API_KEY",
-            localProperties.getProperty("CLOUDINARY_API_KEY") ?: "\"\""
+            envProperties.getProperty("CLOUDINARY_API_KEY") ?: "\"\""
         )
     }
 
@@ -56,6 +63,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    kotlin {
+        compilerOptions {
+            freeCompilerArgs.add("-Xannotation-default-target=param-property")
+        }
     }
     buildFeatures {
         compose = true
@@ -89,7 +101,6 @@ dependencies {
     val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
-    annotationProcessor("androidx.room:room-compiler:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     implementation("androidx.room:room-rxjava2:$room_version")
     implementation("androidx.room:room-rxjava3:$room_version")

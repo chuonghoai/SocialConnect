@@ -50,7 +50,9 @@ fun RegisterScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
+    val usernameFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
+    val confirmPasswordFocusRequester = remember { FocusRequester() }
 
     Box(
         modifier = Modifier
@@ -115,7 +117,7 @@ fun RegisterScreen(
                 enabled = !state.loading,
                 modifier = Modifier.focusRequester(passwordFocusRequester),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
+                keyboardActions = KeyboardActions(onNext = { confirmPasswordFocusRequester.requestFocus() })
             )
 
             Spacer(Modifier.height(14.dp))
@@ -128,7 +130,7 @@ fun RegisterScreen(
                 leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
                 isPassword = true,
                 enabled = !state.loading,
-                modifier = Modifier.focusRequester(passwordFocusRequester),
+                modifier = Modifier.focusRequester(confirmPasswordFocusRequester),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     focusManager.clearFocus()
