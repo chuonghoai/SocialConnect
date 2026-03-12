@@ -12,4 +12,8 @@ object ApiRoutes {
     const val VERIFY_FORGOT_PASSWORD_OTP = "api/auth/forgot-password/verify-otp"
     const val RESET_PASSWORD = "api/auth/forgot-password/reset"
     const val SEARCH = "api/search"
+
+    const val GET_SIGNATURE = "api/media/signature"
+    const val SAVE_MEDIA = "api/media"
+    const val CREATE_POST = "api/posts"
 }

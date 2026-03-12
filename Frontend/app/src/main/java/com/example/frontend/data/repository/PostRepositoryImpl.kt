@@ -6,6 +6,7 @@ import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.PostApi
+import com.example.frontend.data.remote.dto.CreatePostRequest
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
 import retrofit2.HttpException
@@ -139,6 +140,25 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Lỗi không xác định", throwable = e)
+        }
+    }
+
+    override suspend fun createPost(content: String, visibility: String, mediaId: String?): ApiResult<String> {
+        return try {
+            val requestBody = CreatePostRequest(
+                content = content,
+                visibility = visibility,
+                mediaId = mediaId
+            )
+
+            val response = postApi.createPost(requestBody)
+            val returnedPostId = response["postId"] ?: ""
+
+            ApiResult.Success(returnedPostId)
+        } catch (e: HttpException) {
+            ApiResult.Error(message = "Lỗi Server (${e.code()}): ${e.message()}", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Lỗi đăng bài: ${e.message}", throwable = e)
         }
     }
 }

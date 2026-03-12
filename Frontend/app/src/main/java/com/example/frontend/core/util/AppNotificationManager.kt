@@ -10,7 +10,9 @@ import javax.inject.Singleton
 data class NotificationState(
     val isVisible: Boolean = false,
     val message: String = "",
-    val type: NotificationType = NotificationType.SUCCESS
+    val type: NotificationType = NotificationType.SUCCESS,
+    val actionText: String? = null,
+    val onActionClick: (() -> Unit)? = null
 )
 
 @Singleton

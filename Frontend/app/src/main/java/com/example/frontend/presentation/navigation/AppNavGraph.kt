@@ -245,7 +245,19 @@ fun AppNavGraph(
                     CreatePostScreen(
                         currentUser = currentUser,
                         viewModel = createPostViewModel,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onPostCreated = { newPostId ->
+                            navController.popBackStack()
+//                            mainViewModel.notificationManager.showMessage(
+//                                message = "Đăng bài viết thành công!",
+//                                type = NotificationType.SUCCESS,
+//                                actionText = "Xem bài viết",
+//                                onActionClick = {
+//                                    navController.navigate("post_detail/$newPostId")
+//                                    mainViewModel.notificationManager.clear()
+//                                }
+//                            )
+                        }
                     )
                 }
 

@@ -8,6 +8,7 @@ import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.dao.SearchHistoryDao
 import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.remote.api.AuthApi
+import com.example.frontend.data.remote.api.MediaApi
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.api.SearchApi
 import com.example.frontend.data.repository.AuthRepositoryImpl
@@ -26,6 +27,10 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+ import android.content.Context
+ import dagger.hilt.android.qualifiers.ApplicationContext
+ import com.example.frontend.domain.repository.MediaRepository
+ import com.example.frontend.data.repository.MediaRepositoryImpl
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -111,5 +116,20 @@ object NetworkModule {
         searchHistoryDao: SearchHistoryDao
     ): SearchRepository {
         return SearchRepositoryImpl(searchApi, searchHistoryDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMediaApi(retrofit: Retrofit): MediaApi {
+        return  retrofit.create(MediaApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMediaRepository(
+        mediaApi: MediaApi,
+        @ApplicationContext context: Context
+    ): MediaRepository {
+        return MediaRepositoryImpl(mediaApi, context)
     }
 }

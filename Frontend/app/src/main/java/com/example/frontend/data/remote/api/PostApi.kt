@@ -1,7 +1,9 @@
 package com.example.frontend.data.remote.api
 
+import com.example.frontend.data.remote.dto.CreatePostRequest
 import retrofit2.http.Query
 import com.example.frontend.domain.model.Post
+import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
@@ -28,4 +30,7 @@ interface PostApi {
 
     @POST(ApiRoutes.LIKE_POST)
     suspend fun likePost(@Path("postId") postId: String)
+
+    @POST(ApiRoutes.CREATE_POST)
+    suspend fun createPost(@Body request: CreatePostRequest): Map<String, String>
 }

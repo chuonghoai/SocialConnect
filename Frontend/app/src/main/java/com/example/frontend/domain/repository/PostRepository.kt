@@ -21,4 +21,6 @@ interface PostRepository {
     ): ApiResult<List<Post>>
 
     suspend fun likePost(postId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit>
+
+    suspend fun createPost(content: String, visibility: String, mediaId: String?): ApiResult<String>
 }

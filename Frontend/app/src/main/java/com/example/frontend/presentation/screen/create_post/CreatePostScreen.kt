@@ -34,7 +34,8 @@ import com.example.frontend.domain.model.User
 fun CreatePostScreen(
     currentUser: User?,
     viewModel: CreatePostViewModel,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onPostCreated: (String) -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -113,7 +114,7 @@ fun CreatePostScreen(
                     }
 
                     Button(
-                        onClick = { viewModel.createPost(onSuccess = onBackClick) },
+                        onClick = { viewModel.createPost(onSuccess = onPostCreated) },
                         enabled = state.content.isNotBlank() || state.selectedImageUri != null,
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(20.dp)
