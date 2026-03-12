@@ -3,8 +3,9 @@ package com.example.frontend.presentation.screen.home
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.data.store.PostDetailStore
+import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.GetNewsFeedUseCase
-import com.example.frontend.presentation.screen.profile.ProfileUiState
 import javax.inject.Inject
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -14,7 +15,8 @@ import kotlinx.coroutines.launch
 
 @HiltViewModel
 class HomeViewModel @Inject constructor(
-    private val getNewsFeedUseCase: GetNewsFeedUseCase
+    private val getNewsFeedUseCase: GetNewsFeedUseCase,
+    private val postDetailStore: PostDetailStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -31,4 +33,8 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    /** Lưu post được chọn vào store trước khi navigate sang PostDetailScreen */
+    fun selectPost(post: Post) {
+        postDetailStore.selectedPost = post
+    }
 }

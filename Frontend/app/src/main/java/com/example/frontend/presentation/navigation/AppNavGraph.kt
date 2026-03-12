@@ -17,6 +17,7 @@ import com.example.frontend.presentation.navigation.bottomnav.BottomBar
 import com.example.frontend.presentation.navigation.bottomnav.bottomNavItems
 import com.example.frontend.presentation.screen.home.HomeScreen
 import com.example.frontend.presentation.screen.login.LoginScreen
+import com.example.frontend.presentation.screen.postdetail.PostDetailScreen
 import com.example.frontend.presentation.screen.profile.ProfileScreen
 import com.example.frontend.presentation.screen.register.OtpVerificationScreen
 import com.example.frontend.presentation.screen.register.RegisterScreen
@@ -129,7 +130,14 @@ fun AppNavGraph(
 
             composable(Routes.HOME) {
                 HomeScreen(
-                    currentUser = currentUser
+                    currentUser = currentUser,
+                    onPostClick = { navController.navigate(Routes.POST_DETAIL) }
+                )
+            }
+
+            composable(Routes.POST_DETAIL) {
+                PostDetailScreen(
+                    onBack = { navController.popBackStack() }
                 )
             }
         }

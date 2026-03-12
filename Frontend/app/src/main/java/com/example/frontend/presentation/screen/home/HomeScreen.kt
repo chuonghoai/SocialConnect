@@ -5,6 +5,7 @@ import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -39,6 +40,11 @@ import com.example.frontend.ui.theme.OrangePrimary
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.annotation.OptIn
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
@@ -65,6 +71,7 @@ import java.util.concurrent.TimeUnit
 @Composable
 fun HomeScreen(
     currentUser: User?,
+    onPostClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -132,7 +139,13 @@ fun HomeScreen(
 
                             // Danh sách bài viết
                             items(posts) { post ->
-                                PostCard(post)
+                                PostCard(
+                                    post = post,
+                                    onClick = {
+                                        viewModel.selectPost(post)
+                                        onPostClick()
+                                    }
+                                )
                             }
                         }
                     }
@@ -238,7 +251,7 @@ fun CreatePostSection(user: User) {
 }
 
 @Composable
-fun PostCard(post: Post) {
+fun PostCard(post: Post, onClick: () -> Unit = {}) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -305,10 +318,13 @@ fun PostCard(post: Post) {
             Spacer(Modifier.height(12.dp))
 
             // Footer: Like/Comment/Share
-            Row(modifier = Modifier.fillMaxWidth()) {
-                InteractionItem(R.drawable.icon_hearth, post.likeCount.toString())
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LikeButton(initialCount = post.likeCount)
                 Spacer(Modifier.width(24.dp))
-                InteractionItem(R.drawable.icon_message, post.commentCount.toString())
+                InteractionItem(R.drawable.icon_message, post.commentCount.toString(), onClick = onClick)
                 Spacer(Modifier.width(24.dp))
                 InteractionItem(R.drawable.icon_share, post.shareCount.toString())
             }
@@ -632,8 +648,50 @@ fun formatVideoTime(millis: Long): String {
 }
 
 @Composable
-fun InteractionItem(iconRes: Int, count: String) {
-    Row(verticalAlignment = Alignment.CenterVertically) {
+fun LikeButton(initialCount: Int) {
+    var isLiked by remember { mutableStateOf(false) }
+    var likeCount by remember { mutableIntStateOf(initialCount) }
+
+    // Scale animation: bật bật nẩy khi like
+    val scale by animateFloatAsState(
+        targetValue = if (isLiked) 1.3f else 1f,
+        animationSpec = spring(
+            dampingRatio = Spring.DampingRatioMediumBouncy,
+            stiffness = Spring.StiffnessLow
+        ),
+        label = "likeScale"
+    )
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable {
+            isLiked = !isLiked
+            likeCount = if (isLiked) likeCount + 1 else likeCount - 1
+        }
+    ) {
+        Icon(
+            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
+            contentDescription = "Like",
+            modifier = Modifier
+                .size(20.dp)
+                .graphicsLayer(scaleX = scale, scaleY = scale),
+            tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Spacer(Modifier.width(4.dp))
+        Text(
+            text = likeCount.toString(),
+            fontSize = 12.sp,
+            color = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+fun InteractionItem(iconRes: Int, count: String, onClick: () -> Unit = {}) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable { onClick() }
+    ) {
         Icon(
             painter = painterResource(id = iconRes),
             contentDescription = null,
