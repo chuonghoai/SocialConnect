@@ -1,6 +1,5 @@
 package com.example.frontend.core.network
 
-import kotlinx.coroutines.runBlocking
 import okhttp3.Interceptor
 import okhttp3.Response
 
@@ -9,7 +8,11 @@ class JwtInterceptor(
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        val token = runBlocking { tokenProvider.getAccessToken() }
+        // Đọc từ in-memory cache – không block OkHttp thread,
+        // không gây ANR.
+        // Cache được populate bởi StartViewModel.init (suspend getAccessToken())
+        // trước khi bất kỳ API call nào xảy ra.
+        val token = tokenProvider.getCachedToken()
 
         val request = if (!token.isNullOrBlank()) {
             chain.request().newBuilder()

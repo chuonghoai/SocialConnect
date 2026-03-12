@@ -5,13 +5,17 @@ import com.example.frontend.core.network.JwtInterceptor
 import com.example.frontend.core.network.TokenProvider
 import com.example.frontend.data.datastore.TokenDataStore
 import com.example.frontend.data.local.dao.PostDao
+import com.example.frontend.data.local.dao.SearchHistoryDao
 import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.remote.api.AuthApi
 import com.example.frontend.data.remote.api.PostApi
+import com.example.frontend.data.remote.api.SearchApi
 import com.example.frontend.data.repository.AuthRepositoryImpl
 import com.example.frontend.data.repository.PostRepositoryImpl
+import com.example.frontend.data.repository.SearchRepositoryImpl
 import com.example.frontend.domain.repository.AuthRepository
 import com.example.frontend.domain.repository.PostRepository
+import com.example.frontend.domain.repository.SearchRepository
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -20,6 +24,7 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 @Module
@@ -43,6 +48,9 @@ object NetworkModule {
         return OkHttpClient.Builder()
             .addInterceptor(JwtInterceptor(tokenProvider))
             .addInterceptor(loggingInterceptor)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 
@@ -88,5 +96,20 @@ object NetworkModule {
         postDao: PostDao
     ): PostRepository {
         return PostRepositoryImpl(postApi, postDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSearchApi(retrofit: Retrofit): SearchApi {
+        return retrofit.create(SearchApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSearchRepository(
+        searchApi: SearchApi,
+        searchHistoryDao: SearchHistoryDao
+    ): SearchRepository {
+        return SearchRepositoryImpl(searchApi, searchHistoryDao)
     }
 }

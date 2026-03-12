@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.room.Room
 import com.example.frontend.data.local.AppDatabase
 import com.example.frontend.data.local.dao.PostDao
+import com.example.frontend.data.local.dao.SearchHistoryDao
 import com.example.frontend.data.local.dao.UserDao
 import dagger.Module
 import dagger.Provides
@@ -38,5 +39,11 @@ object DatabaseModule {
     @Singleton
     fun provideUserDao(database: AppDatabase): UserDao {
         return database.userDao()
+    }
+
+    @Provides
+    @Singleton
+    fun provideSearchHistoryDao(database: AppDatabase): SearchHistoryDao {
+        return database.searchHistoryDao()
     }
 }
