@@ -20,7 +20,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -32,8 +31,8 @@ import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
-import com.example.frontend.presentation.screen.home.ExoVideoPlayer
-import com.example.frontend.presentation.screen.home.formatTimeAgo
+import com.example.frontend.ui.component.PostMediaContent
+import com.example.frontend.ui.component.formatTimeAgo
 import com.example.frontend.ui.theme.OrangePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -241,7 +240,7 @@ private fun PostDetailHeader(
                         contentScale = ContentScale.FillWidth
                     )
                 } else if (post.kind == "VIDEO") {
-                    ExoVideoPlayer(videoUrl = post.cdnUrl)
+                    PostMediaContent(post = post);
                 }
             }
         }
