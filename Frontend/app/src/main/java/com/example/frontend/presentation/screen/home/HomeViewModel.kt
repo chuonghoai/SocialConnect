@@ -4,8 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.util.AppNotificationManager
-import com.example.frontend.data.store.PostDetailStore
-import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
 import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
 import com.example.frontend.ui.component.NotificationType
@@ -20,8 +18,7 @@ import javax.inject.Inject
 class HomeViewModel @Inject constructor(
     private val getNewsFeedUseCase: GetNewsFeedUseCase,
     private val likePostUseCase: LikePostUseCase,
-    private val notificationManager: AppNotificationManager,
-    private val postDetailStore: PostDetailStore
+    private val notificationManager: AppNotificationManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
@@ -129,9 +126,5 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
-    }
-
-    fun selectPost(post: Post) {
-        postDetailStore.selectedPost = post
     }
 }

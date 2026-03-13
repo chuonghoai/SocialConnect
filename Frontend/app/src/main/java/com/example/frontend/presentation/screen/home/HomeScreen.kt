@@ -55,7 +55,6 @@ fun HomeScreen(
     currentUser: User?,
     onNavigateToMessages: () -> Unit = {},
     onCreatePostClick: () -> Unit = {},
-    onPostClick: (Post) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -151,10 +150,6 @@ fun HomeScreen(
                                     post = post,
                                     onLikeClick = {
                                         viewModel.toggleLike(post.id)
-                                    },
-                                    onCommentClick = {
-                                        viewModel.selectPost(post)
-                                        onPostClick(post)
                                     }
                                 )
                             }

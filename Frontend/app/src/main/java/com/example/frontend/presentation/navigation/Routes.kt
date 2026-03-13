@@ -20,5 +20,4 @@ object Routes {
     const val CHAT = "chat/{conversationId}?name={name}&avatar={avatar}"
     const val SETTING ="setting"
     const val CREATE_POST = "create_post"
-    const val POST_DETAIL = "post_detail"
 }

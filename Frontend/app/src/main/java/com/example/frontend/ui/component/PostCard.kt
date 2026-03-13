@@ -4,7 +4,6 @@ import android.net.Uri
 import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,8 +29,7 @@ import java.time.LocalDateTime
 @Composable
 fun PostCard(
     post: Post,
-    onLikeClick: () -> Unit = {},
-    onCommentClick: () -> Unit = {}
+    onLikeClick: () -> Unit = {}
 ) {
     Card(
         modifier = Modifier
@@ -106,11 +104,7 @@ fun PostCard(
                     isVertical = false
                 )
                 Spacer(Modifier.width(24.dp))
-                InteractionItem(
-                    R.drawable.icon_message,
-                    post.commentCount.toString(),
-                    onClick = onCommentClick
-                )
+                InteractionItem(R.drawable.icon_message, post.commentCount.toString())
                 Spacer(Modifier.width(24.dp))
                 InteractionItem(R.drawable.icon_share, post.shareCount.toString())
             }
@@ -154,11 +148,8 @@ fun PostMediaContent(post: Post) {
 }
 
 @Composable
-fun InteractionItem(iconRes: Int, count: String, onClick: () -> Unit = {}) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(onClick = onClick)
-    ) {
+fun InteractionItem(iconRes: Int, count: String) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
         Icon(
             painter = painterResource(id = iconRes),
             contentDescription = null,

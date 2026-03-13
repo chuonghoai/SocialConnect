@@ -1,6 +1,5 @@
 package com.example.frontend.data.remote.api
 
-import com.example.frontend.data.remote.dto.CommentResponseDto
 import com.example.frontend.data.remote.dto.CreatePostRequest
 import retrofit2.http.Query
 import com.example.frontend.domain.model.Post
@@ -34,9 +33,4 @@ interface PostApi {
 
     @POST(ApiRoutes.CREATE_POST)
     suspend fun createPost(@Body request: CreatePostRequest): Map<String, String>
-
-    @GET(ApiRoutes.GET_POST_COMMENTS)
-    suspend fun getPostComments(
-        @Path("postId") postId: String
-    ): List<CommentResponseDto>
 }
