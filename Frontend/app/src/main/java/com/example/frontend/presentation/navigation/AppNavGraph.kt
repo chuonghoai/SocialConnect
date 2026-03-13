@@ -35,6 +35,7 @@ import com.example.frontend.presentation.screen.forgotpassword.ForgotPasswordRes
 import com.example.frontend.presentation.screen.home.HomeScreen
 import com.example.frontend.presentation.screen.login.LoginScreen
 import com.example.frontend.presentation.screen.notification.NotificationScreen
+import com.example.frontend.presentation.screen.postdetail.PostDetailScreen
 import com.example.frontend.presentation.screen.profile.ProfileScreen
 import com.example.frontend.presentation.screen.register.OtpVerificationScreen
 import com.example.frontend.presentation.screen.register.RegisterScreen
@@ -218,7 +219,16 @@ fun AppNavGraph(
                         },
                         onCreatePostClick = {
                             navController.navigate(Routes.CREATE_POST)
+                        },
+                        onPostClick = { _ ->
+                            navController.navigate(Routes.POST_DETAIL)
                         }
+                    )
+                }
+
+                composable(Routes.POST_DETAIL) {
+                    PostDetailScreen(
+                        onBack = { navController.popBackStack() }
                     )
                 }
 
