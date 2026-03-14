@@ -6,6 +6,8 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -28,6 +30,9 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.domain.model.User
+import coil.request.ImageRequest
+import coil.decode.VideoFrameDecoder
+import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -40,8 +45,8 @@ fun CreatePostScreen(
     val state by viewModel.uiState.collectAsState()
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickVisualMedia(),
-        onResult = { uri -> viewModel.onImageSelected(uri) }
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20),
+        onResult = { uris -> viewModel.onMediaSelected(uris) }
     )
 
     Scaffold(
@@ -93,15 +98,18 @@ fun CreatePostScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Visibility mode
                     VisibilityDropdown(
                         selectedOption = state.visibility,
                         onOptionSelected = viewModel::onVisibilityChange
                     )
                     Spacer(modifier = Modifier.weight(1f))
+
+                    // Button add media
                     IconButton(
                         onClick = {
                             photoPickerLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
                             )
                         }
                     ) {
@@ -113,9 +121,10 @@ fun CreatePostScreen(
                         )
                     }
 
+                    // button post
                     Button(
                         onClick = { viewModel.createPost(onSuccess = onPostCreated) },
-                        enabled = state.content.isNotBlank() || state.selectedImageUri != null,
+                        enabled = state.content.isNotBlank() || state.selectedMediaUris.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(20.dp)
                     ) {
@@ -156,26 +165,50 @@ fun CreatePostScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             // Show image
-            state.selectedImageUri?.let { uri ->
-                Box(modifier = Modifier.fillMaxWidth()) {
-                    AsyncImage(
-                        model = uri,
-                        contentDescription = "Selected Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp)),
-                        contentScale = ContentScale.FillWidth
-                    )
+            if (state.selectedMediaUris.isNotEmpty()) {
+                val context = LocalContext.current
 
-                    IconButton(
-                        onClick = { viewModel.onImageSelected(null) },
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(8.dp)
-                            .background(Color.Black.copy(alpha = 0.5f), CircleShape)
-                            .size(32.dp)
-                    ) {
-                        Icon(Icons.Default.Close, contentDescription = "Xóa ảnh", tint = Color.White)
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    state.selectedMediaUris.forEach { uri ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 350.dp)
+                        ) {
+                            val imageRequest = ImageRequest.Builder(context)
+                                .data(uri)
+                                .decoderFactory(VideoFrameDecoder.Factory())
+                                .crossfade(true)
+                                .build()
+
+                            AsyncImage(
+                                model = imageRequest,
+                                contentDescription = "Selected Media",
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(12.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+
+                            IconButton(
+                                onClick = { viewModel.removeMedia(uri) },
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .background(Color.Black.copy(alpha = 0.6f), CircleShape)
+                                    .size(28.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Xóa",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
                     }
                 }
             }

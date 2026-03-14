@@ -4,7 +4,7 @@ import android.net.Uri
 
 data class CreatePostUiState(
     val content: String = "",
-    val selectedImageUri: Uri? = null,
+    val selectedMediaUris: List<Uri> = emptyList(),
     val visibility: String = "Công khai",
     val isLoading: Boolean = false,
     val error: String? = null

@@ -143,12 +143,12 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createPost(content: String, visibility: String, mediaId: String?): ApiResult<String> {
+    override suspend fun createPost(content: String, visibility: String, mediaIds: List<String>?): ApiResult<String> {
         return try {
             val requestBody = CreatePostRequest(
                 content = content,
                 visibility = visibility,
-                mediaId = mediaId
+                mediaId = mediaIds
             )
 
             val response = postApi.createPost(requestBody)

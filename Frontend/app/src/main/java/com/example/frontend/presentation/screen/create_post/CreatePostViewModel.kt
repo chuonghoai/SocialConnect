@@ -30,8 +30,12 @@ class CreatePostViewModel @Inject constructor(
         _uiState.update { it.copy(content = text) }
     }
 
-    fun onImageSelected(uri: Uri?) {
-        _uiState.update { it.copy(selectedImageUri = uri) }
+    fun onMediaSelected(uris: List<Uri>) {
+        _uiState.update { it.copy(selectedMediaUris = (it.selectedMediaUris + uris).distinct()) }
+    }
+
+    fun removeMedia(uri: Uri) {
+        _uiState.update { it.copy(selectedMediaUris = it.selectedMediaUris - uri) }
     }
 
     fun onVisibilityChange(visibility: String) {
@@ -40,28 +44,29 @@ class CreatePostViewModel @Inject constructor(
 
     fun createPost(onSuccess: (String) -> Unit) {
         val state = _uiState.value
-
         if (state.isLoading) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
 
-            var mediaIdToSave: String? = null
+            val mediaIdsToSave = mutableListOf<String>()
 
-            if (state.selectedImageUri != null) {
-                when (val uploadRes = uploadMediaUseCase(state.selectedImageUri)) {
-                    is ApiResult.Success -> {
-                        mediaIdToSave = uploadRes.data
-                    }
-                    is ApiResult.Error -> {
-                        _uiState.update { it.copy(isLoading = false, error = uploadRes.message) }
-                        notificationManager.showMessage("Lỗi up ảnh: ${uploadRes.message}", NotificationType.ERROR)
-                        return@launch
+            if (state.selectedMediaUris.isNotEmpty()) {
+                for (uri in state.selectedMediaUris) {
+                    when (val uploadRes = uploadMediaUseCase(uri)) {
+                        is ApiResult.Success -> {
+                            mediaIdsToSave.add(uploadRes.data)
+                        }
+                        is ApiResult.Error -> {
+                            _uiState.update { it.copy(isLoading = false, error = uploadRes.message) }
+                            notificationManager.showMessage("Lỗi up file: ${uploadRes.message}", NotificationType.ERROR)
+                            return@launch
+                        }
                     }
                 }
             }
 
-            when (val postRes = createPostUseCase(state.content, state.visibility, mediaIdToSave)) {
+            when (val postRes = createPostUseCase(state.content, state.visibility, mediaIdsToSave.ifEmpty { null })) {
                 is ApiResult.Success -> {
                     _uiState.update { it.copy(isLoading = false) }
                     val newPostId = postRes.data
