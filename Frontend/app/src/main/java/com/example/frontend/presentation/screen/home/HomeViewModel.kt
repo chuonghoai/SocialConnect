@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.util.AppNotificationManager
+import com.example.frontend.core.util.PostUploadManager
 import com.example.frontend.data.store.PostDetailStore
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
@@ -21,11 +22,13 @@ class HomeViewModel @Inject constructor(
     private val getNewsFeedUseCase: GetNewsFeedUseCase,
     private val likePostUseCase: LikePostUseCase,
     private val notificationManager: AppNotificationManager,
+    private val postUploadManager: PostUploadManager,
     private val postDetailStore: PostDetailStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
     private val _isRefreshing = MutableStateFlow(false)
+    val uploadState = postUploadManager.uploadState
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 

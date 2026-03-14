@@ -63,6 +63,7 @@ fun HomeScreen(
     val pullRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    val uploadState by viewModel.uploadState.collectAsState()
 
     val shouldLoadMore by remember {
         derivedStateOf {
@@ -111,7 +112,28 @@ fun HomeScreen(
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     item {
-                        if (currentUser != null) CreatePostSection(currentUser, onCreatePostClick)
+                        CreatePostSection(
+                            user = currentUser ?: User(
+                                id = "",
+                                email = "",
+                                displayName = "Người dùng",
+                                avatarUrl = "",
+                                username = "",
+                                phone = "",
+                                role = "USER",
+                                isOnline = false,
+                                postCount = 0,
+                                friendCount = 0,
+                                caption = ""
+                            ),
+                            onCreatePostClick = onCreatePostClick
+                        )
+                    }
+
+                    if (uploadState.isUploading) {
+                        item {
+                            UploadingIndicator(progressText = uploadState.progressText)
+                        }
                     }
 
                     when (val state = uiState) {
@@ -297,6 +319,46 @@ fun CreatePostSection(user: User, onCreatePostClick: () -> Unit = {}) {
                     .clickable { onCreatePostClick() },
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+fun UploadingIndicator(progressText: String) {
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),
+        shape = RoundedCornerShape(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(24.dp),
+                color = MaterialTheme.colorScheme.primary,
+                strokeWidth = 2.5.dp
+            )
+
+            Spacer(modifier = Modifier.width(16.dp))
+
+            Column {
+                Text(
+                    text = "Đang đăng, vui lòng không tắt ứng dụng",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                if (progressText.isNotBlank()) {
+                    Text(
+                        text = progressText,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }

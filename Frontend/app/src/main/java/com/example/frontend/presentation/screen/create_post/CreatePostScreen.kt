@@ -6,8 +6,6 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.LazyRow
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -40,7 +38,7 @@ fun CreatePostScreen(
     currentUser: User?,
     viewModel: CreatePostViewModel,
     onBackClick: () -> Unit,
-    onPostCreated: (String) -> Unit
+    onSuccess: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
 
@@ -123,7 +121,7 @@ fun CreatePostScreen(
 
                     // button post
                     Button(
-                        onClick = { viewModel.createPost(onSuccess = onPostCreated) },
+                        onClick = { viewModel.createPost(onSuccess = onSuccess) },
                         enabled = state.content.isNotBlank() || state.selectedMediaUris.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(20.dp)
