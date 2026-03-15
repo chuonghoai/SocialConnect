@@ -1,6 +1,7 @@
 package com.example.frontend.data.remote.api
 
 import com.example.frontend.data.remote.dto.CommentResponseDto
+import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
 import retrofit2.http.Query
 import com.example.frontend.domain.model.Post
@@ -8,6 +9,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.http.Path
+import retrofit2.Response
 
 interface PostApi {
     @GET(ApiRoutes.NEWS_FEED)
@@ -37,6 +39,14 @@ interface PostApi {
 
     @GET(ApiRoutes.GET_POST_COMMENTS)
     suspend fun getPostComments(
-        @Path("postId") postId: String
+        @Path("postId") postId: String,
+        @Query("page") page: Int,
+        @Query("size") size: Int = 20
     ): List<CommentResponseDto>
+
+    @POST(ApiRoutes.CREATE_POST_COMMENT)
+    suspend fun createComment(
+        @Path("postId") postId: String,
+        @Body request: CreateCommentRequest
+    ): Response<Unit>
 }

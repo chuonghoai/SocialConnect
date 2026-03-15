@@ -7,5 +7,8 @@ data class Comment(
     val avatarUrl: String,
     val content: String,
     val createdAt: String,
-    val likeCount: Int
+    val likeCount: Int,
+    val parentCommentId: String? = null,
+    val mediaUrl: String? = null,
+    val mediaType: String? = null
 )
