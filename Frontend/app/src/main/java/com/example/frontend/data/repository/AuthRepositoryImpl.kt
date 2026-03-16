@@ -1,10 +1,13 @@
 package com.example.frontend.data.repository
 
+import ChangePasswordRequest
+import UpdateProfileRequest
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.datastore.TokenDataStore
 import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.local.entity.toEntity
+import com.example.frontend.data.mapper.toDomain
 import com.example.frontend.data.remote.api.AuthApi
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.repository.AuthRepository
@@ -164,6 +167,32 @@ class AuthRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "Lỗi kết nối mạng", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
+        }
+    }
+
+    override suspend fun updateProfile(displayName: String, dob: String, phone: String, avatar: String?): ApiResult<User> {
+        return try {
+            val response = authApi.updateProfile(UpdateProfileRequest(displayName, dob, phone, avatar))
+            if (response.isSuccessful && response.body() != null) {
+                ApiResult.Success(response.body()!!)
+            } else {
+                ApiResult.Error(message = "Lỗi cập nhật hồ sơ")
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(message = e.message ?: "Lỗi kết nối")
+        }
+    }
+
+    override suspend fun changePassword(oldPassword: String, newPassword: String): ApiResult<Unit> {
+        return try {
+            val response = authApi.changePassword(ChangePasswordRequest(oldPassword, newPassword))
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                ApiResult.Error(message = "Lỗi đổi mật khẩu")
+            }
+        } catch (e: Exception) {
+            ApiResult.Error(message = e.message ?: "Lỗi kết nối")
         }
     }
 }

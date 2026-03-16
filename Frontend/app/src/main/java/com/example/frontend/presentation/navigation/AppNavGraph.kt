@@ -44,6 +44,8 @@ import com.example.frontend.ui.component.AppNotification
 import androidx.navigation.compose.navigation
 import com.example.frontend.presentation.screen.create_post.CreatePostScreen
 import com.example.frontend.presentation.screen.create_post.CreatePostViewModel
+import com.example.frontend.presentation.screen.profile.EditProfileScreen
+import com.example.frontend.presentation.screen.setting.ChangePasswordScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -273,7 +275,27 @@ fun AppNavGraph(
                             navController.navigate(Routes.LOGIN) {
                                 popUpTo(Routes.SPLASH) { inclusive = true }
                             }
+                        },
+                        onEditProfileClick = {
+                            navController.navigate(Routes.EDIT_PROFILE)
+                        },
+                        onChangePasswordClick = {
+                            navController.navigate(Routes.CHANGE_PASSWORD)
                         }
+                    )
+                }
+
+                composable(Routes.EDIT_PROFILE) {
+                    val currentUser by sessionViewModel.currentUser.collectAsState()
+                    EditProfileScreen(
+                        currentUser = currentUser,
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Routes.CHANGE_PASSWORD) {
+                    ChangePasswordScreen(
+                        onBackClick = { navController.popBackStack() }
                     )
                 }
 

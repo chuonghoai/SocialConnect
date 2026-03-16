@@ -4,7 +4,7 @@ object ApiRoutes {
     const val ME = "api/auth/me"
     const val LOGIN = "api/auth/login"
     const val REGISTER = "api/auth/register"
-    const val SEND_MAIL_OTP = "api/send-otp"
+    const val SEND_MAIL_OTP = "api/auth/send-otp"
     const val NEWS_FEED = "api/posts/newsfeed"
     const val GET_VIDEO = "/videos"
     const val USER_POSTS = "api/posts/user/{userId}"
@@ -14,8 +14,9 @@ object ApiRoutes {
     const val VERIFY_FORGOT_PASSWORD_OTP = "api/auth/forgot-password/verify-otp"
     const val RESET_PASSWORD = "api/auth/forgot-password/reset"
     const val SEARCH = "api/search"
-
     const val GET_SIGNATURE = "api/media/signature"
     const val SAVE_MEDIA = "api/media"
     const val CREATE_POST = "api/posts"
+    const val UPDATE_PROFILE = "/api/auth/me"
+    const val CHANGE_PASSWORD = "/auth/change-password"
 }

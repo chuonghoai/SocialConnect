@@ -1,10 +1,14 @@
 package com.example.frontend.data.remote.api
 
+import ChangePasswordRequest
+import UpdateProfileRequest
 import com.example.frontend.domain.model.Token
 import com.example.frontend.domain.model.User
 import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
+import retrofit2.Response
+import retrofit2.http.PUT
 
 interface AuthApi {
     @GET(ApiRoutes.ME)
@@ -24,4 +28,10 @@ interface AuthApi {
 
     @POST(ApiRoutes.RESET_PASSWORD)
     suspend fun resetPassword(@Body req: Map<String, String>): Map<String, String>
+
+    @PUT(ApiRoutes.UPDATE_PROFILE)
+    suspend fun updateProfile(@Body request: UpdateProfileRequest): Response<User>
+
+    @PUT(ApiRoutes.CHANGE_PASSWORD)
+    suspend fun changePassword(@Body request: ChangePasswordRequest): Response<User>
 }
