@@ -143,26 +143,15 @@ fun EditProfileScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = viewModel.phone,
-                onValueChange = { viewModel.phone = it },
-                label = { Text("Số điện thoại") },
+                value = viewModel.email,
+                onValueChange = { viewModel.email = it },
+                label = { Text("Email") },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = OrangePrimary,
                     cursorColor = OrangePrimary
                 )
-            )
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            OutlinedTextField(
-                value = viewModel.email,
-                onValueChange = {},
-                label = { Text("Email") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                enabled = false // Email thường không tự đổi
             )
 
             if (viewModel.error != null) {

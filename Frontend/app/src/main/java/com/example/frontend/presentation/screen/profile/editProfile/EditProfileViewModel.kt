@@ -22,7 +22,6 @@ class EditProfileViewModel @Inject constructor(
 
     var displayName by mutableStateOf("")
     var dob by mutableStateOf("")
-    var phone by mutableStateOf("")
     var email by mutableStateOf("")
 
     // Lưu tạm Uri của ảnh người dùng vừa chọn từ thư viện
@@ -38,7 +37,6 @@ class EditProfileViewModel @Inject constructor(
         if (user != null && !isInitialized) {
             displayName = user.displayName
             email = user.email
-            phone = user.phone ?: ""
             dob = "01/01/2000" // Mock tạm
             currentAvatarUrl = user.avatarUrl
             isInitialized = true
@@ -67,7 +65,7 @@ class EditProfileViewModel @Inject constructor(
             }
 
             // 2. Gọi API cập nhật thông tin
-            when (val result = updateProfileUseCase(displayName, dob, phone, finalAvatarToSubmit)) {
+            when (val result = updateProfileUseCase(displayName, dob, email, finalAvatarToSubmit)) {
                 is ApiResult.Success -> onSuccess()
                 is ApiResult.Error -> error = result.message
             }

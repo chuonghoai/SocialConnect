@@ -11,7 +11,7 @@ interface AuthRepository {
 
     suspend fun sendOtp(email: String, type: String): ApiResult<Unit>
     suspend fun verifyForgotPasswordOtp(email: String, otp: String): ApiResult<Unit>
-    suspend fun resetPassword(email: String, otp: String, newPassword: String): ApiResult<Unit>
-    suspend fun updateProfile(displayName: String, dob: String, phone: String, avatar: String?): ApiResult<User>
+    suspend fun resetPassword(email: String, newPassword: String): ApiResult<Unit>
+    suspend fun updateProfile(displayName: String, dob: String, email: String, avatar: String?): ApiResult<User>
     suspend fun changePassword(oldPassword: String, newPassword: String): ApiResult<Unit>
 }

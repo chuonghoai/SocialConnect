@@ -73,7 +73,6 @@ fun ChangePasswordScreen(
 
             Button(
                 onClick = {
-                    // Xử lý lưu ở đây
                     onBackClick()
                 },
                 modifier = Modifier

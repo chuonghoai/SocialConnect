@@ -133,7 +133,7 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun verifyForgotPasswordOtp(email: String, otp: String): ApiResult<Unit> {
         return try {
-            val body = mapOf("email" to email, "mailOtp" to otp)
+            val body = mapOf("email" to email, "otp" to otp)
             authApi.verifyForgotPasswordOtp(body)
             ApiResult.Success(Unit)
         } catch (e: HttpException) {
@@ -145,11 +145,10 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun resetPassword(email: String, otp: String, newPassword: String): ApiResult<Unit> {
+    override suspend fun resetPassword(email: String, newPassword: String): ApiResult<Unit> {
         return try {
             val body = mapOf(
                 "email" to email,
-                "mailOtp" to otp,
                 "newPassword" to newPassword,
                 "password" to newPassword
             )
@@ -170,9 +169,9 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateProfile(displayName: String, dob: String, phone: String, avatar: String?): ApiResult<User> {
+    override suspend fun updateProfile(displayName: String, dob: String, email: String, avatar: String?): ApiResult<User> {
         return try {
-            val response = authApi.updateProfile(UpdateProfileRequest(displayName, dob, phone, avatar))
+            val response = authApi.updateProfile(UpdateProfileRequest(displayName, dob, email, avatar))
             if (response.isSuccessful && response.body() != null) {
                 ApiResult.Success(response.body()!!)
             } else {
