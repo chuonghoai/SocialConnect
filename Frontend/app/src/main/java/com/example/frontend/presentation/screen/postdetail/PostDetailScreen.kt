@@ -1,18 +1,24 @@
 package com.example.frontend.presentation.screen.postdetail
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.AttachFile
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -34,6 +40,9 @@ import com.example.frontend.domain.model.Post
 import com.example.frontend.ui.component.PostMediaContent
 import com.example.frontend.ui.component.formatTimeAgo
 import com.example.frontend.ui.theme.OrangePrimary
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -42,9 +51,32 @@ fun PostDetailScreen(
     viewModel: PostDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val listState = rememberLazyListState()
+
+    val mediaPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        viewModel.onMediaSelected(uri)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadPostDetail()
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            val totalItems = listState.layoutInfo.totalItemsCount
+            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1
+            lastVisible to totalItems
+        }
+            .map { (lastVisible, totalItems) ->
+                totalItems > 0 && lastVisible >= totalItems - 3
+            }
+            .distinctUntilChanged()
+            .filter { it }
+            .collect {
+                viewModel.loadMoreComments()
+            }
     }
 
     Scaffold(
@@ -76,12 +108,19 @@ fun PostDetailScreen(
                 avatarUrl = "",
                 input = uiState.commentInput,
                 onInputChange = { viewModel.onCommentInputChange(it) },
+                selectedMediaUri = uiState.selectedMediaUri,
+                replyingToComment = uiState.replyingToComment,
+                isSending = uiState.isSendingComment,
+                onPickMedia = { mediaPicker.launch("image/* video/*") },
+                onRemoveMedia = { viewModel.removeSelectedMedia() },
+                onCancelReply = { viewModel.cancelReply() },
                 onSend = { viewModel.submitComment() }
             )
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
         LazyColumn(
+            state = listState,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
@@ -136,11 +175,56 @@ fun PostDetailScreen(
 
             // ── Danh sách comment ──────────────────────────────────────────
             items(uiState.comments, key = { it.id }) { comment ->
-                CommentItem(comment = comment)
+                CommentItem(
+                    comment = comment,
+                    onReply = { viewModel.onReplyToComment(comment) }
+                )
                 HorizontalDivider(
-                    modifier = Modifier.padding(start = 68.dp, end = 16.dp),
+                    modifier = Modifier.padding(
+                        start = if (comment.parentCommentId == null) 68.dp else 86.dp,
+                        end = 16.dp
+                    ),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
                 )
+            }
+
+            if (uiState.isLoadingMoreComments) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = OrangePrimary,
+                            modifier = Modifier.size(24.dp),
+                            strokeWidth = 2.dp
+                        )
+                    }
+                }
+            }
+
+            if (uiState.commentsError && uiState.comments.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(16.dp),
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tải thêm bình luận thất bại.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 13.sp
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        TextButton(onClick = { viewModel.loadMoreComments() }) {
+                            Text("Thử lại")
+                        }
+                    }
+                }
             }
 
             // ── Empty / Error state ────────────────────────────────────────
@@ -157,6 +241,27 @@ fun PostDetailScreen(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
+                    }
+                }
+            }
+
+            if (!uiState.isLoadingComments && uiState.commentsError && uiState.comments.isEmpty()) {
+                item {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 24.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = "Không thể tải bình luận.",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                        Spacer(Modifier.height(8.dp))
+                        Button(onClick = { viewModel.retryLoadComments() }) {
+                            Text("Tải lại")
+                        }
                     }
                 }
             }
@@ -306,14 +411,24 @@ private fun PostDetailHeader(
 // Item comment đơn
 // ─────────────────────────────────────────────────────────────────────────────
 @Composable
-private fun CommentItem(comment: Comment) {
+private fun CommentItem(
+    comment: Comment,
+    onReply: () -> Unit
+) {
     var isLiked by remember { mutableStateOf(false) }
     var likeCount by remember { mutableIntStateOf(comment.likeCount) }
+
+    val isReply = comment.parentCommentId != null
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp),
+            .padding(
+                start = if (isReply) 34.dp else 16.dp,
+                end = 16.dp,
+                top = 8.dp,
+                bottom = 8.dp
+            ),
         verticalAlignment = Alignment.Top
     ) {
         // Avatar
@@ -353,6 +468,41 @@ private fun CommentItem(comment: Comment) {
                 lineHeight = 20.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
+            if (!comment.mediaUrl.isNullOrBlank()) {
+                Spacer(Modifier.height(8.dp))
+                if (comment.mediaType?.contains("video", ignoreCase = true) == true) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(
+                            imageVector = Icons.Default.AttachFile,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = "Đã đính kèm video",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                } else {
+                    AsyncImage(
+                        model = comment.mediaUrl,
+                        contentDescription = null,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = 260.dp)
+                            .clip(RoundedCornerShape(10.dp))
+                            .border(
+                                0.5.dp,
+                                MaterialTheme.colorScheme.outlineVariant,
+                                RoundedCornerShape(10.dp)
+                            ),
+                        contentScale = ContentScale.Crop,
+                        error = painterResource(R.drawable.icon_image)
+                    )
+                }
+            }
             Spacer(Modifier.height(6.dp))
             // Like + Reply
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -380,7 +530,7 @@ private fun CommentItem(comment: Comment) {
                     Spacer(Modifier.width(12.dp))
                 }
                 TextButton(
-                    onClick = {},
+                    onClick = onReply,
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Text(
@@ -401,69 +551,154 @@ private fun CommentItem(comment: Comment) {
 private fun CommentInputBar(
     avatarUrl: String,
     input: String,
+    selectedMediaUri: android.net.Uri?,
+    replyingToComment: Comment?,
+    isSending: Boolean,
     onInputChange: (String) -> Unit,
+    onPickMedia: () -> Unit,
+    onRemoveMedia: () -> Unit,
+    onCancelReply: () -> Unit,
     onSend: () -> Unit
 ) {
     Surface(
         shadowElevation = 8.dp,
         color = MaterialTheme.colorScheme.background
     ) {
-        Row(
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .imePadding()
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
-            // Avatar của current user
-            AsyncImage(
-                model = avatarUrl,
-                contentDescription = null,
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(CircleShape)
-                    .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
-                contentScale = ContentScale.Crop,
-                error = painterResource(R.drawable.icon_user)
-            )
-
-            Spacer(Modifier.width(10.dp))
-
-            // TextField
-            OutlinedTextField(
-                value = input,
-                onValueChange = onInputChange,
-                placeholder = {
+            if (replyingToComment != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
                     Text(
-                        "Thêm bình luận...",
+                        text = "Đang trả lời ${replyingToComment.displayName}",
+                        style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 14.sp
+                        modifier = Modifier.weight(1f)
                     )
-                },
-                modifier = Modifier.weight(1f),
-                shape = RoundedCornerShape(24.dp),
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                singleLine = true,
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = OrangePrimary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
-                )
-            )
+                    IconButton(onClick = onCancelReply, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Hủy trả lời",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
 
-            Spacer(Modifier.width(8.dp))
+            if (selectedMediaUri != null) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Image,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = "Đã chọn 1 tệp",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    IconButton(onClick = onRemoveMedia, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Xóa tệp",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Spacer(Modifier.height(6.dp))
+            }
 
-            // Send button
-            IconButton(
-                onClick = onSend,
-                enabled = input.isNotBlank()
+            Row(
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Icon(
-                    imageVector = Icons.Default.Send,
-                    contentDescription = "Gửi",
-                    tint = if (input.isNotBlank()) OrangePrimary
-                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(24.dp)
+                // Avatar của current user
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(CircleShape)
+                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(R.drawable.icon_user)
                 )
+
+                Spacer(Modifier.width(10.dp))
+
+                // TextField
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = onInputChange,
+                    placeholder = {
+                        Text(
+                            "Thêm bình luận...",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontSize = 14.sp
+                        )
+                    },
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(24.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = OrangePrimary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant
+                    )
+                )
+
+                Spacer(Modifier.width(4.dp))
+
+                IconButton(onClick = onPickMedia, enabled = !isSending) {
+                    Icon(
+                        imageVector = Icons.Default.AttachFile,
+                        contentDescription = "Đính kèm",
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                // Send button
+                IconButton(
+                    onClick = onSend,
+                    enabled = !isSending && (input.isNotBlank() || selectedMediaUri != null)
+                ) {
+                    if (isSending) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(18.dp),
+                            strokeWidth = 2.dp,
+                            color = OrangePrimary
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Default.Send,
+                            contentDescription = "Gửi",
+                            tint = if (input.isNotBlank() || selectedMediaUri != null) OrangePrimary
+                            else MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+                }
             }
         }
     }
