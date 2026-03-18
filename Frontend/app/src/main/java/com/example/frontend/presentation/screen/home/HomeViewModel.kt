@@ -40,7 +40,17 @@ class HomeViewModel @Inject constructor(
 
     private var isFetching = false
     private var isLastPage = false
-    private var savedPostIds: Set<String> = emptySet()
+    private var lastHandledPostCreatedTick = 0L
+
+    init {
+        viewModelScope.launch {
+            postUploadManager.postCreatedTick.collect { tick ->
+                if (tick <= 0L || tick <= lastHandledPostCreatedTick) return@collect
+                lastHandledPostCreatedTick = tick
+                load(isRefresh = true)
+            }
+        }
+    }
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {
@@ -203,34 +213,5 @@ class HomeViewModel @Inject constructor(
 
     fun selectPost(post: Post) {
         postDetailStore.selectedPost = post
-    }
-
-    private suspend fun fetchSavedPostIds(): Set<String> {
-        val ids = LinkedHashSet<String>()
-        var afterId: String? = null
-
-        while (true) {
-            when (val result = getSavedPostsUseCase(afterId = afterId)) {
-                is ApiResult.Success -> {
-                    if (result.data.isEmpty()) {
-                        return ids
-                    }
-
-                    result.data.forEach { ids.add(it.id) }
-                    afterId = result.data.lastOrNull()?.id
-                }
-
-                is ApiResult.Error -> {
-                    return ids
-                }
-            }
-        }
-    }
-
-    private fun applySavedState(posts: List<Post>): List<Post> {
-        if (savedPostIds.isEmpty()) return posts
-        return posts.map { post ->
-            if (savedPostIds.contains(post.id)) post.copy(isSaved = true) else post
-        }
     }
 }

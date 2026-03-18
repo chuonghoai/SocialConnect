@@ -3,6 +3,7 @@
 import com.example.frontend.data.remote.dto.CommentResponseDto
 import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import retrofit2.http.Query
 import com.example.frontend.domain.model.Post
 import retrofit2.Response
 import retrofit2.http.Body
@@ -16,20 +17,20 @@ interface PostApi {
     suspend fun getNewsFeed(
         @Query("after") lastPostId: String? = null,
         @Query("limit") limit: Int = 10
-    ): List<Post>
+    ) : List<Map<String, Any?>>
 
     @GET(ApiRoutes.GET_VIDEO)
     suspend fun getVideo(
         @Query("after") lastPostId: String? = null,
         @Query("limit") limit: Int = 10
-    ): List<Post>
+    ): List<Map<String, Any?>>
 
     @GET(ApiRoutes.USER_POSTS)
     suspend fun getUserPosts(
         @Path("userId") userId: String,
         @Query("after") lastPostId: String? = null,
         @Query("limit") limit: Int = 10
-    ): List<Post>
+    ): List<Map<String, Any?>>
 
     @GET(ApiRoutes.SAVED_POSTS)
     suspend fun getSavedPosts(

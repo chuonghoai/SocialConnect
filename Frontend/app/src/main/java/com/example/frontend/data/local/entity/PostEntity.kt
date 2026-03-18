@@ -41,6 +41,30 @@ data class PostEntity(
 }
 
 fun Post.toEntity(): PostEntity {
+    val safeMedia = media.orEmpty() + mediaIds.orEmpty()
+    val safeRawUrls = (mediaUrls.orEmpty() + images.orEmpty() + videos.orEmpty())
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+
+    val mediaUrls = safeMedia
+        .map { it.resolvedUrl().trim() }
+        .filter { it.isNotEmpty() }
+        .plus(safeRawUrls)
+        .distinct()
+
+    val storageCdnUrl = if (mediaUrls.isNotEmpty()) {
+        mediaUrls.joinToString("|")
+    } else {
+        cdnUrl
+    }
+
+    val storageKind = when {
+        safeMedia.isEmpty() -> kind
+        safeMedia.all { it.kind.orEmpty().uppercase().contains("VIDEO") } -> "VIDEO"
+        safeMedia.all { it.kind.orEmpty().uppercase().contains("IMAGE") } -> "IMAGE"
+        else -> kind
+    }
+
     return PostEntity(
         id = id,
         userId = userId,
@@ -48,12 +72,12 @@ fun Post.toEntity(): PostEntity {
         userAvatar = userAvatar,
         content = content,
         type = type,
-        kind = kind,
+        kind = storageKind,
         createdAt = createdAt,
         likeCount = likeCount,
         commentCount = commentCount,
         shareCount = shareCount,
-        cdnUrl = cdnUrl,
+        cdnUrl = storageCdnUrl,
         isLiked = isLiked
     )
 }

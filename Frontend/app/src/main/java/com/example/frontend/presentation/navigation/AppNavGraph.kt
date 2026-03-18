@@ -219,6 +219,13 @@ fun AppNavGraph(
                         },
                         onPostClick = { _ ->
                             navController.navigate(Routes.POST_DETAIL)
+                        },
+                        onVideoClick = {
+                            navController.navigate(Routes.VIDEO) {
+                                launchSingleTop = true
+                                restoreState = true
+                                popUpTo(Routes.HOME) { saveState = true }
+                            }
                         }
                     )
                 }
