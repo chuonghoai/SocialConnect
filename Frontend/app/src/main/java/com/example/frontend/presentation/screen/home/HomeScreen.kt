@@ -1,4 +1,4 @@
-package com.example.frontend.presentation.screen.home
+﻿package com.example.frontend.presentation.screen.home
 
 import android.net.Uri
 import android.widget.MediaController
@@ -177,7 +177,11 @@ fun HomeScreen(
                                     onCommentClick = {
                                         viewModel.selectPost(post)
                                         onPostClick(post)
-                                    }
+                                    },
+                                    onSaveClick = {
+                                        viewModel.savePost(post.id)
+                                    },
+                                    saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết"
                                 )
                             }
 
@@ -362,3 +366,5 @@ fun UploadingIndicator(progressText: String) {
         }
     }
 }
+
+

@@ -1,4 +1,4 @@
-package com.example.frontend.ui.component
+﻿package com.example.frontend.ui.component
 
 import android.net.Uri
 import android.widget.MediaController
@@ -11,7 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -31,8 +31,12 @@ import java.time.LocalDateTime
 fun PostCard(
     post: Post,
     onLikeClick: () -> Unit = {},
-    onCommentClick: () -> Unit = {}
+    onCommentClick: () -> Unit = {},
+    onSaveClick: (() -> Unit)? = null,
+    saveMenuLabel: String = "Lưu bài viết"
 ) {
+    var isMoreMenuExpanded by remember { mutableStateOf(false) }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -74,12 +78,29 @@ fun PostCard(
                         )
                     }
                 }
-                IconButton(onClick = {}) {
-                    Icon(
-                        Icons.Default.MoreHoriz,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+
+                Box {
+                    IconButton(onClick = { isMoreMenuExpanded = true }) {
+                        Icon(
+                            Icons.Default.MoreHoriz,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = isMoreMenuExpanded,
+                        onDismissRequest = { isMoreMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(saveMenuLabel) },
+                            onClick = {
+                                isMoreMenuExpanded = false
+                                onSaveClick?.invoke()
+                            },
+                            enabled = onSaveClick != null
+                        )
+                    }
                 }
             }
 
@@ -176,9 +197,9 @@ fun InteractionItem(iconRes: Int, count: String, onClick: () -> Unit = {}) {
 
 fun formatTimeAgo(timeString: String): String {
     return try {
-        val now = LocalDateTime.now()
         timeString.substring(0, 10)
     } catch (e: Exception) {
         "Vừa xong"
     }
 }
+

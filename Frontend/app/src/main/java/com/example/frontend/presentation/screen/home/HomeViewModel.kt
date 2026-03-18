@@ -1,4 +1,4 @@
-package com.example.frontend.presentation.screen.home
+﻿package com.example.frontend.presentation.screen.home
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -8,7 +8,9 @@ import com.example.frontend.core.util.PostUploadManager
 import com.example.frontend.data.store.PostDetailStore
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
+import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
 import com.example.frontend.ui.component.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,7 +22,9 @@ import javax.inject.Inject
 @HiltViewModel
 class HomeViewModel @Inject constructor(
     private val getNewsFeedUseCase: GetNewsFeedUseCase,
+    private val getSavedPostsUseCase: GetSavedPostsUseCase,
     private val likePostUseCase: LikePostUseCase,
+    private val savePostUseCase: SavePostUseCase,
     private val notificationManager: AppNotificationManager,
     private val postUploadManager: PostUploadManager,
     private val postDetailStore: PostDetailStore
@@ -34,6 +38,7 @@ class HomeViewModel @Inject constructor(
 
     private var isFetching = false
     private var isLastPage = false
+    private var savedPostIds: Set<String> = emptySet()
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {
@@ -48,9 +53,11 @@ class HomeViewModel @Inject constructor(
 
             when (val result = getNewsFeedUseCase(afterId = null, isRefresh = isRefresh)) {
                 is ApiResult.Success -> {
-                    _uiState.value = HomeUiState.Success(posts = result.data)
+                    savedPostIds = fetchSavedPostIds()
+                    _uiState.value = HomeUiState.Success(posts = applySavedState(result.data))
                     if (result.data.isEmpty()) isLastPage = true
                 }
+
                 is ApiResult.Error -> _uiState.value = HomeUiState.Error(result.message)
             }
 
@@ -73,7 +80,7 @@ class HomeViewModel @Inject constructor(
 
             when (val result = getNewsFeedUseCase(afterId = lastPostId)) {
                 is ApiResult.Success -> {
-                    val newPosts = result.data
+                    val newPosts = applySavedState(result.data)
                     if (newPosts.isEmpty()) {
                         isLastPage = true
                         _uiState.value = currentState.copy(isLoadingMore = false)
@@ -82,6 +89,7 @@ class HomeViewModel @Inject constructor(
                         _uiState.value = HomeUiState.Success(posts = updatedPosts, isLoadingMore = false)
                     }
                 }
+
                 is ApiResult.Error -> {
                     _uiState.value = currentState.copy(isLoadingMore = false)
                 }
@@ -117,8 +125,9 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = likePostUseCase(postId, targetIsLiked, targetLikeCount)) {
                 is ApiResult.Success -> {
-                    //
+                    // no-op
                 }
+
                 is ApiResult.Error -> {
                     val currentLatestState = _uiState.value
                     if (currentLatestState is HomeUiState.Success) {
@@ -134,7 +143,68 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun savePost(postId: String) {
+        val currentState = _uiState.value as? HomeUiState.Success ?: return
+
+        viewModelScope.launch {
+            when (val result = savePostUseCase(postId)) {
+                is ApiResult.Success -> {
+                    savedPostIds = if (result.data) {
+                        savedPostIds + postId
+                    } else {
+                        savedPostIds - postId
+                    }
+
+                    val latestState = _uiState.value as? HomeUiState.Success ?: return@launch
+                    val updatedPosts = latestState.posts.map { post ->
+                        if (post.id == postId) post.copy(isSaved = result.data) else post
+                    }
+                    _uiState.value = latestState.copy(posts = updatedPosts)
+
+                    val message = if (result.data) "Đã lưu bài viết" else "Đã bỏ lưu bài viết"
+                    notificationManager.showMessage(message = message, type = NotificationType.SUCCESS)
+                }
+
+                is ApiResult.Error -> {
+                    notificationManager.showMessage(
+                        message = result.message.ifBlank { "Không thể lưu bài viết" },
+                        type = NotificationType.ERROR
+                    )
+                }
+            }
+        }
+    }
+
     fun selectPost(post: Post) {
         postDetailStore.selectedPost = post
+    }
+
+    private suspend fun fetchSavedPostIds(): Set<String> {
+        val ids = LinkedHashSet<String>()
+        var afterId: String? = null
+
+        while (true) {
+            when (val result = getSavedPostsUseCase(afterId = afterId)) {
+                is ApiResult.Success -> {
+                    if (result.data.isEmpty()) {
+                        return ids
+                    }
+
+                    result.data.forEach { ids.add(it.id) }
+                    afterId = result.data.lastOrNull()?.id
+                }
+
+                is ApiResult.Error -> {
+                    return ids
+                }
+            }
+        }
+    }
+
+    private fun applySavedState(posts: List<Post>): List<Post> {
+        if (savedPostIds.isEmpty()) return posts
+        return posts.map { post ->
+            if (savedPostIds.contains(post.id)) post.copy(isSaved = true) else post
+        }
     }
 }
