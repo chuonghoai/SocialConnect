@@ -52,7 +52,7 @@ class TokenDataStore @Inject constructor(
         context.dataStore.edit { it.remove(KEY_ACCESS_TOKEN) }
     }
 
-    suspend fun clearAccessToken() {
+    override suspend fun clearAccessToken() {
         clear()
     }
 }

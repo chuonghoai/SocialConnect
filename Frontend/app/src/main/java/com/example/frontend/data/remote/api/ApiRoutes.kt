@@ -13,6 +13,8 @@ object ApiRoutes {
     const val LIKE_POST = "api/posts/{postId}/like"
     const val SAVE_POST = "api/posts/{postId}/save"
     const val SHARE_POST = "api/posts/{postId}/share"
+    const val UPDATE_POST = "api/posts/{postId}"
+    const val DELETE_POST = "api/posts/{postId}"
     const val GET_POST_COMMENTS = "api/posts/{postId}/comments"
     const val CREATE_POST_COMMENT = "api/posts/{postId}/comments"
     const val VERIFY_FORGOT_PASSWORD_OTP = "api/auth/forgot-password/verify-otp"

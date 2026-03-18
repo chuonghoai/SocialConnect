@@ -1,6 +1,7 @@
 package com.example.frontend.di
 
 import com.example.frontend.core.config.AppConfig
+import com.example.frontend.core.network.AuthSessionManager
 import com.example.frontend.core.network.JwtInterceptor
 import com.example.frontend.core.network.TokenProvider
 import com.example.frontend.data.datastore.TokenDataStore
@@ -48,10 +49,11 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         tokenProvider: TokenProvider,
+        authSessionManager: AuthSessionManager,
         loggingInterceptor: HttpLoggingInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
-            .addInterceptor(JwtInterceptor(tokenProvider))
+            .addInterceptor(JwtInterceptor(tokenProvider, authSessionManager))
             .addInterceptor(loggingInterceptor)
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)

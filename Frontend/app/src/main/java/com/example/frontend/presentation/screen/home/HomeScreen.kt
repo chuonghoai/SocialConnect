@@ -55,6 +55,7 @@ fun HomeScreen(
     currentUser: User?,
     onNavigateToMessages: () -> Unit = {},
     onCreatePostClick: () -> Unit = {},
+    onEditPostClick: (String) -> Unit = {},
     onPostClick: (Post) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
@@ -171,6 +172,7 @@ fun HomeScreen(
                             items(state.posts) { post ->
                                 PostCard(
                                     post = post,
+                                    isOwnPost = currentUser?.id == post.userId,
                                     onLikeClick = {
                                         viewModel.toggleLike(post.id)
                                     },
@@ -184,6 +186,21 @@ fun HomeScreen(
                                     saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
                                     onShareClick = {
                                         viewModel.sharePost(post.id)
+                                    },
+                                    onEditPostRequest = {
+                                        onEditPostClick(post.id)
+                                    },
+                                    onDeletePost = {
+                                        viewModel.deletePost(post.id)
+                                    },
+                                    onChangeVisibility = { visibility ->
+                                        viewModel.changePostVisibility(post.id, visibility)
+                                    },
+                                    onHidePost = {
+                                        viewModel.hidePost(post.id)
+                                    },
+                                    onReportPost = {
+                                        viewModel.reportPost()
                                     }
                                 )
                             }

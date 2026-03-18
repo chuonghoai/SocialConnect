@@ -11,12 +11,13 @@ import com.example.frontend.data.mapper.toDomain
 import com.example.frontend.data.remote.api.AuthApi
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.repository.AuthRepository
+import com.google.gson.Gson
+import com.google.gson.JsonParser
+import com.google.gson.reflect.TypeToken
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
 import javax.inject.Singleton
-import com.google.gson.Gson
-import com.google.gson.reflect.TypeToken
 
 @Singleton
 class AuthRepositoryImpl @Inject constructor(
@@ -41,7 +42,6 @@ class AuthRepositoryImpl @Inject constructor(
             }
             userDao.insertUser(user.toEntity())
             ApiResult.Success(user)
-
         } catch (e: IOException) {
             if (!isRefresh) {
                 val localUser = userDao.getUser()
@@ -49,10 +49,16 @@ class AuthRepositoryImpl @Inject constructor(
                     return ApiResult.Success(localUser.toDomain())
                 }
             }
-            ApiResult.Error(message = "Lỗi mạng: Vui lòng kiểm tra lại kết nối Internet.", throwable = e)
-
+            ApiResult.Error(
+                message = "Lỗi mạng: Vui lòng kiểm tra lại kết nối Internet.",
+                throwable = e
+            )
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()}). Vui lòng thử lại sau.", throwable = e)
+            ApiResult.Error(
+                code = e.code(),
+                message = "Lỗi máy chủ (${e.code()}). Vui lòng thử lại sau.",
+                throwable = e
+            )
         } catch (e: Exception) {
             ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
         }
@@ -66,18 +72,12 @@ class AuthRepositoryImpl @Inject constructor(
             tokenDataStore.saveAccessToken(res.accessToken)
             ApiResult.Success(Unit)
         } catch (e: HttpException) {
-            val raw = e.response()?.errorBody()?.string()
-            val msg = try {
-                val type = object : TypeToken<Map<String, String>>() {}.type
-                val errorMap: Map<String, String>? = raw?.let { gson.fromJson(it, type) }
-                errorMap?.get("message")
-            } catch (_: Exception) { null }
-
+            val msg = extractHttpErrorMessage(e)
             ApiResult.Error(
                 code = e.code(),
                 message = msg ?: when (e.code()) {
                     401 -> "Sai tài khoản hoặc mật khẩu"
-                    else -> "Login failed (${e.code()})"
+                    else -> "Đăng nhập thất bại (${e.code()})"
                 },
                 throwable = e
             )
@@ -110,9 +110,13 @@ class AuthRepositoryImpl @Inject constructor(
 
             ApiResult.Success(Unit)
         } catch (e: HttpException) {
-            ApiResult.Error(message = "Register failed: ${e.message}", throwable = e)
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "Đăng ký thất bại (${e.code()})",
+                throwable = e
+            )
         } catch (e: IOException) {
-            ApiResult.Error(message = "Network error", throwable = e)
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
         }
@@ -124,9 +128,13 @@ class AuthRepositoryImpl @Inject constructor(
             authApi.sendOtp(body)
             ApiResult.Success(Unit)
         } catch (e: HttpException) {
-            ApiResult.Error(message = "send OTP failed: ${e.message}", throwable = e)
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "Gửi OTP thất bại (${e.code()})",
+                throwable = e
+            )
         } catch (e: IOException) {
-            ApiResult.Error(message = "Network error", throwable = e)
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
         }
@@ -138,7 +146,12 @@ class AuthRepositoryImpl @Inject constructor(
             authApi.verifyForgotPasswordOtp(body)
             ApiResult.Success(Unit)
         } catch (e: HttpException) {
-            ApiResult.Error(message = "Xác thực OTP thất bại: ${e.message}", throwable = e)
+            val backendMessage = extractHttpErrorMessage(e)
+            ApiResult.Error(
+                code = e.code(),
+                message = normalizeForgotOtpErrorMessage(e.code(), backendMessage),
+                throwable = e
+            )
         } catch (e: IOException) {
             ApiResult.Error(message = "Lỗi kết nối mạng", throwable = e)
         } catch (e: Exception) {
@@ -155,14 +168,17 @@ class AuthRepositoryImpl @Inject constructor(
             )
             authApi.resetPassword(body)
 
-            // Sau reset password thành công, bắt buộc đăng nhập lại
             tokenDataStore.clear()
             userDao.clearUser()
             postDao.clearAllPosts()
 
             ApiResult.Success(Unit)
         } catch (e: HttpException) {
-            ApiResult.Error(message = "Đặt lại mật khẩu thất bại: ${e.message}", throwable = e)
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "Đặt lại mật khẩu thất bại (${e.code()})",
+                throwable = e
+            )
         } catch (e: IOException) {
             ApiResult.Error(message = "Lỗi kết nối mạng", throwable = e)
         } catch (e: Exception) {
@@ -170,7 +186,12 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updateProfile(displayName: String, dob: String, email: String, avatar: String?): ApiResult<User> {
+    override suspend fun updateProfile(
+        displayName: String,
+        dob: String,
+        email: String,
+        avatar: String?
+    ): ApiResult<User> {
         return try {
             val response = authApi.updateProfile(UpdateProfileRequest(displayName, dob, email, avatar))
             if (response.isSuccessful && response.body() != null) {
@@ -193,6 +214,51 @@ class AuthRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             ApiResult.Error(message = e.message ?: "Lỗi kết nối")
+        }
+    }
+
+    private fun extractHttpErrorMessage(e: HttpException): String? {
+        val raw = e.response()?.errorBody()?.string()?.trim().orEmpty()
+        if (raw.isBlank()) return null
+
+        return try {
+            val json = JsonParser.parseString(raw)
+            if (!json.isJsonObject) {
+                return raw
+            }
+
+            val messageElement = json.asJsonObject.get("message") ?: return raw
+            when {
+                messageElement.isJsonPrimitive -> messageElement.asString
+                messageElement.isJsonArray -> messageElement.asJsonArray.firstOrNull()?.asString
+                else -> raw
+            }
+        } catch (_: Exception) {
+            try {
+                val type = object : TypeToken<Map<String, String>>() {}.type
+                val errorMap: Map<String, String> = gson.fromJson(raw, type)
+                errorMap["message"] ?: raw
+            } catch (_: Exception) {
+                raw
+            }
+        }
+    }
+
+    private fun normalizeForgotOtpErrorMessage(code: Int, backendMessage: String?): String {
+        val normalized = backendMessage?.lowercase().orEmpty()
+        val isInvalidOtp =
+            code == 400 ||
+                code == 401 ||
+                normalized.contains("otp") ||
+                normalized.contains("invalid") ||
+                normalized.contains("expired") ||
+                normalized.contains("không hợp lệ") ||
+                normalized.contains("hết hạn")
+
+        return if (isInvalidOtp) {
+            "Mã OTP không hợp lệ hoặc đã hết hạn"
+        } else {
+            backendMessage?.takeIf { it.isNotBlank() } ?: "Xác thực OTP thất bại ($code)"
         }
     }
 }

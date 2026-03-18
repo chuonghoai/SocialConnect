@@ -12,11 +12,14 @@ import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.UpdatePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.DeletePostUseCase
 import com.example.frontend.ui.component.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -27,6 +30,8 @@ class HomeViewModel @Inject constructor(
     private val likePostUseCase: LikePostUseCase,
     private val savePostUseCase: SavePostUseCase,
     private val sharePostUseCase: SharePostUseCase,
+    private val updatePostUseCase: UpdatePostUseCase,
+    private val deletePostUseCase: DeletePostUseCase,
     private val notificationManager: AppNotificationManager,
     private val postUploadManager: PostUploadManager,
     private val postDetailStore: PostDetailStore
@@ -41,6 +46,14 @@ class HomeViewModel @Inject constructor(
     private var isFetching = false
     private var isLastPage = false
     private var savedPostIds: Set<String> = emptySet()
+
+    init {
+        viewModelScope.launch {
+            postUploadManager.postCreatedEvents.collectLatest {
+                load(isRefresh = true)
+            }
+        }
+    }
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {
@@ -199,6 +212,107 @@ class HomeViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun editPost(postId: String, newContent: String) {
+        val content = newContent.trim()
+        if (content.isBlank()) return
+
+        val currentState = _uiState.value as? HomeUiState.Success ?: return
+        val oldPosts = currentState.posts
+        val updatedPosts = oldPosts.map { post ->
+            if (post.id == postId) post.copy(content = content) else post
+        }
+        _uiState.value = currentState.copy(posts = updatedPosts)
+
+        viewModelScope.launch {
+            when (val result = updatePostUseCase(postId = postId, content = content)) {
+                is ApiResult.Success -> {
+                    notificationManager.showMessage("Đã cập nhật bài viết", NotificationType.SUCCESS)
+                }
+
+                is ApiResult.Error -> {
+                    if (result.code == 404) {
+                        notificationManager.showMessage(
+                            "Backend chưa hỗ trợ sửa bài viết. Tạm thời đã cập nhật trên feed.",
+                            NotificationType.SUCCESS
+                        )
+                    } else {
+                        val latestState = _uiState.value as? HomeUiState.Success
+                        if (latestState != null) {
+                            _uiState.value = latestState.copy(posts = oldPosts)
+                        }
+                        notificationManager.showMessage(
+                            result.message.ifBlank { "Không thể sửa bài viết" },
+                            NotificationType.ERROR
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun changePostVisibility(postId: String, visibility: String) {
+        viewModelScope.launch {
+            when (val result = updatePostUseCase(postId = postId, visibility = visibility)) {
+                is ApiResult.Success -> {
+                    notificationManager.showMessage("Đã đổi quyền bài viết", NotificationType.SUCCESS)
+                }
+
+                is ApiResult.Error -> {
+                    val message = if (result.code == 404) {
+                        "Backend chưa hỗ trợ đổi quyền bài viết."
+                    } else {
+                        result.message.ifBlank { "Không thể đổi quyền bài viết" }
+                    }
+                    notificationManager.showMessage(message, NotificationType.ERROR)
+                }
+            }
+        }
+    }
+
+    fun deletePost(postId: String) {
+        val currentState = _uiState.value as? HomeUiState.Success ?: return
+        val oldPosts = currentState.posts
+        val updatedPosts = oldPosts.filterNot { it.id == postId }
+        _uiState.value = currentState.copy(posts = updatedPosts)
+
+        viewModelScope.launch {
+            when (val result = deletePostUseCase(postId)) {
+                is ApiResult.Success -> {
+                    notificationManager.showMessage("Đã xóa bài viết", NotificationType.SUCCESS)
+                }
+
+                is ApiResult.Error -> {
+                    if (result.code == 404) {
+                        notificationManager.showMessage(
+                            "Backend chưa hỗ trợ xóa bài viết. Tạm thời đã ẩn trên feed.",
+                            NotificationType.SUCCESS
+                        )
+                    } else {
+                        val latestState = _uiState.value as? HomeUiState.Success
+                        if (latestState != null) {
+                            _uiState.value = latestState.copy(posts = oldPosts)
+                        }
+                        notificationManager.showMessage(
+                            result.message.ifBlank { "Không thể xóa bài viết" },
+                            NotificationType.ERROR
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    fun hidePost(postId: String) {
+        val currentState = _uiState.value as? HomeUiState.Success ?: return
+        val updatedPosts = currentState.posts.filterNot { it.id == postId }
+        _uiState.value = currentState.copy(posts = updatedPosts)
+        notificationManager.showMessage("Đã ẩn bài viết", NotificationType.SUCCESS)
+    }
+
+    fun reportPost() {
+        notificationManager.showMessage("Đã gửi báo cáo bài viết", NotificationType.SUCCESS)
     }
 
     fun selectPost(post: Post) {

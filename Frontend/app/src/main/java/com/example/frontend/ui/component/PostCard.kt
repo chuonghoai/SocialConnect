@@ -1,42 +1,87 @@
 ﻿package com.example.frontend.ui.component
 
 import android.net.Uri
-import android.widget.MediaController
 import android.widget.VideoView
+import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.decode.VideoFrameDecoder
+import coil.request.ImageRequest
 import com.example.frontend.R
 import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
+import com.example.frontend.domain.model.PostMedia
 
 @Composable
 fun PostCard(
     post: Post,
+    isOwnPost: Boolean = false,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onSaveClick: (() -> Unit)? = null,
     saveMenuLabel: String = "Lưu bài viết",
     onShareClick: (() -> Unit)? = null,
+    onEditPostRequest: (() -> Unit)? = null,
+    onDeletePost: (() -> Unit)? = null,
+    onChangeVisibility: ((String) -> Unit)? = null,
+    onHidePost: (() -> Unit)? = null,
+    onReportPost: (() -> Unit)? = null
 ) {
     var isMoreMenuExpanded by remember { mutableStateOf(false) }
+    var showVisibilityDialog by remember { mutableStateOf(false) }
 
     val isSharedPost = post.type.equals("SHARED", ignoreCase = true)
     val originalPost = post.originalPost
@@ -46,6 +91,8 @@ fun PostCard(
     val shouldShowSharedCaption = shouldRenderOriginalPost &&
         trimmedContent.isNotEmpty() &&
         trimmedContent != trimmedOriginalContent
+
+    val postMedia = resolveMedia(post.kind, post.cdnUrl, post.media)
 
     Card(
         modifier = Modifier
@@ -102,14 +149,56 @@ fun PostCard(
                         expanded = isMoreMenuExpanded,
                         onDismissRequest = { isMoreMenuExpanded = false }
                     ) {
-                        DropdownMenuItem(
-                            text = { Text(saveMenuLabel) },
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                onSaveClick?.invoke()
-                            },
-                            enabled = onSaveClick != null
-                        )
+                        if (isOwnPost) {
+                            DropdownMenuItem(
+                                text = { Text("Sửa bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onEditPostRequest?.invoke()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Đổi quyền bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    showVisibilityDialog = true
+                                },
+                                enabled = onChangeVisibility != null
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Xóa bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onDeletePost?.invoke()
+                                },
+                                enabled = onDeletePost != null
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text(saveMenuLabel) },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onSaveClick?.invoke()
+                                },
+                                enabled = onSaveClick != null
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ẩn bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onHidePost?.invoke()
+                                },
+                                enabled = onHidePost != null
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Báo cáo bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onReportPost?.invoke()
+                                },
+                                enabled = onReportPost != null
+                            )
+                        }
                     }
                 }
             }
@@ -135,8 +224,17 @@ fun PostCard(
                     )
                 }
 
-                if (post.cdnUrl.isNotEmpty()) {
-                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl)
+                if (postMedia.isNotEmpty()) {
+                    PostMediaGallery(
+                        mediaItems = postMedia,
+                        isLiked = post.isLiked,
+                        likeCount = post.likeCount,
+                        commentCount = post.commentCount,
+                        shareCount = post.shareCount,
+                        onLikeClick = onLikeClick,
+                        onCommentClick = onCommentClick,
+                        onShareClick = onShareClick
+                    )
                 }
             }
 
@@ -167,10 +265,42 @@ fun PostCard(
             }
         }
     }
+
+    if (showVisibilityDialog) {
+        AlertDialog(
+            onDismissRequest = { showVisibilityDialog = false },
+            title = { Text("Đổi quyền bài viết") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Công khai", "Bạn bè", "Riêng tư").forEach { option ->
+                        Text(
+                            text = option,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    showVisibilityDialog = false
+                                    onChangeVisibility?.invoke(option)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showVisibilityDialog = false }) {
+                    Text("Đóng")
+                }
+            }
+        )
+    }
 }
 
 @Composable
 private fun SharedPostPreviewCard(originalPost: OriginalPost) {
+    val originalMedia = resolveMedia(originalPost.kind, originalPost.cdnUrl, originalPost.media)
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -215,50 +345,430 @@ private fun SharedPostPreviewCard(originalPost: OriginalPost) {
                 Spacer(Modifier.height(8.dp))
             }
 
-            if (originalPost.cdnUrl.isNotEmpty()) {
-                PostMediaContent(kind = originalPost.kind, cdnUrl = originalPost.cdnUrl)
+            if (originalMedia.isNotEmpty()) {
+                PostMediaGallery(mediaItems = originalMedia)
             }
         }
     }
 }
 
+private fun resolveMedia(kind: String, cdnUrl: String, media: List<PostMedia>): List<PostMedia> {
+    val normalizedFromList = media
+        .filter { it.cdnUrl.isNotBlank() }
+        .map {
+            if (it.kind.isBlank()) it.copy(kind = kind.ifBlank { "IMAGE" }) else it
+        }
+
+    if (normalizedFromList.isNotEmpty()) return normalizedFromList
+
+    return if (cdnUrl.isNotBlank()) {
+        listOf(PostMedia(kind = kind.ifBlank { "IMAGE" }, cdnUrl = cdnUrl))
+    } else {
+        emptyList()
+    }
+}
+
 @Composable
 fun PostMediaContent(kind: String, cdnUrl: String) {
+    val mediaItems = resolveMedia(kind = kind, cdnUrl = cdnUrl, media = emptyList())
+    if (mediaItems.isNotEmpty()) {
+        PostMediaGallery(mediaItems = mediaItems)
+    }
+}
+
+@Composable
+private fun PostMediaGallery(
+    mediaItems: List<PostMedia>,
+    isLiked: Boolean = false,
+    likeCount: Int = 0,
+    commentCount: Int = 0,
+    shareCount: Int = 0,
+    onLikeClick: (() -> Unit)? = null,
+    onCommentClick: (() -> Unit)? = null,
+    onShareClick: (() -> Unit)? = null
+) {
+    var viewerStartIndex by remember(mediaItems) { mutableIntStateOf(-1) }
+
     Box(
         modifier = Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(8.dp))
             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
     ) {
-        if (kind == "IMAGE") {
-            AsyncImage(
-                model = cdnUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.FillWidth
-            )
-        } else if (kind == "VIDEO") {
-            AndroidView(
-                factory = { ctx ->
-                    VideoView(ctx).apply {
-                        setVideoURI(Uri.parse(cdnUrl))
-                        val controller = MediaController(ctx)
-                        controller.setAnchorView(this)
-                        setMediaController(controller)
-                        setOnPreparedListener {
-                            it.isLooping = true
-                            start()
-                        }
+        when (mediaItems.size) {
+            1 -> {
+                MediaTile(
+                    item = mediaItems[0],
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(360.dp),
+                    onClick = { viewerStartIndex = 0 }
+                )
+            }
+
+            2 -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                ) {
+                    MediaTile(
+                        item = mediaItems[0],
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewerStartIndex = 0 }
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    MediaTile(
+                        item = mediaItems[1],
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewerStartIndex = 1 }
+                    )
+                }
+            }
+
+            3 -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                ) {
+                    MediaTile(
+                        item = mediaItems[0],
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewerStartIndex = 0 }
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        MediaTile(
+                            item = mediaItems[1],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 1 }
+                        )
+                        MediaTile(
+                            item = mediaItems[2],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 2 }
+                        )
                     }
-                },
-                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
-            )
+                }
+            }
+
+            else -> {
+                val extraCount = mediaItems.size - 4
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        MediaTile(
+                            item = mediaItems[0],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 0 }
+                        )
+                        MediaTile(
+                            item = mediaItems[1],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 1 }
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        MediaTile(
+                            item = mediaItems[2],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 2 }
+                        )
+                        MediaTile(
+                            item = mediaItems[3],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 3 },
+                            overlayText = if (extraCount > 0) "+$extraCount" else null
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+    if (viewerStartIndex >= 0) {
+        FullScreenMediaViewer(
+            mediaItems = mediaItems,
+            initialPage = viewerStartIndex,
+            onDismiss = { viewerStartIndex = -1 },
+            isLiked = isLiked,
+            likeCount = likeCount,
+            commentCount = commentCount,
+            shareCount = shareCount,
+            onLikeClick = onLikeClick,
+            onCommentClick = onCommentClick,
+            onShareClick = onShareClick
+        )
+    }
+}
+
+@Composable
+private fun MediaTile(
+    item: PostMedia,
+    modifier: Modifier,
+    onClick: () -> Unit,
+    overlayText: String? = null
+) {
+    val isVideo = item.kind.equals("VIDEO", ignoreCase = true)
+    val context = LocalContext.current
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(2.dp))
+            .clickable(onClick = onClick)
+    ) {
+        val model = if (isVideo) {
+            ImageRequest.Builder(context)
+                .data(item.cdnUrl)
+                .decoderFactory(VideoFrameDecoder.Factory())
+                .crossfade(true)
+                .build()
+        } else {
+            item.cdnUrl
+        }
+
+        AsyncImage(
+            model = model,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            error = painterResource(R.drawable.icon_image)
+        )
+
+        if (isVideo) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(40.dp)
+                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.icon_play_video),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
+
+        if (!overlayText.isNullOrBlank()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.55f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = overlayText,
+                    color = Color.White,
+                    fontSize = 30.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
         }
     }
 }
 
 @Composable
-fun InteractionItem(iconRes: Int, count: String, onClick: () -> Unit = {}) {
+private fun FullScreenMediaViewer(
+    mediaItems: List<PostMedia>,
+    initialPage: Int,
+    onDismiss: () -> Unit,
+    isLiked: Boolean = false,
+    likeCount: Int = 0,
+    commentCount: Int = 0,
+    shareCount: Int = 0,
+    onLikeClick: (() -> Unit)? = null,
+    onCommentClick: (() -> Unit)? = null,
+    onShareClick: (() -> Unit)? = null
+) {
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { mediaItems.size }
+    )
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val item = mediaItems[page]
+                if (item.kind.equals("VIDEO", ignoreCase = true)) {
+                    FullscreenVideo(url = item.cdnUrl)
+                } else {
+                    AsyncImage(
+                        model = item.cdnUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                        error = painterResource(R.drawable.icon_image)
+                    )
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 12.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White
+                    )
+                }
+
+                Text(
+                    text = "${pagerState.currentPage + 1}/${mediaItems.size}",
+                    color = Color.White,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+
+            if (onLikeClick != null || onCommentClick != null || onShareClick != null) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    color = Color.Black.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (onLikeClick != null) {
+                            LikeComponent(
+                                isLiked = isLiked,
+                                likeCount = likeCount,
+                                onLikeClick = onLikeClick,
+                                isVertical = false,
+                                unlikedTint = Color.White.copy(alpha = 0.85f),
+                                textColor = Color.White
+                            )
+                        }
+
+                        Spacer(Modifier.width(24.dp))
+
+                        InteractionItem(
+                            iconRes = R.drawable.icon_message,
+                            count = commentCount.toString(),
+                            onClick = {
+                                onDismiss()
+                                onCommentClick?.invoke()
+                            },
+                            iconTint = Color.White,
+                            textColor = Color.White
+                        )
+
+                        Spacer(Modifier.width(24.dp))
+
+                        InteractionItem(
+                            iconRes = R.drawable.icon_share,
+                            count = shareCount.toString(),
+                            onClick = { onShareClick?.invoke() },
+                            iconTint = Color.White,
+                            textColor = Color.White
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun FullscreenVideo(url: String) {
+    var showReplay by remember(url) { mutableStateOf(false) }
+    var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        AndroidView(
+            factory = { ctx ->
+                VideoView(ctx).apply {
+                    videoViewRef = this
+                    setVideoURI(Uri.parse(url))
+                    setOnPreparedListener {
+                        showReplay = false
+                        start()
+                    }
+                    setOnCompletionListener {
+                        showReplay = true
+                    }
+                }
+            },
+            update = {
+                it.setVideoURI(Uri.parse(url))
+                it.setOnPreparedListener { mp ->
+                    showReplay = false
+                    mp.isLooping = false
+                    it.start()
+                }
+                it.setOnCompletionListener {
+                    showReplay = true
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .align(Alignment.Center)
+        )
+
+        if (showReplay) {
+            Button(
+                onClick = {
+                    showReplay = false
+                    videoViewRef?.seekTo(0)
+                    videoViewRef?.start()
+                },
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Text("Xem lại", textAlign = TextAlign.Center)
+            }
+        }
+    }
+}
+
+@Composable
+fun InteractionItem(
+    iconRes: Int,
+    count: String,
+    onClick: () -> Unit = {},
+    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
+) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier.clickable(onClick = onClick)
@@ -267,13 +777,13 @@ fun InteractionItem(iconRes: Int, count: String, onClick: () -> Unit = {}) {
             painter = painterResource(id = iconRes),
             contentDescription = null,
             modifier = Modifier.size(20.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            tint = iconTint
         )
         Spacer(Modifier.width(4.dp))
         Text(
             text = count,
             fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = textColor
         )
     }
 }
@@ -281,7 +791,8 @@ fun InteractionItem(iconRes: Int, count: String, onClick: () -> Unit = {}) {
 fun formatTimeAgo(timeString: String): String {
     return try {
         timeString.substring(0, 10)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "Vừa xong"
     }
 }
+

@@ -24,7 +24,7 @@ class ForgotPasswordOtpViewModel @Inject constructor(
 ) : ViewModel() {
 
     companion object {
-        private const val RESEND_TIMEOUT_SECONDS = 60
+        private const val RESEND_TIMEOUT_SECONDS = 300
     }
 
     private val emailArg = savedStateHandle.get<String>("email")?.let(Uri::decode).orEmpty()
@@ -72,7 +72,7 @@ class ForgotPasswordOtpViewModel @Inject constructor(
                 is ApiResult.Error -> {
                     _uiState.value = _uiState.value.copy(
                         loading = false,
-                        error = result.message.ifBlank { "OTP không hợp lệ" }
+                        error = mapOtpErrorMessage(result)
                     )
                 }
             }
@@ -101,6 +101,24 @@ class ForgotPasswordOtpViewModel @Inject constructor(
                     )
                 }
             }
+        }
+    }
+
+    private fun mapOtpErrorMessage(error: ApiResult.Error): String {
+        val raw = error.message.lowercase()
+        val isOtpError =
+            error.code == 400 ||
+                error.code == 401 ||
+                raw.contains("otp") ||
+                raw.contains("invalid") ||
+                raw.contains("expired") ||
+                raw.contains("hết hạn") ||
+                raw.contains("không hợp lệ")
+
+        return if (isOtpError) {
+            "Mã OTP không hợp lệ hoặc đã hết hạn"
+        } else {
+            error.message.ifBlank { "Xác thực OTP thất bại" }
         }
     }
 

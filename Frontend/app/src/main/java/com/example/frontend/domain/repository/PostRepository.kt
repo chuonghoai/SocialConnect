@@ -32,4 +32,8 @@ interface PostRepository {
     suspend fun sharePost(postId: String): ApiResult<String>
 
     suspend fun createPost(content: String, visibility: String, mediaId: List<String>?): ApiResult<String>
+
+    suspend fun updatePost(postId: String, content: String? = null, visibility: String? = null): ApiResult<Unit>
+
+    suspend fun deletePost(postId: String): ApiResult<Unit>
 }

@@ -6,6 +6,7 @@ import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import com.example.frontend.data.remote.dto.UpdatePostRequest
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
 import com.google.gson.JsonParseException
@@ -201,6 +202,44 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "Lỗi máy chủ (${e.code()}): ${e.message()}", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Không thể đăng bài: ${e.message}", throwable = e)
+        }
+    }
+
+    override suspend fun updatePost(postId: String, content: String?, visibility: String?): ApiResult<Unit> {
+        return try {
+            val response = postApi.updatePost(
+                postId = postId,
+                request = UpdatePostRequest(content = content, visibility = visibility)
+            )
+
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                ApiResult.Error(code = response.code(), message = "Không thể cập nhật bài viết")
+            }
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể cập nhật bài viết", throwable = e)
+        }
+    }
+
+    override suspend fun deletePost(postId: String): ApiResult<Unit> {
+        return try {
+            val response = postApi.deletePost(postId)
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                ApiResult.Error(code = response.code(), message = "Không thể xóa bài viết")
+            }
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể xóa bài viết", throwable = e)
         }
     }
 }
