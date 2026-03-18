@@ -1,4 +1,4 @@
-package com.example.frontend.data.repository
+﻿package com.example.frontend.data.repository
 
 import android.util.Log
 import com.example.frontend.core.network.ApiResult
@@ -9,6 +9,7 @@ import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.dto.CreatePostRequest
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
+import com.google.gson.JsonParseException
 import com.google.gson.JsonParseException
 import retrofit2.HttpException
 import java.io.IOException
@@ -174,7 +175,7 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createPost(content: String, visibility: String, mediaIds: List<String>?): ApiResult<String> {
+    override suspend fun createPost(content: String, visibility: String, mediaId: List<String>?): ApiResult<String> {
         return try {
             val normalizedVisibility = normalizeVisibility(visibility)
             val requestBody = CreatePostRequest(

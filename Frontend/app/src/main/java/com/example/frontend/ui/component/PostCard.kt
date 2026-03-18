@@ -1,4 +1,4 @@
-package com.example.frontend.ui.component
+﻿package com.example.frontend.ui.component
 
 import android.net.Uri
 import android.widget.VideoView
@@ -46,6 +46,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.frontend.R
+import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
 import kotlin.math.hypot
@@ -99,20 +100,52 @@ fun PostCard(
                         )
                     }
                 }
-                IconButton(onClick = {}) {
-                    Icon(
-                        Icons.Default.MoreHoriz,
-                        contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
+
+                Box {
+                    IconButton(onClick = { isMoreMenuExpanded = true }) {
+                        Icon(
+                            Icons.Default.MoreHoriz,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+
+                    DropdownMenu(
+                        expanded = isMoreMenuExpanded,
+                        onDismissRequest = { isMoreMenuExpanded = false }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(saveMenuLabel) },
+                            onClick = {
+                                isMoreMenuExpanded = false
+                                onSaveClick?.invoke()
+                            },
+                            enabled = onSaveClick != null
+                        )
+                    }
                 }
             }
 
-            Text(
-                text = post.content,
-                modifier = Modifier.padding(vertical = 12.dp),
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            if (shouldRenderOriginalPost) {
+                if (shouldShowSharedCaption) {
+                    Text(
+                        text = post.content,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                } else {
+                    Spacer(Modifier.height(12.dp))
+                }
+
+                SharedPostPreviewCard(originalPost = originalPost)
+            } else {
+                if (post.content.isNotBlank()) {
+                    Text(
+                        text = post.content,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
 
             PostMediaContent(
                 post = post,
@@ -739,9 +772,9 @@ fun InteractionItem(iconRes: Int, count: String, onClick: () -> Unit = {}) {
 
 fun formatTimeAgo(timeString: String): String {
     return try {
-        val now = LocalDateTime.now()
         timeString.substring(0, 10)
     } catch (e: Exception) {
         "Vừa xong"
     }
 }
+

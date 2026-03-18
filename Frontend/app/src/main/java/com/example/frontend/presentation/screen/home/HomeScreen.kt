@@ -1,4 +1,4 @@
-package com.example.frontend.presentation.screen.home
+﻿package com.example.frontend.presentation.screen.home
 
 import android.net.Uri
 import android.widget.MediaController

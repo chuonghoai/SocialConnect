@@ -10,5 +10,8 @@ fun CommentResponseDto.toDomain(): Comment = Comment(
     avatarUrl = avatarUrl,
     content = content,
     createdAt = createdAt,
-    likeCount = likeCount
+    likeCount = likeCount,
+    parentCommentId = parentCommentId,
+    mediaUrl = mediaUrl,
+    mediaType = mediaType
 )

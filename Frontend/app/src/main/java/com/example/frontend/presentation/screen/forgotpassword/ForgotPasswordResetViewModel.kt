@@ -61,7 +61,7 @@ class ForgotPasswordResetViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = state.copy(loading = true, error = null)
 
-            when (val result = resetPasswordUseCase(state.email, state.otp, state.newPassword)) {
+            when (val result = resetPasswordUseCase(state.email, state.newPassword)) {
                 is ApiResult.Success -> onSuccess()
                 is ApiResult.Error -> {
                     _uiState.value = _uiState.value.copy(

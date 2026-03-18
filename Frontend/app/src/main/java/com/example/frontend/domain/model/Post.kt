@@ -1,4 +1,4 @@
-package com.example.frontend.domain.model
+﻿package com.example.frontend.domain.model
 
 import com.google.gson.annotations.SerializedName
 

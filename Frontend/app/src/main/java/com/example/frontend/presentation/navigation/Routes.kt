@@ -19,6 +19,8 @@ object Routes {
     const val CHAT_BASE = "chat"
     const val CHAT = "chat/{conversationId}?name={name}&avatar={avatar}"
     const val SETTING ="setting"
+    const val EDIT_PROFILE = "edit_profile"
+    const val CHANGE_PASSWORD = "change_password"
     const val CREATE_POST = "create_post"
     const val POST_DETAIL = "post_detail"
 }

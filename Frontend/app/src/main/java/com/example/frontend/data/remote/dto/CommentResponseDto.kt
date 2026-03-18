@@ -8,5 +8,8 @@ data class CommentResponseDto(
     val avatarUrl: String = "",
     val content: String,
     val createdAt: String,
-    val likeCount: Int = 0
+    val likeCount: Int = 0,
+    val parentCommentId: String? = null,
+    val mediaUrl: String? = null,
+    val mediaType: String? = null
 )
