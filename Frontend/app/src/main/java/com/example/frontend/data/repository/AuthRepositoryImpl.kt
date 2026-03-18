@@ -146,7 +146,6 @@ class AuthRepositoryImpl @Inject constructor(
         return try {
             val body = mapOf(
                 "email" to email,
-                "mailOtp" to otp,
                 "newPassword" to newPassword,
                 "password" to newPassword
             )

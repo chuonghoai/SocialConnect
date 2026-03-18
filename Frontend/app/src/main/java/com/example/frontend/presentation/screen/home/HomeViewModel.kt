@@ -34,6 +34,17 @@ class HomeViewModel @Inject constructor(
 
     private var isFetching = false
     private var isLastPage = false
+    private var lastHandledPostCreatedTick = 0L
+
+    init {
+        viewModelScope.launch {
+            postUploadManager.postCreatedTick.collect { tick ->
+                if (tick <= 0L || tick <= lastHandledPostCreatedTick) return@collect
+                lastHandledPostCreatedTick = tick
+                load(isRefresh = true)
+            }
+        }
+    }
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {

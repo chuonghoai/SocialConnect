@@ -56,6 +56,7 @@ fun HomeScreen(
     onNavigateToMessages: () -> Unit = {},
     onCreatePostClick: () -> Unit = {},
     onPostClick: (Post) -> Unit = {},
+    onVideoClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -177,7 +178,8 @@ fun HomeScreen(
                                     onCommentClick = {
                                         viewModel.selectPost(post)
                                         onPostClick(post)
-                                    }
+                                    },
+                                    onVideoClick = onVideoClick
                                 )
                             }
 
