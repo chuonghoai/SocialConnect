@@ -1,4 +1,4 @@
-package com.example.frontend.data.remote.api
+﻿package com.example.frontend.data.remote.api
 
 object ApiRoutes {
     const val ME = "api/auth/me"
@@ -9,7 +9,9 @@ object ApiRoutes {
     const val NEWS_FEED = "api/posts/newsfeed"
     const val GET_VIDEO = "/videos"
     const val USER_POSTS = "api/posts/user/{userId}"
+    const val SAVED_POSTS = "api/posts/saved"
     const val LIKE_POST = "api/posts/{postId}/like"
+    const val SAVE_POST = "api/posts/{postId}/save"
     const val GET_POST_COMMENTS = "api/posts/{postId}/comments"
     const val CREATE_POST_COMMENT = "api/posts/{postId}/comments"
     const val VERIFY_FORGOT_PASSWORD_OTP = "api/auth/forgot-password/verify-otp"

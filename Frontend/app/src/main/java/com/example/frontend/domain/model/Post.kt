@@ -1,4 +1,4 @@
-package com.example.frontend.domain.model
+﻿package com.example.frontend.domain.model
 
 data class Post(
     val id: String,
@@ -13,5 +13,7 @@ data class Post(
     val commentCount: Int,
     val shareCount: Int,
     val cdnUrl: String,
-    val isLiked: Boolean = false
+    val isLiked: Boolean = false,
+    val isSaved: Boolean = false
 )
+

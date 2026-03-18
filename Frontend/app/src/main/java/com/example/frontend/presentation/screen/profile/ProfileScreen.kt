@@ -1,4 +1,4 @@
-package com.example.frontend.presentation.screen.profile
+﻿package com.example.frontend.presentation.screen.profile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -32,6 +32,7 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.frontend.R
+import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.User
 import com.example.frontend.ui.component.PostCard
 import com.example.frontend.ui.component.ScrollToTopButton
@@ -51,26 +52,30 @@ fun ProfileScreen(
     val pullRefreshState = rememberPullToRefreshState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
-    val currentUser = (uiState as? ProfileUiState.Success)?.user
+    val successState = uiState as? ProfileUiState.Success
+    val currentUser = successState?.user
+    val selectedTabIndex = successState?.selectedTabIndex ?: 0
 
-    // trigger scroll to top
     val showScrollToTop by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 1
         }
     }
 
-    // trigger load more user's post
-    val shouldLoadMore by remember {
+    val shouldLoadMore by remember(selectedTabIndex) {
         derivedStateOf {
-            val totalItems = listState.layoutInfo.totalItemsCount
-            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            totalItems > 0 && lastVisibleItem >= totalItems - 3
+            if (selectedTabIndex != 0) {
+                false
+            } else {
+                val totalItems = listState.layoutInfo.totalItemsCount
+                val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+                totalItems > 0 && lastVisibleItem >= totalItems - 3
+            }
         }
     }
 
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore) viewModel.loadMorePosts()
+    LaunchedEffect(shouldLoadMore, selectedTabIndex) {
+        if (shouldLoadMore && selectedTabIndex == 0) viewModel.loadMorePosts()
     }
 
     LaunchedEffect(Unit) {
@@ -96,7 +101,10 @@ fun ProfileScreen(
                 ) {
                     item {
                         ProfileInfoSection(user = currentUser)
-                        ProfileTabs()
+                        ProfileTabs(
+                            selectedTabIndex = selectedTabIndex,
+                            onTabSelected = viewModel::onTabSelected
+                        )
                         Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
                     }
 
@@ -133,35 +141,43 @@ fun ProfileScreen(
                         }
 
                         is ProfileUiState.Success -> {
-                            // Loading spinner
-                            if (state.isPostsLoading) {
+                            val isSavedTab = state.selectedTabIndex == 1
+                            val isTabLoading = if (isSavedTab) state.isSavedPostsLoading else state.isPostsLoading
+                            val tabError = if (isSavedTab) state.savedPostsError else state.postsError
+                            val tabPosts: List<Post> = if (isSavedTab) state.savedPosts else state.posts
+
+                            if (isTabLoading) {
                                 item {
                                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
                                         CircularProgressIndicator(color = OrangePrimary)
                                     }
                                 }
-                            }
-                            // Error when get user's post data
-                            else if (state.postsError != null) {
+                            } else if (tabError != null) {
                                 item {
                                     Text(
-                                        text = state.postsError,
+                                        text = tabError,
                                         color = MaterialTheme.colorScheme.error,
                                         modifier = Modifier.fillMaxWidth().padding(16.dp),
                                         textAlign = TextAlign.Center
                                     )
                                 }
-                            }
-                            // List user's post
-                            else {
-                                items(state.posts) { post ->
-                                    PostCard(post = post)
+                            } else if (tabPosts.isEmpty()) {
+                                item {
+                                    Text(
+                                        text = if (isSavedTab) "Bạn chưa lưu bài viết nào" else "Bạn chưa có bài viết nào",
+                                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                        textAlign = TextAlign.Center,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } else {
+                                items(tabPosts) { post ->
+                                    PostCard(post = post, onSaveClick = { viewModel.toggleSavePost(post.id) }, saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết")
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }
 
-                            // Loading spinner
-                            if (state.isLoadingMore) {
+                            if (!isSavedTab && state.isLoadingMore) {
                                 item {
                                     Box(modifier = Modifier.fillMaxWidth().padding(16.dp), contentAlignment = Alignment.Center) {
                                         CircularProgressIndicator(modifier = Modifier.size(32.dp), color = OrangePrimary)
@@ -220,7 +236,6 @@ private fun ProfileTopBar(onBackClick: () -> Unit, onMoreClick: () -> Unit) {
 
 @Composable
 private fun ProfileInfoSection(user: User?) {
-    // Info render when have network error or server error
     val skeletonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
 
     Column(
@@ -229,9 +244,7 @@ private fun ProfileInfoSection(user: User?) {
             .padding(vertical = 24.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // User data != null
         if (user != null) {
-            // Avartar
             AsyncImage(
                 model = user.avatarUrl,
                 contentDescription = "Avatar",
@@ -244,7 +257,6 @@ private fun ProfileInfoSection(user: User?) {
             )
             Spacer(Modifier.height(12.dp))
 
-            // Display name
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     text = user.displayName,
@@ -259,7 +271,6 @@ private fun ProfileInfoSection(user: User?) {
                 )
             }
 
-            // Username
             Text(
                 text = "@${user.username}",
                 style = MaterialTheme.typography.bodyMedium,
@@ -267,7 +278,6 @@ private fun ProfileInfoSection(user: User?) {
             )
             Spacer(Modifier.height(16.dp))
 
-            // Post and friend count
             Row(
                 modifier = Modifier.fillMaxWidth(0.6f),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -277,7 +287,6 @@ private fun ProfileInfoSection(user: User?) {
             }
             Spacer(Modifier.height(16.dp))
 
-            // Caption
             if (!user.caption.isNullOrBlank()) {
                 Text(
                     text = user.caption,
@@ -287,9 +296,7 @@ private fun ProfileInfoSection(user: User?) {
                     lineHeight = 20.sp
                 )
             }
-        }
-        else {
-            // User data == null
+        } else {
             Box(
                 modifier = Modifier
                     .size(90.dp)
@@ -337,9 +344,7 @@ private fun StatItem(count: String, label: String) {
 }
 
 @Composable
-private fun ProfileTabs() {
-    var selectedTabIndex by remember { mutableStateOf(0) }
-
+private fun ProfileTabs(selectedTabIndex: Int, onTabSelected: (Int) -> Unit) {
     TabRow(
         selectedTabIndex = selectedTabIndex,
         containerColor = Color.Transparent,
@@ -353,7 +358,7 @@ private fun ProfileTabs() {
     ) {
         Tab(
             selected = selectedTabIndex == 0,
-            onClick = { selectedTabIndex = 0 },
+            onClick = { onTabSelected(0) },
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.GridView,
@@ -364,7 +369,7 @@ private fun ProfileTabs() {
         )
         Tab(
             selected = selectedTabIndex == 1,
-            onClick = { selectedTabIndex = 1 },
+            onClick = { onTabSelected(1) },
             icon = {
                 Icon(
                     imageVector = Icons.Outlined.BookmarkBorder,
@@ -375,3 +380,5 @@ private fun ProfileTabs() {
         )
     }
 }
+
+
