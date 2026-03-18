@@ -2,6 +2,7 @@ package com.example.frontend.data.remote.api
 
 import ChangePasswordRequest
 import UpdateProfileRequest
+import android.R
 import com.example.frontend.domain.model.Token
 import com.example.frontend.domain.model.User
 import retrofit2.http.Body
@@ -34,4 +35,7 @@ interface AuthApi {
 
     @PUT(ApiRoutes.CHANGE_PASSWORD)
     suspend fun changePassword(@Body request: ChangePasswordRequest): Response<User>
+
+    @POST(ApiRoutes.LOGIN)
+    suspend fun logout(): Map<String, String>
 }

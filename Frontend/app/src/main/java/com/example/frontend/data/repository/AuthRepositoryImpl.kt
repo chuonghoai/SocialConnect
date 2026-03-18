@@ -89,6 +89,7 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun logout() {
+        authApi.logout()
         tokenDataStore.clear()
         userDao.clearUser()
         postDao.clearAllPosts()
