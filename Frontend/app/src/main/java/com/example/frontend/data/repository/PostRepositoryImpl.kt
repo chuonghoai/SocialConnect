@@ -46,16 +46,16 @@ class PostRepositoryImpl @Inject constructor(
                     return ApiResult.Success(localPosts)
                 }
             }
-            ApiResult.Error(message = "Network error", throwable = e)
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
 
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
         } catch (e: JsonParseException) {
-            ApiResult.Error(message = "Invalid server response format.", throwable = e)
+            ApiResult.Error(message = "Dữ liệu phản hồi từ máy chủ không hợp lệ.", throwable = e)
         } catch (e: Exception) {
             Log.e(TAG, "getNewsFeed() unexpected error", e)
             ApiResult.Error(
-                message = e.message?.takeIf { it.isNotBlank() } ?: "Unexpected error.",
+                message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi không xác định.",
                 throwable = e
             )
         }
@@ -80,14 +80,14 @@ class PostRepositoryImpl @Inject constructor(
                 val localPosts = postDao.getPostsByUserId(userId).map { it.toDomain() }
                 if (localPosts.isNotEmpty()) return ApiResult.Success(localPosts)
             }
-            ApiResult.Error(message = "Network error", throwable = e)
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Server error", throwable = e)
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ", throwable = e)
         } catch (e: JsonParseException) {
-            ApiResult.Error(message = "Invalid server response format.", throwable = e)
+            ApiResult.Error(message = "Dữ liệu phản hồi từ máy chủ không hợp lệ.", throwable = e)
         } catch (e: Exception) {
             Log.e(TAG, "getUserPosts() unexpected error", e)
-            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Unexpected error", throwable = e)
+            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi", throwable = e)
         }
     }
 
@@ -96,14 +96,14 @@ class PostRepositoryImpl @Inject constructor(
             val posts = postApi.getSavedPosts(lastPostId = afterId).map { it.copy(isSaved = true) }
             ApiResult.Success(posts)
         } catch (e: IOException) {
-            ApiResult.Error(message = "Network error", throwable = e)
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
         } catch (e: JsonParseException) {
-            ApiResult.Error(message = "Invalid server response format.", throwable = e)
+            ApiResult.Error(message = "Dữ liệu phản hồi từ máy chủ không hợp lệ.", throwable = e)
         } catch (e: Exception) {
             Log.e(TAG, "getSavedPosts() unexpected error", e)
-            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Unexpected error", throwable = e)
+            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi", throwable = e)
         }
     }
 
@@ -129,16 +129,16 @@ class PostRepositoryImpl @Inject constructor(
                     return ApiResult.Success(localVideos)
                 }
             }
-            ApiResult.Error(message = "Network error", throwable = e)
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
 
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
         } catch (e: JsonParseException) {
-            ApiResult.Error(message = "Invalid server response format.", throwable = e)
+            ApiResult.Error(message = "Dữ liệu phản hồi từ máy chủ không hợp lệ.", throwable = e)
         } catch (e: Exception) {
             Log.e(TAG, "getVideos() unexpected error", e)
             ApiResult.Error(
-                message = e.message?.takeIf { it.isNotBlank() } ?: "Unexpected error.",
+                message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi không xác định.",
                 throwable = e
             )
         }
@@ -151,11 +151,11 @@ class PostRepositoryImpl @Inject constructor(
 
             ApiResult.Success(Unit)
         } catch (e: IOException) {
-            ApiResult.Error(message = "Network error", throwable = e)
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Unexpected error", throwable = e)
+            ApiResult.Error(message = "Đã xảy ra lỗi", throwable = e)
         }
     }
 
@@ -164,20 +164,33 @@ class PostRepositoryImpl @Inject constructor(
             val response = postApi.savePost(postId)
             ApiResult.Success(response["saved"] == true)
         } catch (e: IOException) {
-            ApiResult.Error(message = "Network error", throwable = e)
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Unexpected error", throwable = e)
+            ApiResult.Error(message = "Đã xảy ra lỗi", throwable = e)
         }
     }
 
-    override suspend fun createPost(content: String, visibility: String, mediaIds: List<String>?): ApiResult<String> {
+    override suspend fun sharePost(postId: String): ApiResult<String> {
+        return try {
+            val response = postApi.sharePost(postId)
+            ApiResult.Success(response["postId"].orEmpty())
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể chia sẻ bài viết", throwable = e)
+        }
+    }
+
+    override suspend fun createPost(content: String, visibility: String, mediaId: List<String>?): ApiResult<String> {
         return try {
             val requestBody = CreatePostRequest(
                 content = content,
                 visibility = visibility,
-                mediaId = mediaIds
+                mediaId = mediaId
             )
 
             val response = postApi.createPost(requestBody)
@@ -185,10 +198,9 @@ class PostRepositoryImpl @Inject constructor(
 
             ApiResult.Success(returnedPostId)
         } catch (e: HttpException) {
-            ApiResult.Error(message = "Server error (${e.code()}): ${e.message()}", throwable = e)
+            ApiResult.Error(message = "Lỗi máy chủ (${e.code()}): ${e.message()}", throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Create post failed: ${e.message}", throwable = e)
+            ApiResult.Error(message = "Không thể đăng bài: ${e.message}", throwable = e)
         }
     }
 }
-

@@ -43,6 +43,9 @@ interface PostApi {
     @POST(ApiRoutes.SAVE_POST)
     suspend fun savePost(@Path("postId") postId: String): Map<String, Boolean>
 
+    @POST(ApiRoutes.SHARE_POST)
+    suspend fun sharePost(@Path("postId") postId: String): Map<String, String>
+
     @POST(ApiRoutes.CREATE_POST)
     suspend fun createPost(@Body request: CreatePostRequest): Map<String, String>
 
