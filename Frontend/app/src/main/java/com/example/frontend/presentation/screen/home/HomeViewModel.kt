@@ -11,6 +11,7 @@ import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
 import com.example.frontend.ui.component.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ class HomeViewModel @Inject constructor(
     private val getSavedPostsUseCase: GetSavedPostsUseCase,
     private val likePostUseCase: LikePostUseCase,
     private val savePostUseCase: SavePostUseCase,
+    private val sharePostUseCase: SharePostUseCase,
     private val notificationManager: AppNotificationManager,
     private val postUploadManager: PostUploadManager,
     private val postDetailStore: PostDetailStore
@@ -144,8 +146,6 @@ class HomeViewModel @Inject constructor(
     }
 
     fun savePost(postId: String) {
-        val currentState = _uiState.value as? HomeUiState.Success ?: return
-
         viewModelScope.launch {
             when (val result = savePostUseCase(postId)) {
                 is ApiResult.Success -> {
@@ -168,6 +168,32 @@ class HomeViewModel @Inject constructor(
                 is ApiResult.Error -> {
                     notificationManager.showMessage(
                         message = result.message.ifBlank { "Không thể lưu bài viết" },
+                        type = NotificationType.ERROR
+                    )
+                }
+            }
+        }
+    }
+
+    fun sharePost(postId: String) {
+        viewModelScope.launch {
+            when (val result = sharePostUseCase(postId)) {
+                is ApiResult.Success -> {
+                    val latestState = _uiState.value as? HomeUiState.Success ?: return@launch
+                    val updatedPosts = latestState.posts.map { post ->
+                        if (post.id == postId) post.copy(shareCount = post.shareCount + 1) else post
+                    }
+                    _uiState.value = latestState.copy(posts = updatedPosts)
+
+                    notificationManager.showMessage(
+                        message = "Chia sẻ bài viết thành công",
+                        type = NotificationType.SUCCESS
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    notificationManager.showMessage(
+                        message = result.message.ifBlank { "Không thể chia sẻ bài viết" },
                         type = NotificationType.ERROR
                     )
                 }
