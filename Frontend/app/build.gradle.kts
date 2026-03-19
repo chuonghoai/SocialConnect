@@ -151,4 +151,7 @@ dependencies {
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
 
     implementation("io.coil-kt:coil-video:2.6.0")
+
+    // socket.io
+    implementation("io.socket:socket.io-client:2.1.1")
 }
