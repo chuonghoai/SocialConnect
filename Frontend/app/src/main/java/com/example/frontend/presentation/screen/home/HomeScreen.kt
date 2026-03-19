@@ -181,10 +181,7 @@ fun HomeScreen(
                                     onSaveClick = {
                                         viewModel.savePost(post.id)
                                     },
-                                    saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
-                                    onShareClick = {
-                                        viewModel.sharePost(post.id)
-                                    }
+                                    saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết"
                                 )
                             }
 
@@ -369,6 +366,5 @@ fun UploadingIndicator(progressText: String) {
         }
     }
 }
-
 
 

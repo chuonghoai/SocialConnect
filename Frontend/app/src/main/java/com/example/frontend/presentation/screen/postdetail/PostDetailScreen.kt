@@ -1,4 +1,4 @@
-﻿package com.example.frontend.presentation.screen.postdetail
+package com.example.frontend.presentation.screen.postdetail
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -84,7 +84,7 @@ fun PostDetailScreen(
             TopAppBar(
                 title = {
                     Text(
-                        text = "BÃ i Ä‘Äƒng",
+                        text = "Bài đăng",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp
                     )
@@ -93,7 +93,7 @@ fun PostDetailScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Quay láº¡i"
+                            contentDescription = "Quay lại"
                         )
                     }
                 },
@@ -125,7 +125,7 @@ fun PostDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // â”€â”€ BÃ i Ä‘Äƒng gá»‘c â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Bài đăng gốc ──────────────────────────────────────────────
             item {
                 uiState.post?.let { post ->
                     PostDetailHeader(
@@ -138,7 +138,7 @@ fun PostDetailScreen(
                 }
             }
 
-            // â”€â”€ Divider + tiÃªu Ä‘á» pháº§n bÃ¬nh luáº­n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Divider + tiêu đề phần bình luận ──────────────────────────
             item {
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -151,7 +151,7 @@ fun PostDetailScreen(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${uiState.commentCount} bÃ¬nh luáº­n",
+                        text = "${uiState.commentCount} bình luận",
                         fontWeight = FontWeight.Bold,
                         fontSize = 15.sp,
                         color = MaterialTheme.colorScheme.onSurface
@@ -159,7 +159,7 @@ fun PostDetailScreen(
                 }
             }
 
-            // â”€â”€ Loading skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Loading skeleton ───────────────────────────────────────────
             if (uiState.isLoadingComments) {
                 item {
                     Box(
@@ -173,7 +173,7 @@ fun PostDetailScreen(
                 }
             }
 
-            // â”€â”€ Danh sÃ¡ch comment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Danh sách comment ──────────────────────────────────────────
             items(uiState.comments, key = { it.id }) { comment ->
                 CommentItem(
                     comment = comment,
@@ -215,19 +215,19 @@ fun PostDetailScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Táº£i thÃªm bÃ¬nh luáº­n tháº¥t báº¡i.",
+                            text = "Tải thêm bình luận thất bại.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 13.sp
                         )
                         Spacer(Modifier.width(8.dp))
                         TextButton(onClick = { viewModel.loadMoreComments() }) {
-                            Text("Thá»­ láº¡i")
+                            Text("Thử lại")
                         }
                     }
                 }
             }
 
-            // â”€â”€ Empty / Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Empty / Error state ────────────────────────────────────────
             if (!uiState.isLoadingComments && uiState.comments.isEmpty()) {
                 item {
                     Box(
@@ -237,7 +237,7 @@ fun PostDetailScreen(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "ChÆ°a cÃ³ bÃ¬nh luáº­n nÃ o.",
+                            text = "Chưa có bình luận nào.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
@@ -254,13 +254,13 @@ fun PostDetailScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            text = "KhÃ´ng thá»ƒ táº£i bÃ¬nh luáº­n.",
+                            text = "Không thể tải bình luận.",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
                         Spacer(Modifier.height(8.dp))
                         Button(onClick = { viewModel.retryLoadComments() }) {
-                            Text("Táº£i láº¡i")
+                            Text("Tải lại")
                         }
                     }
                 }
@@ -269,9 +269,9 @@ fun PostDetailScreen(
     }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Post chi tiáº¿t (header + content + actions)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Post chi tiết (header + content + actions)
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun PostDetailHeader(
     post: Post,
@@ -285,7 +285,7 @@ private fun PostDetailHeader(
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp)
     ) {
-        // Avatar + TÃªn + Thá»i gian
+        // Avatar + Tên + Thời gian
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = post.userAvatar,
@@ -315,7 +315,7 @@ private fun PostDetailHeader(
 
         Spacer(Modifier.height(8.dp))
 
-        // Ná»™i dung bÃ i Ä‘Äƒng (full, khÃ´ng truncate)
+        // Nội dung bài đăng (full, không truncate)
         Text(
             text = post.content,
             fontSize = 15.sp,
@@ -323,7 +323,7 @@ private fun PostDetailHeader(
             color = MaterialTheme.colorScheme.onSurface
         )
 
-        // Media (áº£nh / video)
+        // Media (ảnh / video)
         if (post.cdnUrl.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Box(
@@ -345,7 +345,7 @@ private fun PostDetailHeader(
                         contentScale = ContentScale.FillWidth
                     )
                 } else if (post.kind == "VIDEO") {
-                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl)
+                    PostMediaContent(post = post);
                 }
             }
         }
@@ -354,14 +354,14 @@ private fun PostDetailHeader(
 
         // Actions: Like / Comment / Share
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Like button (cÃ³ animation)
+            // Like button (có animation)
             IconButton(
                 onClick = onLikeClick,
                 modifier = Modifier.size(36.dp)
             ) {
                 Icon(
                     imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Filled.FavoriteBorder,
-                    contentDescription = "ThÃ­ch",
+                    contentDescription = "Thích",
                     tint = if (isLiked) Color.Red else MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(22.dp)
                 )
@@ -376,7 +376,7 @@ private fun PostDetailHeader(
 
             Icon(
                 painter = painterResource(R.drawable.icon_message),
-                contentDescription = "BÃ¬nh luáº­n",
+                contentDescription = "Bình luận",
                 modifier = Modifier.size(22.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -391,7 +391,7 @@ private fun PostDetailHeader(
 
             Icon(
                 painter = painterResource(R.drawable.icon_share),
-                contentDescription = "Chia sáº»",
+                contentDescription = "Chia sẻ",
                 modifier = Modifier.size(22.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -407,9 +407,9 @@ private fun PostDetailHeader(
     }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Item comment Ä‘Æ¡n
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Item comment đơn
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun CommentItem(
     comment: Comment,
@@ -445,7 +445,7 @@ private fun CommentItem(
 
         Spacer(Modifier.width(12.dp))
 
-        // Ná»™i dung comment
+        // Nội dung comment
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -480,7 +480,7 @@ private fun CommentItem(
                         )
                         Spacer(Modifier.width(4.dp))
                         Text(
-                            text = "ÄÃ£ Ä‘Ã­nh kÃ¨m video",
+                            text = "Đã đính kèm video",
                             fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -534,7 +534,7 @@ private fun CommentItem(
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Text(
-                        text = "Tráº£ lá»i",
+                        text = "Trả lời",
                         fontSize = 12.sp,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -544,9 +544,9 @@ private fun CommentItem(
     }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Bottom bar nháº­p comment
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom bar nhập comment
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun CommentInputBar(
     avatarUrl: String,
@@ -576,7 +576,7 @@ private fun CommentInputBar(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Äang tráº£ lá»i ${replyingToComment.displayName}",
+                        text = "Đang trả lời ${replyingToComment.displayName}",
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.weight(1f)
@@ -584,7 +584,7 @@ private fun CommentInputBar(
                     IconButton(onClick = onCancelReply, modifier = Modifier.size(24.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Há»§y tráº£ lá»i",
+                            contentDescription = "Hủy trả lời",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -613,7 +613,7 @@ private fun CommentInputBar(
                         )
                         Spacer(Modifier.width(6.dp))
                         Text(
-                            text = "ÄÃ£ chá»n 1 tá»‡p",
+                            text = "Đã chọn 1 tệp",
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -621,7 +621,7 @@ private fun CommentInputBar(
                     IconButton(onClick = onRemoveMedia, modifier = Modifier.size(24.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "XÃ³a tá»‡p",
+                            contentDescription = "Xóa tệp",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -632,7 +632,7 @@ private fun CommentInputBar(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar cá»§a current user
+                // Avatar của current user
                 AsyncImage(
                     model = avatarUrl,
                     contentDescription = null,
@@ -652,7 +652,7 @@ private fun CommentInputBar(
                     onValueChange = onInputChange,
                     placeholder = {
                         Text(
-                            "ThÃªm bÃ¬nh luáº­n...",
+                            "Thêm bình luận...",
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             fontSize = 14.sp
                         )
@@ -672,7 +672,7 @@ private fun CommentInputBar(
                 IconButton(onClick = onPickMedia, enabled = !isSending) {
                     Icon(
                         imageVector = Icons.Default.AttachFile,
-                        contentDescription = "ÄÃ­nh kÃ¨m",
+                        contentDescription = "Đính kèm",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.size(22.dp)
                     )
@@ -692,7 +692,7 @@ private fun CommentInputBar(
                     } else {
                         Icon(
                             imageVector = Icons.Default.Send,
-                            contentDescription = "Gá»­i",
+                            contentDescription = "Gửi",
                             tint = if (input.isNotBlank() || selectedMediaUri != null) OrangePrimary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
@@ -703,4 +703,3 @@ private fun CommentInputBar(
         }
     }
 }
-
