@@ -16,6 +16,7 @@ data class Post(
     val shareCount: Int,
     val cdnUrl: String,
     val isLiked: Boolean = false,
+    val isSaved: Boolean = false,
     @SerializedName(
         value = "media",
         alternate = ["medias", "attachments", "files", "mediaList"]

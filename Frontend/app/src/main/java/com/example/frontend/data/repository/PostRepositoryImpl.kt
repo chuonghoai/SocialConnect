@@ -10,7 +10,6 @@ import com.example.frontend.data.remote.dto.CreatePostRequest
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
 import com.google.gson.JsonParseException
-import com.google.gson.JsonParseException
 import retrofit2.HttpException
 import java.io.IOException
 import javax.inject.Inject
@@ -111,6 +110,22 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getSavedPosts(afterId: String?, isRefresh: Boolean): ApiResult<List<Post>> {
+        return try {
+            val posts = postApi.getSavedPosts(lastPostId = afterId).map { it.copy(isSaved = true) }
+            ApiResult.Success(posts)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Network error", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
+        } catch (e: JsonParseException) {
+            ApiResult.Error(message = "Invalid server response format.", throwable = e)
+        } catch (e: Exception) {
+            Log.e(TAG, "getSavedPosts() unexpected error", e)
+            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Unexpected error", throwable = e)
+        }
+    }
+
     override suspend fun getVideos(afterId: String?, isRefresh: Boolean): ApiResult<List<Post>> {
         return try {
             if (isRefresh && afterId == null) {
@@ -175,7 +190,33 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createPost(content: String, visibility: String, mediaId: List<String>?): ApiResult<String> {
+    override suspend fun savePost(postId: String): ApiResult<Boolean> {
+        return try {
+            val response = postApi.savePost(postId)
+            ApiResult.Success(response["saved"] == true)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Đã xảy ra lỗi", throwable = e)
+        }
+    }
+
+    override suspend fun sharePost(postId: String): ApiResult<String> {
+        return try {
+            val response = postApi.sharePost(postId)
+            ApiResult.Success(response["postId"].orEmpty())
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể chia sẻ bài viết", throwable = e)
+        }
+    }
+
+    override suspend fun createPost(content: String, visibility: String, mediaIds: List<String>?): ApiResult<String> {
         return try {
             val normalizedVisibility = normalizeVisibility(visibility)
             val requestBody = CreatePostRequest(
