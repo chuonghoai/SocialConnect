@@ -10,6 +10,7 @@ object ApiRoutes {
     const val GET_VIDEO = "/videos"
     const val USER_POSTS = "api/posts/user/{userId}"
     const val SAVED_POSTS = "api/posts/saved"
+    const val SHARE_POST = "api/posts/{postId}/share"
     const val LIKE_POST = "api/posts/{postId}/like"
     const val SAVE_POST = "api/posts/{postId}/save"
     const val GET_POST_COMMENTS = "api/posts/{postId}/comments"

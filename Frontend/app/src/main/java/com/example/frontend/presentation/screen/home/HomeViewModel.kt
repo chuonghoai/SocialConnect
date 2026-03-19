@@ -11,6 +11,7 @@ import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
 import com.example.frontend.ui.component.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,6 +26,7 @@ class HomeViewModel @Inject constructor(
     private val getSavedPostsUseCase: GetSavedPostsUseCase,
     private val likePostUseCase: LikePostUseCase,
     private val savePostUseCase: SavePostUseCase,
+    private val sharePostUseCase: SharePostUseCase,
     private val notificationManager: AppNotificationManager,
     private val postUploadManager: PostUploadManager,
     private val postDetailStore: PostDetailStore
@@ -38,17 +40,7 @@ class HomeViewModel @Inject constructor(
 
     private var isFetching = false
     private var isLastPage = false
-    private var lastHandledPostCreatedTick = 0L
-
-    init {
-        viewModelScope.launch {
-            postUploadManager.postCreatedTick.collect { tick ->
-                if (tick <= 0L || tick <= lastHandledPostCreatedTick) return@collect
-                lastHandledPostCreatedTick = tick
-                load(isRefresh = true)
-            }
-        }
-    }
+    private var savedPostIds: Set<String> = emptySet()
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {
@@ -154,7 +146,7 @@ class HomeViewModel @Inject constructor(
     }
 
     fun savePost(postId: String) {
-        val currentState = _uiState.value as? HomeUiState.Success ?: return
+
 
         viewModelScope.launch {
             when (val result = savePostUseCase(postId)) {
@@ -185,7 +177,62 @@ class HomeViewModel @Inject constructor(
         }
     }
 
+    fun sharePost(postId: String) {
+        viewModelScope.launch {
+            when (val result = sharePostUseCase(postId)) {
+                is ApiResult.Success -> {
+                    val latestState = _uiState.value as? HomeUiState.Success ?: return@launch
+                    val updatedPosts = latestState.posts.map { post ->
+                        if (post.id == postId) post.copy(shareCount = post.shareCount + 1) else post
+                    }
+                    _uiState.value = latestState.copy(posts = updatedPosts)
+
+                    notificationManager.showMessage(
+                        message = "Chia sẻ bài viết thành công",
+                        type = NotificationType.SUCCESS
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    notificationManager.showMessage(
+                        message = result.message.ifBlank { "Không thể chia sẻ bài viết" },
+                        type = NotificationType.ERROR
+                    )
+                }
+            }
+        }
+    }
+
     fun selectPost(post: Post) {
         postDetailStore.selectedPost = post
+    }
+
+    private suspend fun fetchSavedPostIds(): Set<String> {
+        val ids = LinkedHashSet<String>()
+        var afterId: String? = null
+
+        while (true) {
+            when (val result = getSavedPostsUseCase(afterId = afterId)) {
+                is ApiResult.Success -> {
+                    if (result.data.isEmpty()) {
+                        return ids
+                    }
+
+                    result.data.forEach { ids.add(it.id) }
+                    afterId = result.data.lastOrNull()?.id
+                }
+
+                is ApiResult.Error -> {
+                    return ids
+                }
+            }
+        }
+    }
+
+    private fun applySavedState(posts: List<Post>): List<Post> {
+        if (savedPostIds.isEmpty()) return posts
+        return posts.map { post ->
+            if (savedPostIds.contains(post.id)) post.copy(isSaved = true) else post
+        }
     }
 }

@@ -1,6 +1,7 @@
 ﻿package com.example.frontend.ui.component
 
 import android.net.Uri
+import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -46,6 +47,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.frontend.R
+import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
 import kotlin.math.hypot
@@ -56,8 +58,11 @@ fun PostCard(
     post: Post,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
-    onVideoClick: (() -> Unit)? = null
-) {
+    onVideoClick: (() -> Unit)? = null,
+    onSaveClick: (() -> Unit)? = null,
+    saveMenuLabel: String = "Lưu bài viết",
+    onShareClick: (() -> Unit)? = null
+    ) {
     var isMoreMenuExpanded by remember { mutableStateOf(false) }
 
     val isSharedPost = post.type.equals("SHARED", ignoreCase = true)
@@ -136,16 +141,31 @@ fun PostCard(
                 }
             }
 
-            Text(
-                text = post.content,
-                modifier = Modifier.padding(vertical = 12.dp),
-                color = MaterialTheme.colorScheme.onSurface
-            )
+            if (shouldRenderOriginalPost) {
+                if (shouldShowSharedCaption) {
+                    Text(
+                        text = post.content,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                } else {
+                    Spacer(Modifier.height(12.dp))
+                }
 
-            PostMediaContent(
-                post = post,
-                onVideoClick = onVideoClick
-            )
+                SharedPostPreviewCard(originalPost = originalPost)
+            } else {
+                if (post.content.isNotBlank()) {
+                    Text(
+                        text = post.content,
+                        modifier = Modifier.padding(vertical = 12.dp),
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+
+                if (post.cdnUrl.isNotEmpty()) {
+                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl)
+                }
+            }
 
             Spacer(Modifier.height(12.dp))
 
@@ -166,7 +186,12 @@ fun PostCard(
                     onClick = onCommentClick
                 )
                 Spacer(Modifier.width(24.dp))
-                InteractionItem(R.drawable.icon_share, post.shareCount.toString())
+                InteractionItem(
+                    R.drawable.icon_share,
+                    post.shareCount.toString(),
+                    onClick = { onShareClick?.invoke() }
+                )
+
             }
         }
     }
@@ -178,52 +203,90 @@ private data class PostMediaItem(
 )
 
 @Composable
-fun PostMediaContent(
-    post: Post,
-    onVideoClick: (() -> Unit)? = null
-) {
-    val mediaItems = remember(
-        post.cdnUrl,
-        post.kind,
-        post.media,
-        post.mediaIds,
-        post.mediaUrls,
-        post.images,
-        post.videos
-    ) { post.toMediaItems() }
-    if (mediaItems.isEmpty()) return
+private fun SharedPostPreviewCard(originalPost: OriginalPost) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)),
+        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                AsyncImage(
+                    model = originalPost.userAvatar,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(32.dp)
+                        .clip(CircleShape)
+                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                    contentScale = ContentScale.Crop,
+                    error = painterResource(R.drawable.icon_user)
+                )
+                Spacer(Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = originalPost.displayName,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 13.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Text(
+                        text = formatTimeAgo(originalPost.createdAt),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
 
-    var showViewer by remember(mediaItems) { mutableStateOf(false) }
-    var startIndex by remember(mediaItems) { mutableStateOf(0) }
+            if (originalPost.content.isNotBlank()) {
+                Text(
+                    text = originalPost.content,
+                    modifier = Modifier.padding(top = 10.dp, bottom = 8.dp),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            } else {
+                Spacer(Modifier.height(8.dp))
+            }
 
+            if (originalPost.cdnUrl.isNotEmpty()) {
+                PostMediaContent(kind = originalPost.kind, cdnUrl = originalPost.cdnUrl)
+            }
+        }
+    }
+}
+
+@Composable
+fun PostMediaContent(kind: String, cdnUrl: String) {
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .aspectRatio(1f)
             .clip(RoundedCornerShape(8.dp))
             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-            .background(Color.Black.copy(alpha = 0.04f))
     ) {
-        MediaGridPreview(
-            mediaItems = mediaItems,
-            onItemClick = { index ->
-                val tapped = mediaItems.getOrNull(index)
-                if (mediaItems.size == 1 && tapped?.kind == "VIDEO" && onVideoClick != null) {
-                    onVideoClick()
-                } else {
-                    startIndex = index
-                    showViewer = true
-                }
-            }
-        )
-    }
-
-    if (showViewer) {
-        MediaViewerDialog(
-            mediaItems = mediaItems,
-            initialPage = startIndex,
-            onDismiss = { showViewer = false }
-        )
+        if (kind == "IMAGE") {
+            AsyncImage(
+                model = cdnUrl,
+                contentDescription = null,
+                modifier = Modifier.fillMaxWidth(),
+                contentScale = ContentScale.FillWidth
+            )
+        } else if (kind == "VIDEO") {
+            AndroidView(
+                factory = { ctx ->
+                    VideoView(ctx).apply {
+                        setVideoURI(Uri.parse(cdnUrl))
+                        val controller = MediaController(ctx)
+                        controller.setAnchorView(this)
+                        setMediaController(controller)
+                        setOnPreparedListener {
+                            it.isLooping = true
+                            start()
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
+            )
+        }
     }
 }
 

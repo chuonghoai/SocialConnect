@@ -345,7 +345,7 @@ private fun PostDetailHeader(
                         contentScale = ContentScale.FillWidth
                     )
                 } else if (post.kind == "VIDEO") {
-                    PostMediaContent(post = post);
+                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl);
                 }
             }
         }

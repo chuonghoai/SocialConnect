@@ -18,6 +18,9 @@ interface PostApi {
         @Query("limit") limit: Int = 10
     ) : List<Map<String, Any?>>
 
+    @POST(ApiRoutes.SHARE_POST)
+    suspend fun sharePost(@Path("postId") postId: String): Map<String, String>
+
     @GET(ApiRoutes.GET_VIDEO)
     suspend fun getVideo(
         @Query("after") lastPostId: String? = null,
