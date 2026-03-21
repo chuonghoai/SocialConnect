@@ -1,6 +1,7 @@
 package com.example.frontend.presentation.screen.chat
 
 import MessageItem
+import android.util.Log
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -25,9 +26,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
@@ -36,6 +40,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.zIndex
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.frontend.R
@@ -70,99 +75,91 @@ fun ChatScreen(
         }
     }
 
-    Column(
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color(0xFFE9E9E9))
     ) {
-        TopCaptionBar()
+
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(top = 66.dp)
+                .consumeWindowInsets(WindowInsets.navigationBars)
+                .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+        ) {
+            Box(modifier = Modifier.weight(1f)) {
+                if (uiState.isLoading && uiState.messages.isEmpty()) {
+                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        contentPadding = PaddingValues(
+                            bottom = 10.dp,
+                            start = 12.dp,
+                            end = 12.dp
+                        ),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        reverseLayout = true
+                    ) {
+                        item {
+                            Column {
+                                AnimatedVisibility(
+                                    visible = uiState.isPartnerTyping,
+                                    enter = fadeIn(),
+                                    exit = fadeOut()
+                                ) {
+                                    Row(
+                                        modifier = Modifier.padding(vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "$conversationName đang nhập...",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = Color.Gray,
+                                            modifier = Modifier.padding(start = 42.dp)
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        items(uiState.messages) { msg ->
+                            val isMine = msg.sender.id == uiState.currentUser?.id
+                            MessageBubble(
+                                message = msg,
+                                isMine = isMine,
+                                incomingAvatarUrl = conversationAvatarUrl,
+                            )
+                        }
+                    }
+                }
+            }
+
+            ChatInputBar(
+                value = messageText,
+                onValueChange = {
+                    messageText = it
+                    viewModel.onTyping(it)
+                },
+                onSendClick = {
+                    if (messageText.isNotBlank()) {
+                        viewModel.sendChatMessage(conversationId, messageText)
+                        messageText = ""
+                    }
+                },
+            )
+        }
 
         ChatTopBar(
             title = conversationName,
             avatarUrl = conversationAvatarUrl,
             isOnline = isPartnerOnline,
-            onBackClick = onBackClick
-        )
-
-        Box(modifier = Modifier.weight(1f)) {
-            if (uiState.isLoading && uiState.messages.isEmpty()) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                    reverseLayout = true
-                ) {
-                    item {
-                        // Bọc trong Column để cung cấp ColumnScope hợp lệ cho AnimatedVisibility
-                        Column {
-                            AnimatedVisibility(
-                                visible = uiState.isPartnerTyping,
-                                enter = fadeIn(),
-                                exit = fadeOut()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(vertical = 4.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = "$conversationName đang nhập...",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = Color.Gray,
-                                        modifier = Modifier.padding(start = 42.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    items(uiState.messages) { msg ->
-                        val isMine = msg.sender.id == uiState.currentUser?.id
-                        MessageBubble(
-                            message = msg,
-                            isMine = isMine,
-                            incomingAvatarUrl = conversationAvatarUrl,
-                            currentUserLetter = uiState.currentUser?.displayName?.take(1) ?: "U"
-                        )
-                    }
-                }
-            }
-        }
-
-        ChatInputBar(
-            value = messageText,
-            onValueChange = { 
-                messageText = it
-                viewModel.onTyping(it)
-            },
-            onSendClick = {
-                if (messageText.isNotBlank()) {
-                    viewModel.sendChatMessage(conversationId, messageText)
-                    messageText = ""
-                }
-            }
-        )
-    }
-}
-
-@Composable
-private fun TopCaptionBar() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(20.dp)
-            .background(Color(0xFFE5E5E5))
-            .border(width = 0.6.dp, color = Color(0xFFD0D0D0)),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(
-            text = "Message - Conversation",
-            color = Color(0xFF8A8A8A),
-            fontSize = 10.sp,
-            fontFamily = FontFamily.SansSerif,
-            modifier = Modifier.padding(start = 8.dp)
+            onBackClick = onBackClick,
+            modifier = Modifier
+                .align(Alignment.TopCenter)
+                .zIndex(10f)
         )
     }
 }
@@ -172,10 +169,11 @@ private fun ChatTopBar(
     title: String,
     avatarUrl: String?,
     isOnline: Boolean,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .height(66.dp)
             .background(Color.White)
@@ -255,7 +253,6 @@ private fun MessageBubble(
     message: MessageItem,
     isMine: Boolean,
     incomingAvatarUrl: String?,
-    currentUserLetter: String
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -297,11 +294,6 @@ private fun MessageBubble(
                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                 )
             }
-
-            if (isMine) {
-                Spacer(Modifier.width(8.dp))
-                ChatLetterAvatar(letter = currentUserLetter)
-            }
         }
         
         Text(
@@ -330,33 +322,14 @@ fun formatMessageTime(isoString: String): String {
 }
 
 @Composable
-private fun ChatLetterAvatar(letter: String) {
-    Box(
-        modifier = Modifier
-            .size(34.dp)
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFFE8A46F))
-            .border(1.dp, Color(0xFFDA8D54), RoundedCornerShape(8.dp)),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = letter,
-            color = Color.White,
-            fontWeight = FontWeight.Bold,
-            fontSize = 22.sp,
-            fontFamily = FontFamily.SansSerif
-        )
-    }
-}
-
-@Composable
 private fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
-    onSendClick: () -> Unit
+    onSendClick: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     Row(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
             .background(Color.White)
             .border(width = 0.8.dp, color = Color(0xFFD9D9D9))
@@ -408,12 +381,6 @@ private fun ChatInputBar(
                                 .background(Color(0xFFE1A66E))
                         )
                         Spacer(Modifier.width(6.dp))
-                        if (value.isEmpty()) {
-                            Text(
-                                text = "",
-                                color = Color(0xFF9E9E9E)
-                            )
-                        }
                         innerTextField()
                     }
                 }
