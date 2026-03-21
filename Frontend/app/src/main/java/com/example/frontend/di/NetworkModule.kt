@@ -28,9 +28,12 @@ import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
  import android.content.Context
- import dagger.hilt.android.qualifiers.ApplicationContext
+import com.example.frontend.data.remote.api.ConversationApi
+import com.example.frontend.data.repository.ConversationRepositoryImpl
+import dagger.hilt.android.qualifiers.ApplicationContext
  import com.example.frontend.domain.repository.MediaRepository
  import com.example.frontend.data.repository.MediaRepositoryImpl
+import com.example.frontend.domain.repository.ConversationRepository
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -131,5 +134,19 @@ object NetworkModule {
         @ApplicationContext context: Context
     ): MediaRepository {
         return MediaRepositoryImpl(mediaApi, context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideConversationApi(retrofit: Retrofit): ConversationApi {
+        return retrofit.create(ConversationApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideConversationRepository(
+        conversationApi: ConversationApi
+    ): ConversationRepository {
+        return ConversationRepositoryImpl(conversationApi)
     }
 }

@@ -9,7 +9,9 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import org.json.JSONArray
 import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -26,6 +28,9 @@ class WebSocketManager @Inject constructor(
 
     private val _incomingMessages = MutableStateFlow<String?>(null)
     val incomingMessages: StateFlow<String?> = _incomingMessages
+
+    private val _onlineUsers = MutableStateFlow<Set<String>>(emptySet())
+    val onlineUsers: StateFlow<Set<String>> = _onlineUsers.asStateFlow()
 
     fun connect() {
         scope.launch {
@@ -95,6 +100,55 @@ class WebSocketManager @Inject constructor(
             val data = args.getOrNull(0)?.toString()
             _incomingMessages.value = data
             Log.d("WebSocket", "Có tin nhắn mới: $data")
+        }
+
+        mSocket?.on("online_users_list") { args ->
+            try {
+                val dataStr = args.getOrNull(0)?.toString()
+                if (dataStr != null) {
+                    val jsonArray = JSONArray(dataStr)
+                    val users = mutableSetOf<String>()
+                    for (i in 0 until jsonArray.length()) {
+                        users.add(jsonArray.getString(i))
+                    }
+                    _onlineUsers.value = users
+                    Log.d("WebSocket", "Online users: $users")
+                }
+            } catch (e: Exception) {
+                Log.e("WebSocket", "Lỗi parse online_users_list: ${e.message}")
+            }
+        }
+
+        mSocket?.on("user_online") { args ->
+            try {
+                val dataStr = args.getOrNull(0)?.toString()
+                if (dataStr != null) {
+                    val jsonObj = JSONObject(dataStr)
+                    val userId = jsonObj.optString("userId")
+                    if (userId.isNotEmpty()) {
+                        _onlineUsers.value = _onlineUsers.value + userId
+                        Log.d("WebSocket", "User online: $userId")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("WebSocket", "Lỗi parse user_online: ${e.message}")
+            }
+        }
+
+        mSocket?.on("user_offline") { args ->
+            try {
+                val dataStr = args.getOrNull(0)?.toString()
+                if (dataStr != null) {
+                    val jsonObj = JSONObject(dataStr)
+                    val userId = jsonObj.optString("userId")
+                    if (userId.isNotEmpty()) {
+                        _onlineUsers.value = _onlineUsers.value - userId
+                        Log.d("WebSocket", "User offline: $userId")
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("WebSocket", "Lỗi parse user_offline: ${e.message}")
+            }
         }
     }
 

@@ -12,6 +12,7 @@ class WebSocketViewModel @Inject constructor(
 
     val isConnected = webSocketManager.isConnected
     val incomingMessages = webSocketManager.incomingMessages
+    val onlineUsers = webSocketManager.onlineUsers
 
     fun connect() {
         webSocketManager.connect()
