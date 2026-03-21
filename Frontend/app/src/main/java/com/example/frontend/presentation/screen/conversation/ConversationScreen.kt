@@ -40,7 +40,7 @@ import com.example.frontend.presentation.viewmodel.WebSocketViewModel
 @Composable
 fun ConversationScreen(
     onBackClick: () -> Unit = {},
-    onNavigateToChat: (String, String, String) -> Unit = { _, _, _ -> },
+    onNavigateToChat: (String, String, String, String) -> Unit = { _, _, _, _ -> },
     viewModel: ConversationViewModel = hiltViewModel(),
     sessionViewModel: SessionViewModel = hiltViewModel(),
     webSocketViewModel: WebSocketViewModel = hiltViewModel()
@@ -96,7 +96,8 @@ fun ConversationScreen(
                         isOnline = isPartnerOnline,
                         onClick = { 
                             onNavigateToChat(
-                                conv.id, 
+                                conv.id,
+                                partner?.id ?: "",
                                 partner?.displayName ?: "Unknown", 
                                 partner?.avatarUrl ?: ""
                             ) 

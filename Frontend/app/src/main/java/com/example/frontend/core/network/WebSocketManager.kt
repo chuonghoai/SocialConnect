@@ -16,6 +16,12 @@ import org.json.JSONObject
 import javax.inject.Inject
 import javax.inject.Singleton
 
+data class TypingInfo(
+    val conversationId: String,
+    val userId: String,
+    val isTyping: Boolean
+)
+
 @Singleton
 class WebSocketManager @Inject constructor(
     private val tokenProvider: TokenProvider
@@ -32,6 +38,9 @@ class WebSocketManager @Inject constructor(
     private val _onlineUsers = MutableStateFlow<Set<String>>(emptySet())
     val onlineUsers: StateFlow<Set<String>> = _onlineUsers.asStateFlow()
 
+    private val _typingEvents = MutableStateFlow<TypingInfo?>(null)
+    val typingEvents: StateFlow<TypingInfo?> = _typingEvents.asStateFlow()
+
     fun connect() {
         scope.launch {
             if (mSocket?.connected() == true) {
@@ -46,14 +55,12 @@ class WebSocketManager @Inject constructor(
                     val options = IO.Options()
                     options.reconnection = true
                     options.reconnectionDelay = 5000
-                    // Thử bắt buộc dùng websocket nếu polling bị 404
                     options.transports = arrayOf(WebSocket.NAME)
 
                     if (!token.isNullOrEmpty()) {
                         options.auth = mapOf("token" to token)
                     }
 
-                    // Xử lý URL chuẩn: Xóa dấu / ở cuối và bỏ /api
                     val baseUrl = AppConfig.BASE_URL.trim()
                     var cleanedUrl = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
                     
@@ -150,6 +157,21 @@ class WebSocketManager @Inject constructor(
                 Log.e("WebSocket", "Lỗi parse user_offline: ${e.message}")
             }
         }
+
+        mSocket?.on("is_typing") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject
+                if (data != null) {
+                    val conversationId = data.getString("conversationId")
+                    val userId = data.getString("userId")
+                    val isTyping = data.getBoolean("isTyping")
+                    Log.d("WebSocket", "<<< Nhận event 'is_typing': from=$userId, isTyping=$isTyping")
+                    _typingEvents.value = TypingInfo(conversationId, userId, isTyping)
+                }
+            } catch (e: Exception) {
+                Log.e("WebSocket", "Lỗi parse is_typing: ${e.message}")
+            }
+        }
     }
 
     fun disconnect() {
@@ -174,6 +196,24 @@ class WebSocketManager @Inject constructor(
             }
         } else {
             Log.e("WebSocket", "Không thể gửi tin nhắn do chưa kết nối Socket")
+        }
+    }
+
+    fun sendTypingEvent(conversationId: String, isTyping: Boolean) {
+        if (mSocket?.connected() == true) {
+            try {
+                val payload = JSONObject().apply {
+                    put("conversationId", conversationId)
+                    put("isTyping", isTyping)
+                }
+                // Sửa tên event thành "typing" cho khớp Backend của bạn
+                Log.d("WebSocket", ">>> Gửi event 'typing': convId=$conversationId, isTyping=$isTyping")
+                mSocket?.emit("typing", payload)
+            } catch (e: Exception) {
+                Log.e("WebSocket", "Lỗi khi gửi typing event: ${e.message}")
+            }
+        } else {
+            Log.e("WebSocket", "Socket chưa kết nối, không thể gửi event typing")
         }
     }
 }

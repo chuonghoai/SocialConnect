@@ -26,4 +26,5 @@ object ApiRoutes {
 
     // Conversation
     const val CONVERSATIONS = "api/conversations"
+    const val MESSAGES = "api/messages/{conversationId}"
 }

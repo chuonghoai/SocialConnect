@@ -309,10 +309,10 @@ fun AppNavGraph(
                 composable(Routes.CONVERSATION_LIST) {
                     ConversationScreen(
                         onBackClick = { navController.popBackStack() },
-                        onNavigateToChat = { conversationId, conversationName, conversationAvatar ->
+                        onNavigateToChat = { conversationId, partnerId, conversationName, conversationAvatar ->
                             val encodedName = Uri.encode(conversationName)
                             val encodedAvatar = Uri.encode(conversationAvatar)
-                            navController.navigate("${Routes.CHAT_BASE}/$conversationId?name=$encodedName&avatar=$encodedAvatar")
+                            navController.navigate("${Routes.CHAT_BASE}/$conversationId?partnerId=$partnerId&name=$encodedName&avatar=$encodedAvatar")
                         }
                     )
                 }
@@ -320,6 +320,8 @@ fun AppNavGraph(
                 composable(Routes.CHAT) { backStackEntry ->
                     val conversationId =
                         backStackEntry.arguments?.getString("conversationId") ?: "0"
+                    val partnerId =
+                        backStackEntry.arguments?.getString("partnerId") ?: ""
                     val conversationName =
                         backStackEntry.arguments?.getString("name")?.let(Uri::decode)
                             ?: "Người dùng $conversationId"
@@ -328,6 +330,7 @@ fun AppNavGraph(
 
                     ChatScreen(
                         conversationId = conversationId,
+                        partnerId = partnerId,
                         conversationName = conversationName,
                         conversationAvatarUrl = conversationAvatar,
                         onBackClick = { navController.popBackStack() }

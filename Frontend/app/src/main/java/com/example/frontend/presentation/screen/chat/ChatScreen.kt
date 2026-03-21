@@ -1,11 +1,16 @@
 package com.example.frontend.presentation.screen.chat
 
+import MessageItem
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -31,28 +36,39 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.ui.theme.OnlineGreen
 import com.example.frontend.ui.theme.OrangePrimary
+import java.text.SimpleDateFormat
+import java.util.Locale
+import java.util.TimeZone
 
-// Dữ liệu giả
-data class MockMessage(val id: String, val text: String, val time: String, val isMine: Boolean)
-
-val mockMessages = listOf(
-    MockMessage("1", "Nói gì đi bro", "10:58", true),
-    MockMessage("2", "Nhất sinh nhị\nNhị sinh tam\nTam sinh vạn vật\nBro đi qua lâm vân tất hóa\như vô", "10:59", false)
-)
-
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     conversationId: String,
+    partnerId: String,
     conversationName: String = "Người dùng",
     conversationAvatarUrl: String? = null,
-    onBackClick: () -> Unit = {}
+    onBackClick: () -> Unit = {},
+    viewModel: ChatViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
     var messageText by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+
+    val isPartnerOnline = uiState.onlineUsers.contains(partnerId)
+
+    LaunchedEffect(conversationId) {
+        viewModel.loadMessages(conversationId)
+    }
+
+    LaunchedEffect(uiState.messages.size) {
+        if (uiState.messages.isNotEmpty()) {
+            listState.animateScrollToItem(0)
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -64,38 +80,69 @@ fun ChatScreen(
         ChatTopBar(
             title = conversationName,
             avatarUrl = conversationAvatarUrl,
+            isOnline = isPartnerOnline,
             onBackClick = onBackClick
         )
 
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            item {
-                Text(
-                    text = "10:58",
-                    color = Color(0xFF555555),
-                    fontSize = 10.sp,
-                    fontFamily = FontFamily.SansSerif,
-                    modifier = Modifier.fillMaxWidth(),
-                    textAlign = TextAlign.Center
-                )
-            }
-            items(mockMessages) { msg ->
-                MessageBubble(
-                    message = msg,
-                    incomingAvatarUrl = conversationAvatarUrl
-                )
+        Box(modifier = Modifier.weight(1f)) {
+            if (uiState.isLoading && uiState.messages.isEmpty()) {
+                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+            } else {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    reverseLayout = true
+                ) {
+                    item {
+                        // Bọc trong Column để cung cấp ColumnScope hợp lệ cho AnimatedVisibility
+                        Column {
+                            AnimatedVisibility(
+                                visible = uiState.isPartnerTyping,
+                                enter = fadeIn(),
+                                exit = fadeOut()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "$conversationName đang nhập...",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = Color.Gray,
+                                        modifier = Modifier.padding(start = 42.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    items(uiState.messages) { msg ->
+                        val isMine = msg.sender.id == uiState.currentUser?.id
+                        MessageBubble(
+                            message = msg,
+                            isMine = isMine,
+                            incomingAvatarUrl = conversationAvatarUrl,
+                            currentUserLetter = uiState.currentUser?.displayName?.take(1) ?: "U"
+                        )
+                    }
+                }
             }
         }
 
         ChatInputBar(
             value = messageText,
-            onValueChange = { messageText = it },
-            onSendClick = { messageText = "" }
+            onValueChange = { 
+                messageText = it
+                viewModel.onTyping(it)
+            },
+            onSendClick = {
+                if (messageText.isNotBlank()) {
+                    viewModel.sendChatMessage(conversationId, messageText)
+                    messageText = ""
+                }
+            }
         )
     }
 }
@@ -124,6 +171,7 @@ private fun TopCaptionBar() {
 private fun ChatTopBar(
     title: String,
     avatarUrl: String?,
+    isOnline: Boolean,
     onBackClick: () -> Unit
 ) {
     Row(
@@ -160,7 +208,7 @@ private fun ChatTopBar(
             modifier = Modifier
                 .offset(x = (-4).dp, y = 10.dp)
                 .size(8.dp)
-                .background(OnlineGreen, CircleShape)
+                .background(if (isOnline) OnlineGreen else Color.Gray, CircleShape)
                 .border(1.dp, Color.White, CircleShape)
         )
 
@@ -176,7 +224,7 @@ private fun ChatTopBar(
                 fontFamily = FontFamily.SansSerif
             )
             Text(
-                text = "Online",
+                text = if (isOnline) "Online" else "Offline",
                 color = Color(0xFF6F6F6F),
                 fontSize = 11.sp,
                 fontFamily = FontFamily.SansSerif
@@ -204,50 +252,80 @@ private fun ChatTopBar(
 
 @Composable
 private fun MessageBubble(
-    message: MockMessage,
-    incomingAvatarUrl: String?
+    message: MessageItem,
+    isMine: Boolean,
+    incomingAvatarUrl: String?,
+    currentUserLetter: String
 ) {
-    Row(
+    Column(
         modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = if (message.isMine) Arrangement.End else Arrangement.Start,
-        verticalAlignment = Alignment.Bottom
+        horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
     ) {
-        if (!message.isMine) {
-            AsyncImage(
-                model = incomingAvatarUrl,
-                contentDescription = "Sender Avatar",
-                modifier = Modifier
-                    .size(34.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(Color(0xFFE0E0E0)),
-                contentScale = ContentScale.Crop,
-                placeholder = painterResource(id = R.drawable.icon_user),
-                error = painterResource(id = R.drawable.icon_user)
-            )
-            Spacer(Modifier.width(8.dp))
-        }
-
-        Surface(
-            shape = RoundedCornerShape(8.dp),
-            color = if (message.isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
-            tonalElevation = 0.dp,
-            shadowElevation = 2.dp,
-            modifier = Modifier.widthIn(max = 220.dp)
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.Bottom
         ) {
-            Text(
-                text = message.text,
-                color = Color(0xFF1F1F1F),
-                fontSize = 18.sp,
-                lineHeight = 23.sp,
-                fontFamily = FontFamily.SansSerif,
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-            )
-        }
+            if (!isMine) {
+                AsyncImage(
+                    model = message.sender.avatarUrl ?: incomingAvatarUrl,
+                    contentDescription = "Sender Avatar",
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFE0E0E0)),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.icon_user),
+                    error = painterResource(id = R.drawable.icon_user)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
 
-        if (message.isMine) {
-            Spacer(Modifier.width(8.dp))
-            ChatLetterAvatar(letter = "F")
+            Surface(
+                shape = RoundedCornerShape(8.dp),
+                color = if (isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
+                tonalElevation = 0.dp,
+                shadowElevation = 2.dp,
+                modifier = Modifier.widthIn(max = 220.dp)
+            ) {
+                Text(
+                    text = message.text,
+                    color = Color(0xFF1F1F1F),
+                    fontSize = 18.sp,
+                    lineHeight = 23.sp,
+                    fontFamily = FontFamily.SansSerif,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                )
+            }
+
+            if (isMine) {
+                Spacer(Modifier.width(8.dp))
+                ChatLetterAvatar(letter = currentUserLetter)
+            }
         }
+        
+        Text(
+            text = formatMessageTime(message.createAt),
+            color = Color(0xFF8A8A8A),
+            fontSize = 10.sp,
+            modifier = Modifier.padding(
+                top = 2.dp,
+                start = if (isMine) 0.dp else 42.dp,
+                end = if (isMine) 42.dp else 0.dp
+            )
+        )
+    }
+}
+
+fun formatMessageTime(isoString: String): String {
+    return try {
+        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
+        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        val date = sdf.parse(isoString)
+        val outSdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+        outSdf.format(date!!)
+    } catch (e: Exception) {
+        ""
     }
 }
 
