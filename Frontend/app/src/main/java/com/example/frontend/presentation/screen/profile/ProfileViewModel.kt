@@ -1,14 +1,19 @@
-﻿package com.example.frontend.presentation.screen.profile
+package com.example.frontend.presentation.screen.profile
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.core.util.AppNotificationManager
+import com.example.frontend.data.store.PostDetailStore
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.AuthUseCase.LogoutUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetUserPostsUseCase
+import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
+import com.example.frontend.ui.component.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,13 +27,18 @@ class ProfileViewModel @Inject constructor(
     private val getUserPostsUseCase: GetUserPostsUseCase,
     private val getSavedPostsUseCase: GetSavedPostsUseCase,
     private val savePostUseCase: SavePostUseCase,
-    private val logoutUseCase: LogoutUseCase
+    private val likePostUseCase: LikePostUseCase,
+    private val sharePostUseCase: SharePostUseCase,
+    private val logoutUseCase: LogoutUseCase,
+    private val notificationManager: AppNotificationManager,
+    private val postDetailStore: PostDetailStore
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
     private val _isRefreshing = MutableStateFlow(false)
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+
     private var isFetchingPosts = false
     private var isLastPage = false
 
@@ -137,30 +147,40 @@ class ProfileViewModel @Inject constructor(
         if (currentState.selectedTabIndex != 0) return
         if (isFetchingPosts || isLastPage || currentState.isPostsLoading) return
 
+        val ownerId = currentState.user.id
+        val lastPostId = currentState.posts.lastOrNull()?.id
+
         viewModelScope.launch {
             isFetchingPosts = true
-            _uiState.value = currentState.copy(isLoadingMore = true)
+            val loadingState = _uiState.value as? ProfileUiState.Success
+            if (loadingState != null) {
+                _uiState.value = loadingState.copy(isLoadingMore = true)
+            }
 
-            val lastPostId = currentState.posts.lastOrNull()?.id
-
-            when (val result = getUserPostsUseCase(currentState.user.id, lastPostId)) {
+            when (val result = getUserPostsUseCase(ownerId, lastPostId)) {
                 is ApiResult.Success -> {
-                    val newPosts = applySavedState(result.data, currentState.savedPosts)
+                    val latestState = _uiState.value as? ProfileUiState.Success ?: return@launch
+                    val newPosts = applySavedState(result.data, latestState.savedPosts)
                     if (newPosts.isEmpty()) isLastPage = true
-                    _uiState.value = currentState.copy(
-                        posts = currentState.posts + newPosts,
-                        isLoadingMore = false
+
+                    _uiState.value = latestState.copy(
+                        posts = (latestState.posts + newPosts).distinctBy { it.id },
+                        isLoadingMore = false,
+                        postsError = null
                     )
                 }
 
-                is ApiResult.Error -> _uiState.value = currentState.copy(isLoadingMore = false)
+                is ApiResult.Error -> {
+                    val latestState = _uiState.value as? ProfileUiState.Success ?: return@launch
+                    _uiState.value = latestState.copy(isLoadingMore = false)
+                }
             }
             isFetchingPosts = false
         }
     }
 
     fun toggleSavePost(postId: String) {
-        val currentState = _uiState.value as? ProfileUiState.Success ?: return
+        if (_uiState.value !is ProfileUiState.Success) return
 
         viewModelScope.launch {
             when (val result = savePostUseCase(postId)) {
@@ -192,10 +212,100 @@ class ProfileViewModel @Inject constructor(
                 }
 
                 is ApiResult.Error -> {
-                    // keep current data, skip hard error UI
+                    notificationManager.showMessage(
+                        message = result.message.ifBlank { "Không thể lưu bài viết" },
+                        type = NotificationType.ERROR
+                    )
                 }
             }
         }
+    }
+
+    fun toggleLike(postId: String) {
+        val currentState = _uiState.value as? ProfileUiState.Success ?: return
+        val sourcePost = currentState.posts.find { it.id == postId }
+            ?: currentState.savedPosts.find { it.id == postId }
+            ?: return
+
+        val newIsLiked = !sourcePost.isLiked
+        val newLikeCount = if (newIsLiked) sourcePost.likeCount + 1 else sourcePost.likeCount - 1
+
+        _uiState.value = updatePostState(currentState, postId) {
+            it.copy(isLiked = newIsLiked, likeCount = newLikeCount)
+        }
+
+        viewModelScope.launch {
+            when (val result = likePostUseCase(postId, newIsLiked, newLikeCount)) {
+                is ApiResult.Success -> Unit
+
+                is ApiResult.Error -> {
+                    val latestState = _uiState.value as? ProfileUiState.Success ?: return@launch
+                    _uiState.value = updatePostState(latestState, postId) {
+                        it.copy(isLiked = sourcePost.isLiked, likeCount = sourcePost.likeCount)
+                    }
+                    notificationManager.showMessage(
+                        message = result.message.ifBlank { "Không thể thích bài viết" },
+                        type = NotificationType.ERROR
+                    )
+                }
+            }
+        }
+    }
+
+    fun sharePost(postId: String) {
+        viewModelScope.launch {
+            when (val result = sharePostUseCase(postId)) {
+                is ApiResult.Success -> {
+                    val latestState = _uiState.value as? ProfileUiState.Success ?: return@launch
+                    _uiState.value = updatePostState(latestState, postId) {
+                        it.copy(shareCount = it.shareCount + 1)
+                    }
+                    notificationManager.showMessage(
+                        message = "Chia sẻ bài viết thành công",
+                        type = NotificationType.SUCCESS
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    notificationManager.showMessage(
+                        message = result.message.ifBlank { "Không thể chia sẻ bài viết" },
+                        type = NotificationType.ERROR
+                    )
+                }
+            }
+        }
+    }
+
+    fun selectPost(post: Post) {
+        postDetailStore.selectedPost = post
+    }
+
+    fun logout(onLoggedOut: () -> Unit) {
+        viewModelScope.launch {
+            try {
+                logoutUseCase()
+                onLoggedOut()
+            } catch (_: Exception) {
+                notificationManager.showMessage(
+                    message = "Không thể đăng xuất. Vui lòng thử lại",
+                    type = NotificationType.ERROR
+                )
+            }
+        }
+    }
+
+    private fun updatePostState(
+        state: ProfileUiState.Success,
+        postId: String,
+        transform: (Post) -> Post
+    ): ProfileUiState.Success {
+        val updatedPosts = state.posts.map { post ->
+            if (post.id == postId) transform(post) else post
+        }
+        val updatedSavedPosts = state.savedPosts.map { post ->
+            if (post.id == postId) transform(post) else post
+        }
+        return state.copy(posts = updatedPosts, savedPosts = updatedSavedPosts)
     }
 
     private fun applySavedState(posts: List<Post>, savedPosts: List<Post>): List<Post> {
@@ -205,12 +315,4 @@ class ProfileViewModel @Inject constructor(
             if (savedIds.contains(post.id)) post.copy(isSaved = true) else post
         }
     }
-
-    fun logout(onLoggedOut: () -> Unit) {
-        viewModelScope.launch {
-            logoutUseCase()
-            onLoggedOut()
-        }
-    }
 }
-

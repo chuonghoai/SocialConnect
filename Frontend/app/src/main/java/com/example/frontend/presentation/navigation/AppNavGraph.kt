@@ -69,6 +69,7 @@ fun AppNavGraph(
         Routes.PROFILE
     )
     val showBottomBar = currentBaseRoute in bottomBarRoutes
+    val profileRefreshTickKey = "profile_refresh_tick"
 
     val notifState by mainViewModel.notificationManager.notification.collectAsState()
 
@@ -191,8 +192,13 @@ fun AppNavGraph(
                     )
                 }
 
-                composable(Routes.PROFILE) {
+                composable(Routes.PROFILE) { backStackEntry ->
+                    val refreshTick by backStackEntry.savedStateHandle
+                        .getStateFlow(profileRefreshTickKey, 0)
+                        .collectAsState()
+
                     ProfileScreen(
+                        refreshTick = refreshTick,
                         onLoggedOut = {
                             sessionViewModel.clearSession()
                             navController.navigate(Routes.LOGIN) {
@@ -204,6 +210,9 @@ fun AppNavGraph(
                         },
                         onNavigateToSetting = {
                             navController.navigate(Routes.SETTING)
+                        },
+                        onPostClick = {
+                            navController.navigate(Routes.POST_DETAIL)
                         }
                     )
                 }
@@ -296,7 +305,15 @@ fun AppNavGraph(
                     val currentUser by sessionViewModel.currentUser.collectAsState()
                     EditProfileScreen(
                         currentUser = currentUser,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onProfileSaved = {
+                            sessionViewModel.fetchCurrentUser()
+                            val profileEntry = navController.getBackStackEntry(Routes.PROFILE)
+                            val currentTick =
+                                profileEntry.savedStateHandle.get<Int>(profileRefreshTickKey) ?: 0
+                            profileEntry.savedStateHandle[profileRefreshTickKey] = currentTick + 1
+                            navController.popBackStack()
+                        }
                     )
                 }
 

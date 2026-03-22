@@ -24,38 +24,39 @@ class EditProfileViewModel @Inject constructor(
     var dob by mutableStateOf("")
     var email by mutableStateOf("")
 
-    // Lưu tạm Uri của ảnh người dùng vừa chọn từ thư viện
     var selectedAvatarUri by mutableStateOf<Uri?>(null)
     private var currentAvatarUrl: String? = null
 
     var isLoading by mutableStateOf(false)
     var error by mutableStateOf<String?>(null)
 
-    private var isInitialized = false
+    private var initializedUserId: String? = null
 
     fun initData(user: User?) {
-        if (user != null && !isInitialized) {
-            displayName = user.displayName
-            email = user.email
-            dob = "01/01/2000" // Mock tạm
-            currentAvatarUrl = user.avatarUrl
-            isInitialized = true
-        }
+        if (user == null || initializedUserId == user.id) return
+
+        displayName = user.displayName
+        email = user.email
+        dob = ""
+        currentAvatarUrl = user.avatarUrl
+        selectedAvatarUri = null
+        error = null
+        initializedUserId = user.id
     }
 
-    fun saveProfile(onSuccess: () -> Unit) {
+    fun saveProfile(onSuccess: (User) -> Unit) {
         viewModelScope.launch {
             isLoading = true
             error = null
 
             var finalAvatarToSubmit = currentAvatarUrl
 
-            // 1. Nếu có chọn ảnh mới -> Gọi upload ảnh trước
             if (selectedAvatarUri != null) {
                 when (val uploadRes = uploadMediaUseCase(selectedAvatarUri!!)) {
                     is ApiResult.Success -> {
-                        finalAvatarToSubmit = uploadRes.data // Gắn url/id mới
+                        finalAvatarToSubmit = uploadRes.data
                     }
+
                     is ApiResult.Error -> {
                         error = "Lỗi tải ảnh lên: ${uploadRes.message}"
                         isLoading = false
@@ -64,9 +65,13 @@ class EditProfileViewModel @Inject constructor(
                 }
             }
 
-            // 2. Gọi API cập nhật thông tin
             when (val result = updateProfileUseCase(displayName, dob, email, finalAvatarToSubmit)) {
-                is ApiResult.Success -> onSuccess()
+                is ApiResult.Success -> {
+                    currentAvatarUrl = result.data.avatarUrl
+                    selectedAvatarUri = null
+                    onSuccess(result.data)
+                }
+
                 is ApiResult.Error -> error = result.message
             }
 

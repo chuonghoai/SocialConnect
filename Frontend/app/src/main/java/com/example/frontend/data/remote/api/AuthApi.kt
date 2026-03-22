@@ -1,7 +1,7 @@
 package com.example.frontend.data.remote.api
 
-import ChangePasswordRequest
-import UpdateProfileRequest
+import com.example.frontend.data.remote.dto.ChangePasswordRequest
+import com.example.frontend.data.remote.dto.UpdateProfileRequest
 import com.example.frontend.domain.model.Token
 import com.example.frontend.domain.model.User
 import retrofit2.http.Body

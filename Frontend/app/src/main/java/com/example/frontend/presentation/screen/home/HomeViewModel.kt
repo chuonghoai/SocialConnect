@@ -17,6 +17,7 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -41,6 +42,18 @@ class HomeViewModel @Inject constructor(
     private var isFetching = false
     private var isLastPage = false
     private var savedPostIds: Set<String> = emptySet()
+    private var lastHandledPostCreatedTick: Long = 0L
+
+    init {
+        viewModelScope.launch {
+            postUploadManager.postCreatedTick.collect { tick ->
+                if (tick <= 0L || tick == lastHandledPostCreatedTick) return@collect
+                lastHandledPostCreatedTick = tick
+                val hasLoadedPosts = _uiState.value is HomeUiState.Success
+                load(isRefresh = hasLoadedPosts)
+            }
+        }
+    }
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {

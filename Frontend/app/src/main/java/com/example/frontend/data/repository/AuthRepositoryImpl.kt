@@ -1,7 +1,5 @@
 package com.example.frontend.data.repository
 
-import ChangePasswordRequest
-import UpdateProfileRequest
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.datastore.TokenDataStore
 import com.example.frontend.data.local.dao.PostDao
@@ -9,6 +7,8 @@ import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.mapper.toDomain
 import com.example.frontend.data.remote.api.AuthApi
+import com.example.frontend.data.remote.dto.ChangePasswordRequest
+import com.example.frontend.data.remote.dto.UpdateProfileRequest
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.repository.AuthRepository
 import retrofit2.HttpException
@@ -89,7 +89,11 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun logout() {
-        authApi.logout()
+        try {
+            authApi.logout()
+        } catch (_: Exception) {
+            // Keep local logout resilient even when network/logout endpoint fails.
+        }
         tokenDataStore.clear()
         userDao.clearUser()
         postDao.clearAllPosts()
@@ -173,8 +177,10 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun updateProfile(displayName: String, dob: String, email: String, avatar: String?): ApiResult<User> {
         return try {
             val response = authApi.updateProfile(UpdateProfileRequest(displayName, dob, email, avatar))
-            if (response.isSuccessful && response.body() != null) {
-                ApiResult.Success(response.body()!!)
+            val updatedUser = response.body()
+            if (response.isSuccessful && updatedUser != null) {
+                userDao.insertUser(updatedUser.toEntity())
+                ApiResult.Success(updatedUser)
             } else {
                 ApiResult.Error(message = "Lỗi cập nhật hồ sơ")
             }

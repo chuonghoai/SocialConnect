@@ -16,9 +16,11 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -51,7 +53,7 @@ import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
 import kotlin.math.hypot
-import java.time.LocalDateTime
+import com.example.frontend.ui.theme.OrangePrimary
 
 @Composable
 fun PostCard(
@@ -73,6 +75,7 @@ fun PostCard(
     val shouldShowSharedCaption = shouldRenderOriginalPost &&
         trimmedContent.isNotEmpty() &&
         trimmedContent != trimmedOriginalContent
+    val mediaItems = post.toMediaItems()
 
     Card(
         modifier = Modifier
@@ -162,8 +165,11 @@ fun PostCard(
                     )
                 }
 
-                if (post.cdnUrl.isNotEmpty()) {
-                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl)
+                if (mediaItems.isNotEmpty()) {
+                    PostMediaPreview(
+                        mediaItems = mediaItems,
+                        onVideoClick = onVideoClick
+                    )
                 }
             }
 
@@ -191,7 +197,11 @@ fun PostCard(
                     post.shareCount.toString(),
                     onClick = { onShareClick?.invoke() }
                 )
-
+                Spacer(modifier = Modifier.weight(1f))
+                SaveInteractionItem(
+                    isSaved = post.isSaved,
+                    onClick = onSaveClick
+                )
             }
         }
     }
@@ -204,6 +214,8 @@ private data class PostMediaItem(
 
 @Composable
 private fun SharedPostPreviewCard(originalPost: OriginalPost) {
+    val mediaItems = originalPost.toMediaItems()
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
@@ -248,8 +260,8 @@ private fun SharedPostPreviewCard(originalPost: OriginalPost) {
                 Spacer(Modifier.height(8.dp))
             }
 
-            if (originalPost.cdnUrl.isNotEmpty()) {
-                PostMediaContent(kind = originalPost.kind, cdnUrl = originalPost.cdnUrl)
+            if (mediaItems.isNotEmpty()) {
+                PostMediaPreview(mediaItems = mediaItems)
             }
         }
     }
@@ -291,14 +303,105 @@ fun PostMediaContent(kind: String, cdnUrl: String) {
 }
 
 @Composable
+fun PostMediaGallery(
+    post: Post,
+    modifier: Modifier = Modifier,
+    onVideoClick: (() -> Unit)? = null
+) {
+    PostMediaPreview(
+        mediaItems = post.toMediaItems(),
+        onVideoClick = onVideoClick,
+        modifier = modifier
+    )
+}
+
+@Composable
+private fun PostMediaPreview(
+    mediaItems: List<PostMediaItem>,
+    onVideoClick: (() -> Unit)? = null,
+    modifier: Modifier = Modifier
+) {
+    if (mediaItems.isEmpty()) return
+
+    var isViewerOpen by remember(mediaItems) { mutableStateOf(false) }
+    var selectedIndex by remember(mediaItems) { mutableStateOf(0) }
+
+    val openViewer: (Int) -> Unit = { index ->
+        selectedIndex = index.coerceIn(0, mediaItems.lastIndex)
+        isViewerOpen = true
+    }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+    ) {
+        if (mediaItems.size == 1) {
+            val item = mediaItems.first()
+            if (item.kind == "VIDEO") {
+                FeedVideoPlayer(
+                    videoUrl = item.url,
+                    shouldPlay = true,
+                    mediaAspectRatio = 16f / 9f,
+                    onVideoClick = {
+                        if (onVideoClick != null) onVideoClick()
+                        else openViewer(0)
+                    }
+                )
+            } else {
+                AsyncImage(
+                    model = item.url,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .clickable { openViewer(0) },
+                    contentScale = ContentScale.Crop
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+            ) {
+                MediaGridPreview(
+                    mediaItems = mediaItems,
+                    onItemClick = { index ->
+                        val item = mediaItems[index]
+                        if (item.kind == "VIDEO" && onVideoClick != null) {
+                            onVideoClick()
+                        } else {
+                            openViewer(index)
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    if (isViewerOpen) {
+        MediaViewerDialog(
+            mediaItems = mediaItems,
+            initialPage = selectedIndex,
+            onDismiss = { isViewerOpen = false }
+        )
+    }
+}
+
+@Composable
 private fun MediaGridPreview(
     mediaItems: List<PostMediaItem>,
     onItemClick: (Int) -> Unit
 ) {
+    if (mediaItems.isEmpty()) return
+
     val previewItems = mediaItems.take(4)
+    val hiddenCount = (mediaItems.size - 4).coerceAtLeast(0)
     val spacing = 2.dp
 
-    when (previewItems.size) {
+    when (mediaItems.size) {
         1 -> {
             MediaTile(
                 item = previewItems[0],
@@ -379,34 +482,32 @@ private fun MediaGridPreview(
         }
 
         else -> {
-            val topRow = mediaItems.take(2)
-            val bottomRow = mediaItems.drop(2).take(3)
-
             Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing)) {
                 Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
                     MediaTile(
-                        item = topRow[0],
-                        modifier = Modifier.weight(2f).fillMaxHeight(),
+                        item = previewItems[0],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         onClick = { onItemClick(0) }
                     )
                     MediaTile(
-                        item = topRow[1],
+                        item = previewItems[1],
                         modifier = Modifier.weight(1f).fillMaxHeight(),
                         onClick = { onItemClick(1) }
                     )
                 }
 
                 Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    bottomRow.forEachIndexed { localIndex, item ->
-                        val globalIndex = localIndex + 2
-                        val showOverlay = localIndex == bottomRow.lastIndex && mediaItems.size > 5
-                        MediaTile(
-                            item = item,
-                            modifier = Modifier.weight(1f).fillMaxHeight(),
-                            onClick = { onItemClick(globalIndex) },
-                            overlayText = if (showOverlay) "+${mediaItems.size - 5}" else null
-                        )
-                    }
+                    MediaTile(
+                        item = previewItems[2],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(2) }
+                    )
+                    MediaTile(
+                        item = previewItems[3],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(3) },
+                        overlayText = if (hiddenCount > 0) "+$hiddenCount" else null
+                    )
                 }
             }
         }
@@ -748,6 +849,20 @@ private fun List<PostMedia>.toPostMediaItems(): List<PostMediaItem> {
     }
 }
 
+private fun OriginalPost.toMediaItems(): List<PostMediaItem> {
+    val urls = parseMediaUrls(cdnUrl)
+    if (urls.isEmpty()) return emptyList()
+
+    val kinds = parseKinds(kind)
+    return urls.mapIndexed { index, url ->
+        val normalizedKind = normalizeKind(
+            rawKind = kinds.getOrNull(index) ?: kinds.firstOrNull(),
+            url = url
+        )
+        PostMediaItem(url = url, kind = normalizedKind)
+    }
+}
+
 private fun parseMediaUrls(raw: String): List<String> {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return emptyList()
@@ -824,6 +939,27 @@ fun InteractionItem(iconRes: Int, count: String, onClick: () -> Unit = {}) {
             text = count,
             fontSize = 12.sp,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun SaveInteractionItem(
+    isSaved: Boolean,
+    onClick: (() -> Unit)?
+) {
+    val enabled = onClick != null
+    val iconTint = if (isSaved) OrangePrimary else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier.clickable(enabled = enabled) { onClick?.invoke() }
+    ) {
+        Icon(
+            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+            contentDescription = "Lưu bài viết",
+            modifier = Modifier.size(22.dp),
+            tint = iconTint
         )
     }
 }

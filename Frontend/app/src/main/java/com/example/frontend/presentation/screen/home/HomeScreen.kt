@@ -185,7 +185,8 @@ fun HomeScreen(
                                     saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
                                     onShareClick = {
                                         viewModel.sharePost(post.id)
-                                    }
+                                    },
+                                    onVideoClick = onVideoClick
                                 )
                             }
 

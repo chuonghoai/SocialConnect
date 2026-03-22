@@ -42,9 +42,11 @@ import kotlinx.coroutines.launch
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProfileScreen(
+    refreshTick: Int = 0,
     onLoggedOut: () -> Unit,
     onBackClick: () -> Unit = {},
     onNavigateToSetting: () -> Unit = {},
+    onPostClick: (Post) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -81,6 +83,12 @@ fun ProfileScreen(
     LaunchedEffect(Unit) {
         if (uiState is ProfileUiState.Loading) {
             viewModel.load()
+        }
+    }
+
+    LaunchedEffect(refreshTick) {
+        if (refreshTick > 0) {
+            viewModel.load(isRefresh = true)
         }
     }
 
@@ -171,8 +179,18 @@ fun ProfileScreen(
                                     )
                                 }
                             } else {
-                                items(tabPosts) { post ->
-                                    PostCard(post = post, onSaveClick = { viewModel.toggleSavePost(post.id) }, saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết")
+                                items(tabPosts, key = { it.id }) { post ->
+                                    PostCard(
+                                        post = post,
+                                        onLikeClick = { viewModel.toggleLike(post.id) },
+                                        onCommentClick = {
+                                            viewModel.selectPost(post)
+                                            onPostClick(post)
+                                        },
+                                        onSaveClick = { viewModel.toggleSavePost(post.id) },
+                                        onShareClick = { viewModel.sharePost(post.id) },
+                                        saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết"
+                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }

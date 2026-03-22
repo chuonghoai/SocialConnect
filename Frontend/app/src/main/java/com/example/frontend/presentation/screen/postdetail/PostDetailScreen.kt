@@ -37,7 +37,7 @@ import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
-import com.example.frontend.ui.component.PostMediaContent
+import com.example.frontend.ui.component.PostMediaGallery
 import com.example.frontend.ui.component.formatTimeAgo
 import com.example.frontend.ui.theme.OrangePrimary
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -324,30 +324,16 @@ private fun PostDetailHeader(
         )
 
         // Media (ảnh / video)
-        if (post.cdnUrl.isNotEmpty()) {
+        if (
+            post.cdnUrl.isNotEmpty() ||
+            !post.media.isNullOrEmpty() ||
+            !post.mediaIds.isNullOrEmpty() ||
+            !post.mediaUrls.isNullOrEmpty() ||
+            !post.images.isNullOrEmpty() ||
+            !post.videos.isNullOrEmpty()
+        ) {
             Spacer(Modifier.height(10.dp))
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .border(
-                        0.5.dp,
-                        MaterialTheme.colorScheme.outlineVariant,
-                        RoundedCornerShape(10.dp)
-                    )
-                    .background(Color.Black)
-            ) {
-                if (post.kind == "IMAGE") {
-                    AsyncImage(
-                        model = post.cdnUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentScale = ContentScale.FillWidth
-                    )
-                } else if (post.kind == "VIDEO") {
-                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl);
-                }
-            }
+            PostMediaGallery(post = post)
         }
 
         Spacer(Modifier.height(8.dp))
