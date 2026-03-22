@@ -7,8 +7,11 @@ import io.socket.client.Socket
 import io.socket.engineio.client.transports.WebSocket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -43,6 +46,9 @@ class WebSocketManager @Inject constructor(
 
     private val _typingEvents = MutableStateFlow<TypingInfo?>(null)
     val typingEvents: StateFlow<TypingInfo?> = _typingEvents.asStateFlow()
+
+    private val _messagesReadEvent = MutableSharedFlow<String?>(extraBufferCapacity = 1)
+    val messagesReadEvent: SharedFlow<String?> = _messagesReadEvent.asSharedFlow()
 
     fun connect() {
         scope.launch {
@@ -181,6 +187,14 @@ class WebSocketManager @Inject constructor(
                 Log.e("WebSocket", "Lỗi parse is_typing: ${e.message}")
             }
         }
+
+        mSocket?.on("messages_read") { args ->
+            val data = args.getOrNull(0)?.toString()
+            scope.launch {
+                _messagesReadEvent.emit(data)
+            }
+            Log.d("WebSocket", "Nhận event messages_read: $data")
+        }
     }
 
     fun disconnect() {
@@ -232,6 +246,15 @@ class WebSocketManager @Inject constructor(
             }
         } else {
             Log.e("WebSocket", "Socket chưa kết nối, không thể gửi event typing")
+        }
+    }
+
+    fun markRead(conversationId: String) {
+        if (mSocket?.connected() == true) {
+            val payload = JSONObject().apply {
+                put("conversationId", conversationId)
+            }
+            mSocket?.emit("mark_read", payload)
         }
     }
 }

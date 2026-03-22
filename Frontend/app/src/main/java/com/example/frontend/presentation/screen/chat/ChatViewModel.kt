@@ -1,6 +1,7 @@
 package com.example.frontend.presentation.screen.chat
 
 import MessageItem
+import MessageSender
 import NewMessageEvent
 import android.util.Log
 import androidx.lifecycle.ViewModel
@@ -18,6 +19,9 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import org.json.JSONObject
+import java.util.UUID
 import javax.inject.Inject
 
 data class ChatUiState(
@@ -27,7 +31,8 @@ data class ChatUiState(
     val isConnected: Boolean = false,
     val currentUser: User? = null,
     val onlineUsers: Set<String> = emptySet(),
-    val isPartnerTyping: Boolean = false
+    val isPartnerTyping: Boolean = false,
+    val isPartnerReadLatest: Boolean = false // Flag để biết đối phương đã đọc tin nhắn mới nhất chưa
 )
 
 @HiltViewModel
@@ -49,6 +54,8 @@ class ChatViewModel @Inject constructor(
         fetchCurrentUser()
         observeSocketStatus()
         observeIncomingMessages()
+        observeMessageSentSuccess()
+        observeMessagesRead()
         observeOnlineUsers()
         observeTypingEvents()
     }
@@ -99,14 +106,71 @@ class ChatViewModel @Inject constructor(
                     try {
                         val event = gson.fromJson(json, NewMessageEvent::class.java)
                         val newMessage = event.message
+
+                        if (event.conversationId == currentConversationId) {
+                            webSocketManager.markRead(event.conversationId)
+                            
+                            // Nếu mình nhận được tin nhắn từ người khác, thì flag "đối phương đã đọc tin của mình" không còn quan trọng cho tin cũ nữa
+                            // Nhưng thường flag này dùng cho tin nhắn CUỐI CÙNG LÀ CỦA MÌNH.
+                        }
                         
                         if (currentConversationId == null || event.conversationId == currentConversationId) {
-                            _uiState.value = _uiState.value.copy(
-                                messages = (listOf(newMessage) + _uiState.value.messages)
-                            )
+                            val exists = _uiState.value.messages.any { it.id == newMessage.id }
+                            if (!exists) {
+                                _uiState.value = _uiState.value.copy(
+                                    messages = (listOf(newMessage) + _uiState.value.messages)
+                                )
+                            }
                         }
                     } catch (e: Exception) {
                         Log.e("ChatViewModel", "Lỗi parse tin nhắn mới: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeMessageSentSuccess() {
+        viewModelScope.launch {
+            webSocketManager.messageSentSuccess.collect { json ->
+                if (json != null) {
+                    try {
+                        val jsonObj = JSONObject(json)
+                        val tempId = jsonObj.optString("temporaryId")
+                        val actualMessageJson = jsonObj.optJSONObject("message")?.toString()
+                        
+                        if (tempId.isNotEmpty() && actualMessageJson != null) {
+                            val actualMessage = gson.fromJson(actualMessageJson, MessageItem::class.java)
+                            
+                            val updatedMessages = _uiState.value.messages.map {
+                                if (it.id == tempId) actualMessage else it
+                            }
+                            _uiState.value = _uiState.value.copy(messages = updatedMessages)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatViewModel", "Lỗi xử lý message_sent_success: ${e.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    private fun observeMessagesRead() {
+        viewModelScope.launch {
+            webSocketManager.messagesReadEvent.collect { json ->
+                Log.d("ChatDebug", "ViewModel nhận tin nhắn đã đọc: $json")
+                if (json != null) {
+                    try {
+                        val jsonObj = JSONObject(json)
+                        val convId = jsonObj.optString("conversationId")
+                        val readerId = jsonObj.optString("userId")
+
+                        if (convId == currentConversationId && readerId != _uiState.value.currentUser?.id) {
+                            Log.d("ChatDebug", "Khớp điều kiện! Cập nhật isPartnerReadLatest = true")
+                            _uiState.value = _uiState.value.copy(isPartnerReadLatest = true)
+                        }
+                    } catch (e: Exception) {
+                        Log.e("ChatViewModel", "Lỗi parse messagesReadEvent: ${e.message}")
                     }
                 }
             }
@@ -121,8 +185,10 @@ class ChatViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        messages = result.data?.messages ?: emptyList()
+                        messages = result.data?.messages ?: emptyList(),
+                        isPartnerReadLatest = false // Reset khi load mới, BE sẽ emit event nếu họ đã đọc
                     )
+                    webSocketManager.markRead(conversationId)
                 }
                 is ApiResult.Error -> {
                     _uiState.value = _uiState.value.copy(
@@ -136,8 +202,50 @@ class ChatViewModel @Inject constructor(
 
     fun sendChatMessage(conversationId: String, content: String, type: String = "TEXT") {
         if (content.isBlank()) return
-        webSocketManager.sendMessage(conversationId, content, type)
-        // Reset typing status when message is sent
+        
+        val currentUser = _uiState.value.currentUser ?: return
+        val tempId = "temp_${UUID.randomUUID()}"
+        
+        val tempMessage = MessageItem(
+            id = tempId,
+            type = type,
+            text = content,
+            isRecall = false,
+            createAt = java.time.ZonedDateTime.now().toString(),
+            replyToMessageId = null,
+            sender = MessageSender(
+                id = currentUser.id,
+                displayName = currentUser.displayName ?: currentUser.username,
+                avatarUrl = currentUser.avatarUrl
+            ),
+            media = emptyList()
+        )
+        
+        // Khi mình gửi tin mới, mặc định đối phương chưa đọc tin này
+        _uiState.value = _uiState.value.copy(
+            messages = listOf(tempMessage) + _uiState.value.messages,
+            isPartnerReadLatest = false
+        )
+
+        viewModelScope.launch {
+            val success = withTimeoutOrNull(10000) {
+                webSocketManager.sendMessage(
+                    conversationId = conversationId,
+                    content = content,
+                    type = type,
+                    temporaryId = tempId
+                )
+                true
+            }
+            
+            if (success == null) {
+                val updatedMessages = _uiState.value.messages.map {
+                    if (it.id == tempId) it.copy(id = "failed_${tempId}") else it
+                }
+                _uiState.value = _uiState.value.copy(messages = updatedMessages)
+            }
+        }
+        
         sendTypingStatus(false)
     }
 

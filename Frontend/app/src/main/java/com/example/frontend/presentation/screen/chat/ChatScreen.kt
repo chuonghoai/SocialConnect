@@ -7,36 +7,34 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.KeyboardVoice
 import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.SentimentSatisfiedAlt
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.layout.onGloballyPositioned
-import androidx.compose.ui.layout.positionInRoot
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -125,12 +123,28 @@ fun ChatScreen(
                             }
                         }
 
-                        items(uiState.messages) { msg ->
+                        itemsIndexed(uiState.messages, key = { _, msg -> msg.id }) { index, msg ->
                             val isMine = msg.sender.id == uiState.currentUser?.id
+
+                            // Thêm log để debug
+                            if (index == 0 && isMine) {
+                                Log.d("ChatDebug", "Kiểm tra tin nhắn cuối: ID=${msg.id}, isReadLatest=${uiState.isPartnerReadLatest}")
+                            }
+
+                            val statusText = if (isMine && index == 0) {
+                                when {
+                                    msg.id.startsWith("temp_") -> "• Đang gửi"
+                                    msg.id.startsWith("failed_") -> "• Lỗi gửi"
+                                    uiState.isPartnerReadLatest -> "Đã đọc"
+                                    else -> "• Đã gửi"
+                                }
+                            } else null
+
                             MessageBubble(
                                 message = msg,
                                 isMine = isMine,
                                 incomingAvatarUrl = conversationAvatarUrl,
+                                statusText = statusText
                             )
                         }
                     }
@@ -253,6 +267,7 @@ private fun MessageBubble(
     message: MessageItem,
     isMine: Boolean,
     incomingAvatarUrl: String?,
+    statusText: String? = null
 ) {
     Column(
         modifier = Modifier.fillMaxWidth(),
@@ -296,23 +311,51 @@ private fun MessageBubble(
             }
         }
         
-        Text(
-            text = formatMessageTime(message.createAt),
-            color = Color(0xFF8A8A8A),
-            fontSize = 10.sp,
+        Row(
             modifier = Modifier.padding(
                 top = 2.dp,
                 start = if (isMine) 0.dp else 42.dp,
                 end = if (isMine) 42.dp else 0.dp
+            ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = formatMessageTime(message.createAt),
+                color = Color(0xFF8A8A8A),
+                fontSize = 10.sp
             )
-        )
+            
+            if (statusText != null) {
+                Spacer(Modifier.width(4.dp))
+                if (statusText == "Đã đọc") {
+                    Icon(
+                        imageVector = Icons.Default.DoneAll,
+                        contentDescription = null,
+                        tint = OrangePrimary,
+                        modifier = Modifier.size(14.dp)
+                    )
+                    Spacer(Modifier.width(2.dp))
+                }
+                Text(
+                    text = statusText,
+                    color = if (statusText.contains("Đang") || statusText.contains("Lỗi")) Color.Gray else OrangePrimary,
+                    fontSize = 10.sp,
+                    fontWeight = if (statusText == "Đã đọc") FontWeight.Bold else FontWeight.Normal
+                )
+            }
+        }
     }
 }
 
 fun formatMessageTime(isoString: String): String {
     return try {
-        val sdf = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault())
-        sdf.timeZone = TimeZone.getTimeZone("UTC")
+        val sdf = if (isoString.contains("Z")) {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+        } else {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
+        }
         val date = sdf.parse(isoString)
         val outSdf = SimpleDateFormat("HH:mm", Locale.getDefault())
         outSdf.format(date!!)
@@ -347,6 +390,22 @@ private fun ChatInputBar(
                 contentDescription = "Voice",
                 tint = Color(0xFF5A5A5A),
                 modifier = Modifier.size(20.dp)
+            )
+        }
+
+        Spacer(Modifier.width(6.dp))
+
+        IconButton(
+            onClick = {},
+            modifier = Modifier
+                .size(34.dp)
+                .background(Color(0xFFF1F1F1), CircleShape)
+        ) {
+            Icon(
+                imageVector = Icons.Default.Add,
+                contentDescription = "More",
+                tint = Color(0xFF5A5A5A),
+                modifier = Modifier.size(21.dp)
             )
         }
 
@@ -389,33 +448,18 @@ private fun ChatInputBar(
 
         Spacer(Modifier.width(8.dp))
 
+        val isEnableSend = value.isNotBlank()
         IconButton(
-            onClick = {},
+            onClick = { if (isEnableSend) onSendClick() },
             modifier = Modifier
                 .size(34.dp)
                 .background(Color(0xFFF1F1F1), CircleShape)
         ) {
             Icon(
-                imageVector = Icons.Default.SentimentSatisfiedAlt,
-                contentDescription = "Emoji",
-                tint = Color(0xFF5A5A5A),
-                modifier = Modifier.size(21.dp)
-            )
-        }
-
-        Spacer(Modifier.width(6.dp))
-
-        IconButton(
-            onClick = onSendClick,
-            modifier = Modifier
-                .size(34.dp)
-                .background(Color(0xFFF1F1F1), CircleShape)
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = "More",
-                tint = Color(0xFF5A5A5A),
-                modifier = Modifier.size(21.dp)
+                imageVector = Icons.AutoMirrored.Filled.Send,
+                contentDescription = "Send",
+                tint = if (isEnableSend) OrangePrimary else Color.Gray,
+                modifier = Modifier.size(20.dp)
             )
         }
     }
