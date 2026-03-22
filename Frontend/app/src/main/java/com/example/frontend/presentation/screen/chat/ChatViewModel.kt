@@ -1,6 +1,7 @@
 package com.example.frontend.presentation.screen.chat
 
 import MessageItem
+import NewMessageEvent
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -96,8 +97,10 @@ class ChatViewModel @Inject constructor(
             webSocketManager.incomingMessages.collect { json ->
                 if (json != null) {
                     try {
-                        val newMessage = gson.fromJson(json, MessageItem::class.java)
-                        if (newMessage.id.isNotEmpty() && (currentConversationId == null || newMessage.id.isNotBlank())) {
+                        val event = gson.fromJson(json, NewMessageEvent::class.java)
+                        val newMessage = event.message
+                        
+                        if (currentConversationId == null || event.conversationId == currentConversationId) {
                             _uiState.value = _uiState.value.copy(
                                 messages = (listOf(newMessage) + _uiState.value.messages)
                             )

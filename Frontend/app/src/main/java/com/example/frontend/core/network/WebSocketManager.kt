@@ -35,6 +35,9 @@ class WebSocketManager @Inject constructor(
     private val _incomingMessages = MutableStateFlow<String?>(null)
     val incomingMessages: StateFlow<String?> = _incomingMessages
 
+    private val _messageSentSuccess = MutableStateFlow<String?>(null)
+    val messageSentSuccess: StateFlow<String?> = _messageSentSuccess.asStateFlow()
+
     private val _onlineUsers = MutableStateFlow<Set<String>>(emptySet())
     val onlineUsers: StateFlow<Set<String>> = _onlineUsers.asStateFlow()
 
@@ -107,6 +110,12 @@ class WebSocketManager @Inject constructor(
             val data = args.getOrNull(0)?.toString()
             _incomingMessages.value = data
             Log.d("WebSocket", "Có tin nhắn mới: $data")
+        }
+
+        mSocket?.on("message_sent_success") { args ->
+            val data = args.getOrNull(0)?.toString()
+            _messageSentSuccess.value = data
+            Log.d("WebSocket", "Gửi tin nhắn thành công: $data")
         }
 
         mSocket?.on("online_users_list") { args ->
@@ -182,13 +191,23 @@ class WebSocketManager @Inject constructor(
         _isConnected.value = false
     }
 
-    fun sendMessage(conversationId: String, content: String, type: String) {
+    fun sendMessage(
+        conversationId: String,
+        content: String?,
+        type: String,
+        mediaId: String? = null,
+        temporaryId: String? = null,
+        replyToId: String? = null
+    ) {
         if (mSocket?.connected() == true) {
             try {
                 val payload = JSONObject().apply {
                     put("conversationId", conversationId)
                     put("content", content)
                     put("type", type)
+                    mediaId?.let { put("mediaId", it) }
+                    temporaryId?.let { put("temporaryId", it) }
+                    replyToId?.let { put("replyToId", it) }
                 }
                 mSocket?.emit("send_message", payload)
             } catch (e: Exception) {
@@ -206,7 +225,6 @@ class WebSocketManager @Inject constructor(
                     put("conversationId", conversationId)
                     put("isTyping", isTyping)
                 }
-                // Sửa tên event thành "typing" cho khớp Backend của bạn
                 Log.d("WebSocket", ">>> Gửi event 'typing': convId=$conversationId, isTyping=$isTyping")
                 mSocket?.emit("typing", payload)
             } catch (e: Exception) {

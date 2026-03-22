@@ -1,3 +1,5 @@
+import com.example.frontend.domain.model.Conversation
+
 // 1. Model bọc ngoài cùng (Response trả về)
 data class GetMessagesResponse(
     val messages: List<MessageItem>,
@@ -37,4 +39,11 @@ data class PaginationMeta(
     val itemsPerPage: Int,
     val totalPages: Int,
     val currentPage: Int
+)
+
+// 6. Model nhận event từ socket
+data class NewMessageEvent(
+    val conversationId: String,
+    val message: MessageItem,
+    val conversation: Conversation
 )
