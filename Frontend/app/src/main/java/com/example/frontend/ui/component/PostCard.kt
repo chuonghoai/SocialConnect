@@ -61,7 +61,8 @@ fun PostCard(
     onVideoClick: (() -> Unit)? = null,
     onSaveClick: (() -> Unit)? = null,
     saveMenuLabel: String = "Lưu bài viết",
-    onShareClick: (() -> Unit)? = null
+    onShareClick: (() -> Unit)? = null,
+    onAvatarClick: ((String) -> Unit)? = null
     ) {
     var isMoreMenuExpanded by remember { mutableStateOf(false) }
 
@@ -89,7 +90,8 @@ fun PostCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                        .clickable(enabled = onAvatarClick != null) { onAvatarClick?.invoke(post.userId) },
                     contentScale = ContentScale.Crop,
                     error = painterResource(R.drawable.icon_user)
                 )

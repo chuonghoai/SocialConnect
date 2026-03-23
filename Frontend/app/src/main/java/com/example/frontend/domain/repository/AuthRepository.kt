@@ -5,6 +5,7 @@ import com.example.frontend.domain.model.User
 
 interface AuthRepository {
     suspend fun getMe(isRefresh: Boolean = false): ApiResult<User>
+    suspend fun getUserProfile(userId: String): ApiResult<User>
     suspend fun login(username: String, password: String): ApiResult<Unit>
     suspend fun logout()
     suspend fun register(email: String, password: String, mailOtp: String): ApiResult<Unit>

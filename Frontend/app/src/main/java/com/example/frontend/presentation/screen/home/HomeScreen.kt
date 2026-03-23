@@ -57,6 +57,7 @@ fun HomeScreen(
     onCreatePostClick: () -> Unit = {},
     onPostClick: (Post) -> Unit = {},
     onVideoClick: () -> Unit = {},
+    onAvatarClick: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -185,7 +186,8 @@ fun HomeScreen(
                                     saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
                                     onShareClick = {
                                         viewModel.sharePost(post.id)
-                                    }
+                                    },
+                                    onAvatarClick = onAvatarClick
                                 )
                             }
 
