@@ -106,10 +106,15 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun logout() {
-        authApi.logout()
-        tokenDataStore.clear()
-        userDao.clearUser()
-        postDao.clearAllPosts()
+        try {
+            authApi.logout()
+        } catch (_: Exception) {
+            // Ignore server logout errors (401/timeout...) and always clear local session.
+        } finally {
+            tokenDataStore.clear()
+            userDao.clearUser()
+            postDao.clearAllPosts()
+        }
     }
 
     override suspend fun register(

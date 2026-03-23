@@ -3,12 +3,18 @@
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.core.util.AppNotificationManager
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.AuthUseCase.LogoutUseCase
+import com.example.frontend.domain.usecase.FriendUseCase.GetShareFriendsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetUserPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
+import com.example.frontend.presentation.screen.share.ShareFriendsUiState
+import com.example.frontend.presentation.screen.share.SharePostSubmitData
+import com.example.frontend.ui.component.NotificationType
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -22,15 +28,21 @@ class ProfileViewModel @Inject constructor(
     private val getUserPostsUseCase: GetUserPostsUseCase,
     private val getSavedPostsUseCase: GetSavedPostsUseCase,
     private val savePostUseCase: SavePostUseCase,
+    private val sharePostUseCase: SharePostUseCase,
+    private val getShareFriendsUseCase: GetShareFriendsUseCase,
+    private val notificationManager: AppNotificationManager,
     private val logoutUseCase: LogoutUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow<ProfileUiState>(ProfileUiState.Loading)
     private val _isRefreshing = MutableStateFlow(false)
+    private val _shareFriendsState = MutableStateFlow(ShareFriendsUiState())
     val isRefreshing: StateFlow<Boolean> = _isRefreshing.asStateFlow()
     val uiState: StateFlow<ProfileUiState> = _uiState.asStateFlow()
+    val shareFriendsState: StateFlow<ShareFriendsUiState> = _shareFriendsState.asStateFlow()
     private var isFetchingPosts = false
     private var isLastPage = false
+    private var loadedShareFriendsForUserId: String? = null
 
     fun load(isRefresh: Boolean = false) {
         viewModelScope.launch {
@@ -75,8 +87,8 @@ class ProfileViewModel @Inject constructor(
 
         _uiState.value = currentState.copy(selectedTabIndex = index)
 
-        if (index == 1 && currentState.savedPosts.isEmpty() && !currentState.isSavedPostsLoading) {
-            loadSavedPosts(isRefresh = false)
+        if (index == 1 && !currentState.isSavedPostsLoading) {
+            loadSavedPosts(isRefresh = true)
         }
     }
 
@@ -193,6 +205,98 @@ class ProfileViewModel @Inject constructor(
 
                 is ApiResult.Error -> {
                     // keep current data, skip hard error UI
+                }
+            }
+        }
+    }
+
+    fun sharePost(payload: SharePostSubmitData) {
+        val postId = payload.postId
+        if (_uiState.value !is ProfileUiState.Success) return
+
+        viewModelScope.launch {
+            if (payload.shareText.isNotBlank()) {
+                notificationManager.showMessage(
+                    message = "Caption khi chia sẻ chưa được BE hỗ trợ, hiện chỉ chia sẻ bài gốc.",
+                    type = NotificationType.WARNING
+                )
+            }
+
+            if (payload.selectedFriendIds.isNotEmpty()) {
+                notificationManager.showMessage(
+                    message = "BE chưa hỗ trợ gửi riêng cho bạn bè đã chọn, hiện chỉ chia sẻ bài viết lên bảng feed.",
+                    type = NotificationType.WARNING
+                )
+            }
+
+            when (val result = sharePostUseCase(postId)) {
+                is ApiResult.Success -> {
+                    val latestState = _uiState.value as? ProfileUiState.Success ?: return@launch
+                    val updatedPosts = latestState.posts.map { post ->
+                        if (post.id == postId) post.copy(shareCount = post.shareCount + 1) else post
+                    }
+                    val updatedSavedPosts = latestState.savedPosts.map { post ->
+                        if (post.id == postId) post.copy(shareCount = post.shareCount + 1) else post
+                    }
+
+                    _uiState.value = latestState.copy(
+                        posts = updatedPosts,
+                        savedPosts = updatedSavedPosts
+                    )
+
+                    notificationManager.showMessage(
+                        message = "Chia sẻ bài viết thành công",
+                        type = NotificationType.SUCCESS
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    notificationManager.showMessage(
+                        message = result.message.ifBlank { "Không thể chia sẻ bài viết" },
+                        type = NotificationType.ERROR
+                    )
+                }
+            }
+        }
+    }
+
+    fun loadShareFriends(currentUserId: String, forceRefresh: Boolean = false) {
+        if (currentUserId.isBlank()) {
+            _shareFriendsState.value = ShareFriendsUiState(
+                friends = emptyList(),
+                isLoading = false,
+                error = "Không xác định người dùng hiện tại"
+            )
+            return
+        }
+
+        val current = _shareFriendsState.value
+        val alreadyLoaded =
+            loadedShareFriendsForUserId == currentUserId && !current.isLoading && current.error == null
+        if (alreadyLoaded && !forceRefresh) return
+        if (current.isLoading && !forceRefresh) return
+
+        _shareFriendsState.value = current.copy(
+            isLoading = true,
+            error = null
+        )
+
+        viewModelScope.launch {
+            when (val result = getShareFriendsUseCase(currentUserId)) {
+                is ApiResult.Success -> {
+                    loadedShareFriendsForUserId = currentUserId
+                    _shareFriendsState.value = ShareFriendsUiState(
+                        friends = result.data,
+                        isLoading = false,
+                        error = null
+                    )
+                }
+
+                is ApiResult.Error -> {
+                    _shareFriendsState.value = current.copy(
+                        isLoading = false,
+                        error = result.message.ifBlank { "Không thể tải danh sách bạn bè" }
+                    )
                 }
             }
         }
