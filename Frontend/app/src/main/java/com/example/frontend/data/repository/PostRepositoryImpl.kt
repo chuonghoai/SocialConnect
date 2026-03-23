@@ -112,7 +112,8 @@ class PostRepositoryImpl @Inject constructor(
 
     override suspend fun getSavedPosts(afterId: String?, isRefresh: Boolean): ApiResult<List<Post>> {
         return try {
-            val posts = postApi.getSavedPosts(lastPostId = afterId).map { it.copy(isSaved = true) }
+            val posts = postApi.getSavedPosts(lastPostId = afterId)
+                .map { it.toDomainPost().copy(isSaved = true) }
             ApiResult.Success(posts)
         } catch (e: IOException) {
             ApiResult.Error(message = "Network error", throwable = e)

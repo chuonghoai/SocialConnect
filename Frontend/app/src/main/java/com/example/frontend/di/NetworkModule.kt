@@ -8,17 +8,24 @@ import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.dao.SearchHistoryDao
 import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.remote.api.AuthApi
+import com.example.frontend.data.remote.api.ConversationApi
 import com.example.frontend.data.remote.api.MediaApi
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.api.SearchApi
 import com.example.frontend.data.repository.AuthRepositoryImpl
+import com.example.frontend.data.repository.FriendRepositoryImpl
+import com.example.frontend.data.repository.MediaRepositoryImpl
 import com.example.frontend.data.repository.PostRepositoryImpl
 import com.example.frontend.data.repository.SearchRepositoryImpl
 import com.example.frontend.domain.repository.AuthRepository
+import com.example.frontend.domain.repository.FriendRepository
+import com.example.frontend.domain.repository.MediaRepository
 import com.example.frontend.domain.repository.PostRepository
 import com.example.frontend.domain.repository.SearchRepository
+import android.content.Context
 import dagger.Module
 import dagger.Provides
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
@@ -27,10 +34,6 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
- import android.content.Context
- import dagger.hilt.android.qualifiers.ApplicationContext
- import com.example.frontend.domain.repository.MediaRepository
- import com.example.frontend.data.repository.MediaRepositoryImpl
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -131,5 +134,19 @@ object NetworkModule {
         @ApplicationContext context: Context
     ): MediaRepository {
         return MediaRepositoryImpl(mediaApi, context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideConversationApi(retrofit: Retrofit): ConversationApi {
+        return retrofit.create(ConversationApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFriendRepository(
+        conversationApi: ConversationApi
+    ): FriendRepository {
+        return FriendRepositoryImpl(conversationApi)
     }
 }

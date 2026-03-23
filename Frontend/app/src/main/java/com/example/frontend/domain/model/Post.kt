@@ -62,7 +62,7 @@ data class PostMedia(
         alternate = ["type", "resource_type", "resourceType", "mediaType"]
     )
     val kind: String? = null,
-    @SerializedName(value = "media", alternate = ["mediaId", "file", "attachment", "asset"])
+    @SerializedName(value = "media", alternate = ["file", "attachment", "asset"])
     val nested: NestedMedia? = null
 ) {
     fun resolvedUrl(): String {

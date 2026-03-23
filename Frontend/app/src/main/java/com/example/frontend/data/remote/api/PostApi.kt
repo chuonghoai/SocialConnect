@@ -4,7 +4,6 @@ import com.example.frontend.data.remote.dto.CommentResponseDto
 import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
 import retrofit2.http.Query
-import com.example.frontend.domain.model.Post
 import retrofit2.Response
 import retrofit2.http.Body
 import retrofit2.http.GET
@@ -38,7 +37,7 @@ interface PostApi {
     suspend fun getSavedPosts(
         @Query("after") lastPostId: String? = null,
         @Query("limit") limit: Int = 10
-    ): List<Post>
+    ): List<Map<String, Any?>>
 
     @POST(ApiRoutes.LIKE_POST)
     suspend fun likePost(@Path("postId") postId: String)
