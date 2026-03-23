@@ -58,6 +58,10 @@ import com.example.frontend.ui.theme.OrangePrimary
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 
 @Composable
 fun ChatScreen(
@@ -255,7 +259,7 @@ fun ChatScreen(
                         }
                     },
                     onAddClick = {
-                        launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
                     },
                     onVoiceClick = { 
                         Log.d("ChatFlow", "Bấm icon micro -> Kiểm tra quyền")
@@ -505,29 +509,33 @@ private fun MessageBubble(
                     AudioMessageBubble(message, isMine, isUploading)
                 } else {
                     message.media.forEach { media ->
-                        Box(
-                            modifier = Modifier
-                                .padding(bottom = 4.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color.LightGray)
-                        ) {
-                            AsyncImage(
-                                model = media.secureUrl,
-                                contentDescription = null,
+                        if (media.type == "VIDEO") {
+                            VideoMessageBubble(media.secureUrl, isUploading)
+                        } else {
+                            Box(
                                 modifier = Modifier
-                                    .width(200.dp)
-                                    .heightIn(max = 300.dp)
-                                    .alpha(if (isUploading) 0.5f else 1f),
-                                contentScale = ContentScale.Crop
-                            )
-                            if (isUploading) {
-                                CircularProgressIndicator(
+                                    .padding(bottom = 4.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color.LightGray)
+                            ) {
+                                AsyncImage(
+                                    model = media.secureUrl,
+                                    contentDescription = null,
                                     modifier = Modifier
-                                        .size(30.dp)
-                                        .align(Alignment.Center),
-                                    color = OrangePrimary,
-                                    strokeWidth = 2.dp
+                                        .width(200.dp)
+                                        .heightIn(max = 300.dp)
+                                        .alpha(if (isUploading) 0.5f else 1f),
+                                    contentScale = ContentScale.Crop
                                 )
+                                if (isUploading) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier
+                                            .size(30.dp)
+                                            .align(Alignment.Center),
+                                        color = OrangePrimary,
+                                        strokeWidth = 2.dp
+                                    )
+                                }
                             }
                         }
                     }
@@ -665,6 +673,83 @@ fun AudioMessageBubble(message: MessageItem, isMine: Boolean, isUploading: Boole
             
             if (isUploading) {
                 CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+            }
+        }
+    }
+}
+
+@Composable
+fun VideoMessageBubble(url: String, isUploading: Boolean) {
+    var isPlaying by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .padding(bottom = 4.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(Color.Black)
+            .width(200.dp)
+            .heightIn(max = 300.dp, min = 150.dp)
+    ) {
+        if (isPlaying && !isUploading) {
+            val context = LocalContext.current
+            val exoPlayer = remember {
+                ExoPlayer.Builder(context).build().apply {
+                    setMediaItem(MediaItem.fromUri(url))
+                    prepare()
+                    playWhenReady = true
+                }
+            }
+            DisposableEffect(Unit) {
+                onDispose {
+                    exoPlayer.release()
+                }
+            }
+            AndroidView(
+                factory = {
+                    PlayerView(context).apply {
+                        player = exoPlayer
+                        useController = true
+                        layoutParams = android.view.ViewGroup.LayoutParams(
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                            android.view.ViewGroup.LayoutParams.MATCH_PARENT
+                        )
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        } else {
+            val thumbnailUrl = if (url.contains("cloudinary.com")) {
+                url.substringBeforeLast(".") + ".jpg"
+            } else url
+
+            AsyncImage(
+                model = thumbnailUrl,
+                contentDescription = "Video Thumbnail",
+                modifier = Modifier
+                    .fillMaxSize()
+                    .alpha(if (isUploading) 0.5f else 1f),
+                contentScale = ContentScale.Crop
+            )
+
+            if (!isUploading) {
+                Icon(
+                    imageVector = Icons.Default.PlayCircle,
+                    contentDescription = "Play Video",
+                    tint = Color.White,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .align(Alignment.Center)
+                        .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+                        .clickable { isPlaying = true }
+                )
+            } else {
+                CircularProgressIndicator(
+                    modifier = Modifier
+                        .size(30.dp)
+                        .align(Alignment.Center),
+                    color = OrangePrimary,
+                    strokeWidth = 2.dp
+                )
             }
         }
     }
