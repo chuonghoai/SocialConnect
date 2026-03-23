@@ -23,7 +23,14 @@ data class LastMessage(
     val text: String,
     val isRecall: Boolean,
     val createAt: String,
-    val sender: MessageSender
+    val sender: MessageSender,
+    val media: List<LastMessageMedia>? = emptyList()
+)
+
+data class LastMessageMedia(
+    val publicId: String,
+    val secureUrl: String,
+    val type: String
 )
 
 data class MessageSender(
