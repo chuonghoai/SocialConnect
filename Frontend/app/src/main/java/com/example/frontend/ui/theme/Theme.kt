@@ -1,6 +1,5 @@
 package com.example.frontend.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -14,29 +13,40 @@ import androidx.compose.ui.platform.LocalContext
 
 private val DarkColorScheme = darkColorScheme(
     primary = OrangePrimary,
+    secondary = OrangeSecondary,
+    tertiary = AccentBlue,
     background = DarkBackground,
-    surface = Color(0xFF1E1E1E),
+    surface = DarkSurface,
+    surfaceVariant = Color(0xFF2A2723),
+    primaryContainer = Color(0xFF5C3818),
     onPrimary = Color.White,
     onBackground = WhiteText,
     onSurface = WhiteText,
+    onSurfaceVariant = LightGrayText,
+    outlineVariant = DarkBorder,
     error = Color(0xFFCF6679)
 )
 
 private val LightColorScheme = lightColorScheme(
     primary = OrangePrimary,
     secondary = OrangeSecondary,
+    tertiary = AccentBlue,
     background = BackgroundLight,
-    surface = Color.White,
+    surface = SurfaceWarm,
+    surfaceVariant = Color(0xFFFFF2E7),
+    primaryContainer = Color(0xFFFFE0C4),
     onPrimary = Color.White,
     onBackground = BlackText,
-    onSurface = BlackText
+    onSurface = BlackText,
+    onSurfaceVariant = GrayText,
+    outlineVariant = BorderSoft
 )
 
 @Composable
 fun FrontendTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
-    // Dynamic color is available on Android 12+
-    dynamicColor: Boolean = true,
+    // Keep a stable branded palette for consistent UI across devices.
+    dynamicColor: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = when {

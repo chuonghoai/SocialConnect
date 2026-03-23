@@ -40,7 +40,7 @@ class PostUploadManager @Inject constructor(
 
     fun uploadPost(content: String, visibility: String, uris: List<Uri>) {
         applicationScope.launch {
-            _uploadState.value = UploadState(isUploading = true, progressText = "Dang chuan bi...")
+            _uploadState.value = UploadState(isUploading = true, progressText = "Đang chuẩn bị...")
 
             val mediaIdsToSave = mutableListOf<String>()
 
@@ -48,7 +48,7 @@ class PostUploadManager @Inject constructor(
                 for ((index, uri) in uris.withIndex()) {
                     _uploadState.value = UploadState(
                         isUploading = true,
-                        progressText = "Dang tai file ${index + 1}/${uris.size}..."
+                        progressText = "Đang tải file ${index + 1}/${uris.size}..."
                     )
 
                     when (val uploadRes = uploadMediaUseCase(uri)) {
@@ -56,7 +56,7 @@ class PostUploadManager @Inject constructor(
                         is ApiResult.Error -> {
                             _uploadState.value = UploadState(isUploading = false)
                             notificationManager.showMessage(
-                                "Loi upload file: ${uploadRes.message}",
+                                "Lỗi upload file: ${uploadRes.message}",
                                 NotificationType.ERROR
                             )
                             return@launch
@@ -65,7 +65,7 @@ class PostUploadManager @Inject constructor(
                 }
             }
 
-            _uploadState.value = UploadState(isUploading = true, progressText = "Dang hoan tat bai viet...")
+            _uploadState.value = UploadState(isUploading = true, progressText = "Đang hoàn tất bài viết...")
 
             Log.d(
                 TAG,
@@ -76,12 +76,12 @@ class PostUploadManager @Inject constructor(
                 is ApiResult.Success -> {
                     _uploadState.value = UploadState(isUploading = false)
                     _postCreatedTick.value = System.currentTimeMillis()
-                    notificationManager.showMessage("Dang bai viet thanh cong!", NotificationType.SUCCESS)
+                    notificationManager.showMessage("Đăng bài viết thành công!", NotificationType.SUCCESS)
                 }
 
                 is ApiResult.Error -> {
                     _uploadState.value = UploadState(isUploading = false)
-                    notificationManager.showMessage("Loi dang bai: ${postRes.message}", NotificationType.ERROR)
+                    notificationManager.showMessage("Lỗi đăng bài: ${postRes.message}", NotificationType.ERROR)
                 }
             }
         }
