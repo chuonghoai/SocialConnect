@@ -1,8 +1,10 @@
 package com.example.frontend.presentation.screen.chat
 
 import MessageItem
+import MessageMedia
 import MessageSender
 import NewMessageEvent
+import android.net.Uri
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -10,6 +12,7 @@ import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.network.WebSocketManager
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.usecase.ConversationUseCase.GetMessagesUseCase
+import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -31,13 +34,16 @@ data class ChatUiState(
     val isConnected: Boolean = false,
     val currentUser: User? = null,
     val onlineUsers: Set<String> = emptySet(),
-    val isPartnerTyping: Boolean = false
+    val isPartnerTyping: Boolean = false,
+    val selectedMedia: List<Uri> = emptyList(),
+    val isUploadingMedia: Boolean = false
 )
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val getMessagesUseCase: GetMessagesUseCase,
     private val getMeUseCase: GetMeUseCase,
+    private val uploadMediaUseCase: UploadMediaUseCase,
     private val webSocketManager: WebSocketManager,
     private val gson: Gson
 ) : ViewModel() {
@@ -161,14 +167,12 @@ class ChatViewModel @Inject constructor(
                         val readerId = jsonObj.optString("userId")
 
                         if (convId == currentConversationId && readerId != _uiState.value.currentUser?.id) {
-                            // Cập nhật tất cả tin nhắn của mình thành "Đã đọc" trong State
                             val updatedMessages = _uiState.value.messages.map { msg ->
                                 if (msg.sender.id == _uiState.value.currentUser?.id) {
                                     msg.copy(isRead = true)
                                 } else msg
                             }
                             _uiState.value = _uiState.value.copy(messages = updatedMessages)
-                            Log.d("ChatDebug", "Đã cập nhật trạng thái isRead cho các tin nhắn trong UI")
                         }
                     } catch (e: Exception) {
                         Log.e("ChatViewModel", "Lỗi observeMessagesRead: ${e.message}")
@@ -196,6 +200,84 @@ class ChatViewModel @Inject constructor(
                         error = result.message
                     )
                 }
+            }
+        }
+    }
+
+    fun onMediaSelected(uri: Uri) {
+        val current = _uiState.value.selectedMedia.toMutableList()
+        if (current.contains(uri)) {
+            current.remove(uri)
+        } else {
+            current.add(uri)
+        }
+        _uiState.value = _uiState.value.copy(selectedMedia = current)
+    }
+
+    fun sendChatWithMedia(conversationId: String, content: String?) {
+        val currentUser = _uiState.value.currentUser ?: return
+        val selectedMedia = _uiState.value.selectedMedia.toList() // Copy list
+        
+        // 0. Xóa danh sách media đang chọn lập tức để UI không bị thừa
+        _uiState.value = _uiState.value.copy(selectedMedia = emptyList())
+
+        viewModelScope.launch {
+            // 1. Gửi content trước nếu có
+            if (!content.isNullOrBlank()) {
+                sendChatMessage(conversationId, content)
+            }
+
+            // 2. Upload và gửi từng media
+            if (selectedMedia.isNotEmpty()) {
+                _uiState.value = _uiState.value.copy(isUploadingMedia = true)
+                selectedMedia.forEach { uri ->
+                    val tempId = "temp_media_${UUID.randomUUID()}"
+                    
+                    // Render UI tạm thời cho media (xoay xoay)
+                    val tempMessage = MessageItem(
+                        id = tempId,
+                        type = "MEDIA",
+                        text = "",
+                        isRecall = false,
+                        createAt = java.time.ZonedDateTime.now().toString(),
+                        replyToMessageId = null,
+                        sender = MessageSender(
+                            id = currentUser.id,
+                            displayName = currentUser.displayName ?: currentUser.username,
+                            avatarUrl = currentUser.avatarUrl
+                        ),
+                        media = listOf(MessageMedia(publicId = "", secureUrl = uri.toString(), type = "IMAGE")),
+                        isRead = false
+                    )
+                    
+                    _uiState.value = _uiState.value.copy(
+                        messages = listOf(tempMessage) + _uiState.value.messages
+                    )
+
+                    // Thực hiện upload
+                    when (val uploadResult = uploadMediaUseCase(uri)) {
+                        is ApiResult.Success -> {
+                            val mediaId = uploadResult.data
+                            if (mediaId != null) {
+                                webSocketManager.sendMessage(
+                                    conversationId = conversationId,
+                                    content = null,
+                                    type = "MEDIA",
+                                    mediaId = mediaId,
+                                    temporaryId = tempId
+                                )
+                            }
+                        }
+                        is ApiResult.Error -> {
+                            // Cập nhật trạng thái lỗi cho tin nhắn media này
+                            val updated = _uiState.value.messages.map {
+                                if (it.id == tempId) it.copy(id = "failed_${tempId}") else it
+                            }
+                            _uiState.value = _uiState.value.copy(messages = updated)
+                        }
+                    }
+                }
+                _uiState.value = _uiState.value.copy(isUploadingMedia = false)
             }
         }
     }
