@@ -4,7 +4,10 @@ import MessageItem
 import MessageMedia
 import MessageSender
 import NewMessageEvent
+import android.content.Context
+import android.media.MediaRecorder
 import android.net.Uri
+import android.os.Build
 import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -16,6 +19,7 @@ import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
+import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,6 +28,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
+import java.io.File
 import java.util.UUID
 import javax.inject.Inject
 
@@ -36,7 +41,14 @@ data class ChatUiState(
     val onlineUsers: Set<String> = emptySet(),
     val isPartnerTyping: Boolean = false,
     val selectedMedia: List<Uri> = emptyList(),
-    val isUploadingMedia: Boolean = false
+    val isUploadingMedia: Boolean = false,
+    
+    // Voice recording states
+    val isRecording: Boolean = false,
+    val recordingDuration: Long = 0,
+    val recordingFileUri: Uri? = null,
+    val showVoiceRecorder: Boolean = false,
+    val recordingAmplitude: Float = 0f
 )
 
 @HiltViewModel
@@ -45,7 +57,8 @@ class ChatViewModel @Inject constructor(
     private val getMeUseCase: GetMeUseCase,
     private val uploadMediaUseCase: UploadMediaUseCase,
     private val webSocketManager: WebSocketManager,
-    private val gson: Gson
+    private val gson: Gson,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ChatUiState())
@@ -54,6 +67,11 @@ class ChatViewModel @Inject constructor(
     private var currentConversationId: String? = null
     private var typingJob: Job? = null
     private var isCurrentlyTyping = false
+
+    private var mediaRecorder: MediaRecorder? = null
+    private var recordingFile: File? = null
+    private var recordingJob: Job? = null
+    private var isSuccessfullyStarted = false
 
     init {
         fetchCurrentUser()
@@ -218,22 +236,18 @@ class ChatViewModel @Inject constructor(
         val currentUser = _uiState.value.currentUser ?: return
         val selectedMedia = _uiState.value.selectedMedia.toList() // Copy list
         
-        // 0. Xóa danh sách media đang chọn lập tức để UI không bị thừa
         _uiState.value = _uiState.value.copy(selectedMedia = emptyList())
 
         viewModelScope.launch {
-            // 1. Gửi content trước nếu có
             if (!content.isNullOrBlank()) {
                 sendChatMessage(conversationId, content)
             }
 
-            // 2. Upload và gửi từng media
             if (selectedMedia.isNotEmpty()) {
                 _uiState.value = _uiState.value.copy(isUploadingMedia = true)
                 selectedMedia.forEach { uri ->
                     val tempId = "temp_media_${UUID.randomUUID()}"
                     
-                    // Render UI tạm thời cho media (xoay xoay)
                     val tempMessage = MessageItem(
                         id = tempId,
                         type = "MEDIA",
@@ -251,10 +265,9 @@ class ChatViewModel @Inject constructor(
                     )
                     
                     _uiState.value = _uiState.value.copy(
-                        messages = listOf(tempMessage) + _uiState.value.messages
+                        messages = (listOf(tempMessage) + _uiState.value.messages)
                     )
 
-                    // Thực hiện upload
                     when (val uploadResult = uploadMediaUseCase(uri)) {
                         is ApiResult.Success -> {
                             val mediaId = uploadResult.data
@@ -269,7 +282,6 @@ class ChatViewModel @Inject constructor(
                             }
                         }
                         is ApiResult.Error -> {
-                            // Cập nhật trạng thái lỗi cho tin nhắn media này
                             val updated = _uiState.value.messages.map {
                                 if (it.id == tempId) it.copy(id = "failed_${tempId}") else it
                             }
@@ -305,7 +317,7 @@ class ChatViewModel @Inject constructor(
         )
         
         _uiState.value = _uiState.value.copy(
-            messages = listOf(tempMessage) + _uiState.value.messages
+            messages = (listOf(tempMessage) + _uiState.value.messages)
         )
 
         viewModelScope.launch {
@@ -349,6 +361,141 @@ class ChatViewModel @Inject constructor(
     private fun sendTypingStatus(isTyping: Boolean) {
         currentConversationId?.let {
             webSocketManager.sendTypingEvent(it, isTyping)
+        }
+    }
+
+    // Voice Recording Logic
+    fun toggleVoiceRecorder(show: Boolean) {
+        _uiState.value = _uiState.value.copy(showVoiceRecorder = show)
+        if (!show) {
+            cancelRecording()
+        }
+    }
+
+    fun startRecording() {
+        try {
+            isSuccessfullyStarted = false
+            recordingFile = File(context.cacheDir, "recording_${System.currentTimeMillis()}.m4a")
+            mediaRecorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                MediaRecorder(context)
+            } else {
+                @Suppress("DEPRECATION")
+                MediaRecorder()
+            }.apply {
+                setAudioSource(MediaRecorder.AudioSource.MIC)
+                setOutputFormat(MediaRecorder.OutputFormat.MPEG_4)
+                setAudioEncoder(MediaRecorder.AudioEncoder.AAC)
+                setOutputFile(recordingFile?.absolutePath)
+                prepare()
+                start()
+            }
+            isSuccessfullyStarted = true
+            _uiState.value = _uiState.value.copy(isRecording = true, recordingDuration = 0, recordingFileUri = null)
+            
+            recordingJob = viewModelScope.launch {
+                val startTime = System.currentTimeMillis()
+                while (_uiState.value.isRecording) {
+                    _uiState.value = _uiState.value.copy(
+                        recordingDuration = System.currentTimeMillis() - startTime,
+                        recordingAmplitude = try { mediaRecorder?.maxAmplitude?.toFloat() ?: 0f } catch (e: Exception) { 0f }
+                    )
+                    delay(100)
+                }
+            }
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "Error starting recording: ${e.message}")
+            isSuccessfullyStarted = false
+            _uiState.value = _uiState.value.copy(isRecording = false)
+        }
+    }
+
+    fun stopRecording() {
+        if (!isSuccessfullyStarted) return
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+            mediaRecorder = null
+            recordingJob?.cancel()
+            _uiState.value = _uiState.value.copy(
+                isRecording = false,
+                recordingFileUri = Uri.fromFile(recordingFile)
+            )
+        } catch (e: Exception) {
+            Log.e("ChatViewModel", "Error stopping recording: ${e.message}")
+            cancelRecording()
+        }
+    }
+
+    fun cancelRecording() {
+        try {
+            mediaRecorder?.apply {
+                stop()
+                release()
+            }
+        } catch (e: Exception) {
+            // Có thể xảy ra nếu chưa kịp start đã stop
+        }
+        mediaRecorder = null
+        recordingJob?.cancel()
+        recordingFile?.delete()
+        isSuccessfullyStarted = false
+        _uiState.value = _uiState.value.copy(
+            isRecording = false,
+            recordingDuration = 0,
+            recordingFileUri = null,
+            recordingAmplitude = 0f
+        )
+    }
+
+    fun sendVoiceMessage(conversationId: String) {
+        val uri = _uiState.value.recordingFileUri ?: return
+        val currentUser = _uiState.value.currentUser ?: return
+        
+        viewModelScope.launch {
+            _uiState.value = _uiState.value.copy(isUploadingMedia = true, showVoiceRecorder = false)
+            val tempId = "temp_voice_${UUID.randomUUID()}"
+            
+            val tempMessage = MessageItem(
+                id = tempId,
+                type = "AUDIO",
+                text = "",
+                isRecall = false,
+                createAt = java.time.ZonedDateTime.now().toString(),
+                replyToMessageId = null,
+                sender = MessageSender(
+                    id = currentUser.id,
+                    displayName = currentUser.displayName ?: currentUser.username,
+                    avatarUrl = currentUser.avatarUrl
+                ),
+                media = listOf(MessageMedia(publicId = "", secureUrl = uri.toString(), type = "AUDIO")),
+                isRead = false
+            )
+            
+            _uiState.value = _uiState.value.copy(messages = (listOf(tempMessage) + _uiState.value.messages))
+
+            when (val uploadResult = uploadMediaUseCase(uri)) {
+                is ApiResult.Success -> {
+                    val mediaId = uploadResult.data
+                    if (mediaId != null) {
+                        webSocketManager.sendMessage(
+                            conversationId = conversationId,
+                            content = null,
+                            type = "MEDIA",
+                            mediaId = mediaId,
+                            temporaryId = tempId
+                        )
+                    }
+                }
+                is ApiResult.Error -> {
+                    val updated = _uiState.value.messages.map {
+                        if (it.id == tempId) it.copy(id = "failed_${tempId}") else it
+                    }
+                    _uiState.value = _uiState.value.copy(messages = updated)
+                }
+            }
+            _uiState.value = _uiState.value.copy(isUploadingMedia = false, recordingFileUri = null)
         }
     }
 }

@@ -1,20 +1,22 @@
 package com.example.frontend.presentation.screen.chat
 
 import MessageItem
-import android.net.Uri
+import android.Manifest
+import android.content.pm.PackageManager
+import android.media.MediaPlayer
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -22,16 +24,11 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.DoneAll
-import androidx.compose.material.icons.filled.KeyboardVoice
-import androidx.compose.material.icons.filled.Phone
-import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -40,6 +37,8 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -50,14 +49,15 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.zIndex
+import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.ui.theme.OnlineGreen
 import com.example.frontend.ui.theme.OrangePrimary
+import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
-import java.util.Locale
-import java.util.TimeZone
+import java.util.*
 
 @Composable
 fun ChatScreen(
@@ -71,11 +71,24 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsState()
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val context = LocalContext.current
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(),
         onResult = { uris ->
             uris.forEach { viewModel.onMediaSelected(it) }
+        }
+    )
+
+    // Permission launcher for Recording
+    val permissionLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.RequestPermission(),
+        onResult = { isGranted ->
+            if (isGranted) {
+                viewModel.toggleVoiceRecorder(true)
+            } else {
+                Log.e("ChatScreen", "Quyền RECORD_AUDIO bị từ chối")
+            }
         }
     )
 
@@ -145,6 +158,7 @@ fun ChatScreen(
                             
                             val statusText = if (isMine && index == 0) {
                                 when {
+                                    msg.id.startsWith("temp_voice_") -> "• Đang gửi tin nhắn thoại"
                                     msg.id.startsWith("temp_media_") -> "• Đang tải phương tiện"
                                     msg.id.startsWith("temp_") -> "• Đang gửi"
                                     msg.id.startsWith("failed_") -> "• Lỗi gửi"
@@ -165,7 +179,7 @@ fun ChatScreen(
             }
 
             // Thanh preview media đã chọn
-            if (uiState.selectedMedia.isNotEmpty()) {
+            if (uiState.selectedMedia.isNotEmpty() && !uiState.showVoiceRecorder) {
                 LazyRow(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -207,23 +221,54 @@ fun ChatScreen(
                 }
             }
 
-            ChatInputBar(
-                value = messageText,
-                onValueChange = {
-                    messageText = it
-                    viewModel.onTyping(it)
-                },
-                onSendClick = {
-                    if (messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()) {
-                        viewModel.sendChatWithMedia(conversationId, messageText)
-                        messageText = ""
+            if (uiState.showVoiceRecorder) {
+                VoiceRecorderUI(
+                    uiState = uiState,
+                    onStartRecording = { 
+                        Log.d("ChatFlow", "Bắt đầu nhấn giữ -> startRecording")
+                        viewModel.startRecording() 
+                    },
+                    onStopRecording = { 
+                        Log.d("ChatFlow", "Thả tay -> stopRecording")
+                        viewModel.stopRecording() 
+                    },
+                    onCancel = { 
+                        Log.d("ChatFlow", "Bấm hủy/xóa -> toggleVoiceRecorder(false)")
+                        viewModel.toggleVoiceRecorder(false) 
+                    },
+                    onSend = { 
+                        Log.d("ChatFlow", "Bấm gửi -> sendVoiceMessage")
+                        viewModel.sendVoiceMessage(conversationId) 
                     }
-                },
-                onAddClick = {
-                    launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                },
-                isSendEnabled = messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()
-            )
+                )
+            } else {
+                ChatInputBar(
+                    value = messageText,
+                    onValueChange = {
+                        messageText = it
+                        viewModel.onTyping(it)
+                    },
+                    onSendClick = {
+                        if (messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()) {
+                            viewModel.sendChatWithMedia(conversationId, messageText)
+                            messageText = ""
+                        }
+                    },
+                    onAddClick = {
+                        launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                    },
+                    onVoiceClick = { 
+                        Log.d("ChatFlow", "Bấm icon micro -> Kiểm tra quyền")
+                        val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                            viewModel.toggleVoiceRecorder(true)
+                        } else {
+                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                        }
+                    },
+                    isSendEnabled = messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()
+                )
+            }
         }
 
         ChatTopBar(
@@ -235,6 +280,410 @@ fun ChatScreen(
                 .align(Alignment.TopCenter)
                 .zIndex(10f)
         )
+    }
+}
+
+@Composable
+fun VoiceRecorderUI(
+    uiState: ChatUiState,
+    onStartRecording: () -> Unit,
+    onStopRecording: () -> Unit,
+    onCancel: () -> Unit,
+    onSend: () -> Unit
+) {
+    val context = LocalContext.current
+    var isPlayingPreview by remember { mutableStateOf(false) }
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var playbackPosition by remember { mutableFloatStateOf(0f) }
+    var duration by remember { mutableLongStateOf(0L) }
+
+    val infiniteTransition = rememberInfiniteTransition(label = "recording")
+    val scale by infiniteTransition.animateFloat(
+        initialValue = 1f,
+        targetValue = 1.3f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(500, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "scale"
+    )
+
+    DisposableEffect(Unit) {
+        onDispose {
+            mediaPlayer?.release()
+        }
+    }
+
+    LaunchedEffect(isPlayingPreview) {
+        if (isPlayingPreview) {
+            while (isPlayingPreview && mediaPlayer?.isPlaying == true) {
+                playbackPosition = mediaPlayer?.currentPosition?.toFloat() ?: 0f
+                delay(50)
+            }
+            if (mediaPlayer?.isPlaying == false) isPlayingPreview = false
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color.White)
+            .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        if (uiState.recordingFileUri == null) {
+            Box(
+                modifier = Modifier
+                    .size(80.dp)
+                    .clip(CircleShape)
+                    .background(if (uiState.isRecording) OrangePrimary.copy(alpha = 0.2f) else Color(0xFFF1F1F1))
+                    .pointerInput(Unit) {
+                        detectTapGestures(
+                            onPress = {
+                                onStartRecording()
+                                try {
+                                    tryAwaitRelease()
+                                } finally {
+                                    onStopRecording()
+                                }
+                            }
+                        )
+                    },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Default.KeyboardVoice,
+                    contentDescription = null,
+                    tint = if (uiState.isRecording) OrangePrimary else Color.Gray,
+                    modifier = Modifier.size(40.dp).let { 
+                        if (uiState.isRecording) it.graphicsLayer(scaleX = scale, scaleY = scale) else it 
+                    }
+                )
+            }
+            
+            Spacer(Modifier.height(8.dp))
+            Text(
+                text = if (uiState.isRecording) formatDuration(uiState.recordingDuration) else "Nhấn giữ để thu âm",
+                color = if (uiState.isRecording) OrangePrimary else Color.Gray,
+                fontWeight = FontWeight.Medium
+            )
+            
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Default.Close, null, tint = Color.Gray)
+            }
+        } else {
+            // Hiệu ứng Review sau khi thu xong
+            LaunchedEffect(uiState.recordingFileUri) {
+                if (uiState.recordingFileUri != null) {
+                    try {
+                        val tempPlayer = MediaPlayer.create(context, uiState.recordingFileUri)
+                        duration = tempPlayer?.duration?.toLong() ?: 0L
+                        Log.d("ChatFlow", "Review mode: File URI = ${uiState.recordingFileUri}, Duration = $duration ms")
+                        tempPlayer?.release()
+                    } catch (e: Exception) {
+                        Log.e("ChatFlow", "Lỗi khi lấy duration file ghi âm: ${e.message}")
+                    }
+                }
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = {
+                    if (isPlayingPreview) {
+                        mediaPlayer?.pause()
+                        isPlayingPreview = false
+                    } else {
+                        try {
+                            if (mediaPlayer == null) {
+                                mediaPlayer = MediaPlayer.create(context, uiState.recordingFileUri)
+                                duration = mediaPlayer?.duration?.toLong() ?: 0L
+                            }
+                            mediaPlayer?.start()
+                            isPlayingPreview = true
+                        } catch (e: Exception) {
+                            Log.e("ChatFlow", "Lỗi khi phát thử: ${e.message}")
+                        }
+                    }
+                }) {
+                    Icon(
+                        imageVector = if (isPlayingPreview) Icons.Default.Pause else Icons.Default.PlayArrow,
+                        contentDescription = null,
+                        tint = OrangePrimary
+                    )
+                }
+
+                Slider(
+                    value = playbackPosition,
+                    onValueChange = { 
+                        playbackPosition = it
+                        mediaPlayer?.seekTo(it.toInt())
+                    },
+                    valueRange = 0f..(if (duration > 0) duration.toFloat() else 1f),
+                    modifier = Modifier.weight(1f),
+                    colors = SliderDefaults.colors(thumbColor = OrangePrimary, activeTrackColor = OrangePrimary)
+                )
+                
+                Text(
+                    text = formatDuration(if (isPlayingPreview) playbackPosition.toLong() else duration),
+                    fontSize = 12.sp,
+                    color = Color.Gray
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onCancel) {
+                    Icon(Icons.Default.Delete, null, tint = Color.Gray, modifier = Modifier.size(30.dp))
+                }
+
+                Button(
+                    onClick = {
+                        Log.d("ChatFlow", "Bắt đầu gửi voice: URI = ${uiState.recordingFileUri}")
+                        onSend()
+                    },
+                    colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary),
+                    shape = CircleShape,
+                    modifier = Modifier.size(60.dp),
+                    contentPadding = PaddingValues(0.dp)
+                ) {
+                    Icon(Icons.AutoMirrored.Filled.Send, null, tint = Color.White, modifier = Modifier.size(30.dp))
+                }
+            }
+        }
+    }
+}
+
+fun formatDuration(ms: Long): String {
+    val seconds = (ms / 1000) % 60
+    val minutes = (ms / (1000 * 60)) % 60
+    return String.format("%02d:%02d", minutes, seconds)
+}
+
+@Composable
+private fun MessageBubble(
+    message: MessageItem,
+    isMine: Boolean,
+    incomingAvatarUrl: String?,
+    statusText: String? = null
+) {
+    val isUploading = message.id.startsWith("temp_")
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
+            verticalAlignment = Alignment.Bottom
+        ) {
+            if (!isMine) {
+                AsyncImage(
+                    model = message.sender.avatarUrl ?: incomingAvatarUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(Color(0xFFE0E0E0)),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.icon_user),
+                    error = painterResource(id = R.drawable.icon_user)
+                )
+                Spacer(Modifier.width(8.dp))
+            }
+
+            Column(
+                modifier = Modifier.widthIn(max = 240.dp),
+                horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
+            ) {
+                val isAudioMessage = message.type == "AUDIO" || message.media.firstOrNull()?.type == "AUDIO"
+                if (isAudioMessage) {
+                    AudioMessageBubble(message, isMine, isUploading)
+                } else {
+                    message.media.forEach { media ->
+                        Box(
+                            modifier = Modifier
+                                .padding(bottom = 4.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color.LightGray)
+                        ) {
+                            AsyncImage(
+                                model = media.secureUrl,
+                                contentDescription = null,
+                                modifier = Modifier
+                                    .width(200.dp)
+                                    .heightIn(max = 300.dp)
+                                    .alpha(if (isUploading) 0.5f else 1f),
+                                contentScale = ContentScale.Crop
+                            )
+                            if (isUploading) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier
+                                        .size(30.dp)
+                                        .align(Alignment.Center),
+                                    color = OrangePrimary,
+                                    strokeWidth = 2.dp
+                                )
+                            }
+                        }
+                    }
+
+                    if (message.text.isNotEmpty()) {
+                        Surface(
+                            shape = RoundedCornerShape(8.dp),
+                            color = if (isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
+                            shadowElevation = 1.dp
+                        ) {
+                            Text(
+                                text = message.text,
+                                color = Color(0xFF1F1F1F),
+                                fontSize = 16.sp,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        
+        Row(
+            modifier = Modifier.padding(
+                top = 2.dp,
+                start = if (isMine) 0.dp else 42.dp,
+                end = if (isMine) 42.dp else 0.dp
+            ),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = formatMessageTime(message.createAt),
+                color = Color(0xFF8A8A8A),
+                fontSize = 10.sp
+            )
+            
+            if (statusText != null) {
+                Spacer(Modifier.width(4.dp))
+                if (statusText == "Đã đọc") {
+                    Icon(Icons.Default.DoneAll, null, tint = OrangePrimary, modifier = Modifier.size(14.dp))
+                    Spacer(Modifier.width(2.dp))
+                }
+                Text(
+                    text = statusText,
+                    color = if (statusText.contains("Đang") || statusText.contains("Lỗi")) Color.Gray else OrangePrimary,
+                    fontSize = 10.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun AudioMessageBubble(message: MessageItem, isMine: Boolean, isUploading: Boolean) {
+    val context = LocalContext.current
+    var isPlaying by remember { mutableStateOf(false) }
+    var mediaPlayer by remember { mutableStateOf<MediaPlayer?>(null) }
+    var currentPos by remember { mutableIntStateOf(0) }
+    var duration by remember { mutableIntStateOf(0) }
+
+    val audioUrl = message.media.firstOrNull()?.secureUrl ?: ""
+
+    DisposableEffect(Unit) {
+        onDispose { mediaPlayer?.release() }
+    }
+
+    LaunchedEffect(isPlaying) {
+        if (isPlaying) {
+            while (isPlaying && mediaPlayer?.isPlaying == true) {
+                currentPos = mediaPlayer?.currentPosition ?: 0
+                delay(100)
+            }
+            if (mediaPlayer?.isPlaying == false) isPlaying = false
+        }
+    }
+
+    Surface(
+        modifier = Modifier
+            .width(200.dp)
+            .clickable {
+                if (isPlaying) {
+                    mediaPlayer?.pause()
+                    isPlaying = false
+                } else {
+                    if (mediaPlayer == null) {
+                        mediaPlayer = MediaPlayer().apply {
+                            setDataSource(audioUrl)
+                            prepareAsync()
+                            setOnPreparedListener { 
+                                duration = it.duration
+                                it.start()
+                                isPlaying = true
+                            }
+                            setOnCompletionListener { 
+                                isPlaying = false 
+                                currentPos = 0
+                            }
+                        }
+                    } else {
+                        mediaPlayer?.start()
+                        isPlaying = true
+                    }
+                }
+            },
+        shape = RoundedCornerShape(12.dp),
+        color = if (isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
+        shadowElevation = 1.dp
+    ) {
+        Row(
+            modifier = Modifier.padding(8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = if (isPlaying) Icons.Default.Stop else Icons.Default.PlayArrow,
+                contentDescription = null,
+                tint = if (isMine) Color.White else OrangePrimary
+            )
+            
+            Spacer(Modifier.width(8.dp))
+            
+            Column(modifier = Modifier.weight(1f)) {
+                LinearProgressIndicator(
+                    progress = { if (duration > 0) currentPos.toFloat() / duration else 0f },
+                    modifier = Modifier.fillMaxWidth().height(4.dp),
+                    color = if (isMine) Color.White else OrangePrimary,
+                    trackColor = (if (isMine) Color.White else OrangePrimary).copy(alpha = 0.3f)
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = if (isPlaying) formatDuration((duration - currentPos).toLong()) else "Voice Note",
+                    fontSize = 10.sp,
+                    color = if (isMine) Color.White else Color.Gray
+                )
+            }
+            
+            if (isUploading) {
+                CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp, color = Color.White)
+            }
+        }
+    }
+}
+
+fun formatMessageTime(isoString: String): String {
+    return try {
+        val sdf = if (isoString.contains("Z")) {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
+                timeZone = TimeZone.getTimeZone("UTC")
+            }
+        } else {
+            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
+        }
+        val date = sdf.parse(isoString)
+        val outSdf = SimpleDateFormat("HH:mm", Locale.getDefault())
+        outSdf.format(date!!)
+    } catch (e: Exception) {
+        ""
     }
 }
 
@@ -313,142 +762,12 @@ private fun ChatTopBar(
 }
 
 @Composable
-private fun MessageBubble(
-    message: MessageItem,
-    isMine: Boolean,
-    incomingAvatarUrl: String?,
-    statusText: String? = null
-) {
-    val isUploading = message.id.startsWith("temp_media_")
-
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
-            verticalAlignment = Alignment.Bottom
-        ) {
-            if (!isMine) {
-                AsyncImage(
-                    model = message.sender.avatarUrl ?: incomingAvatarUrl,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFE0E0E0)),
-                    contentScale = ContentScale.Crop,
-                    placeholder = painterResource(id = R.drawable.icon_user),
-                    error = painterResource(id = R.drawable.icon_user)
-                )
-                Spacer(Modifier.width(8.dp))
-            }
-
-            Column(
-                modifier = Modifier.widthIn(max = 240.dp),
-                horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
-            ) {
-                // Hiển thị Media nếu có
-                message.media.forEach { media ->
-                    Box(
-                        modifier = Modifier
-                            .padding(bottom = 4.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(Color.LightGray)
-                    ) {
-                        AsyncImage(
-                            model = media.secureUrl,
-                            contentDescription = null,
-                            modifier = Modifier
-                                .width(200.dp)
-                                .heightIn(max = 300.dp)
-                                .alpha(if (isUploading) 0.5f else 1f),
-                            contentScale = ContentScale.Crop
-                        )
-                        if (isUploading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier
-                                    .size(30.dp)
-                                    .align(Alignment.Center),
-                                color = OrangePrimary,
-                                strokeWidth = 2.dp
-                            )
-                        }
-                    }
-                }
-
-                // Hiển thị Text nếu có
-                if (message.text.isNotEmpty()) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
-                        shadowElevation = 1.dp
-                    ) {
-                        Text(
-                            text = message.text,
-                            color = Color(0xFF1F1F1F),
-                            fontSize = 16.sp,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                        )
-                    }
-                }
-            }
-        }
-        
-        Row(
-            modifier = Modifier.padding(
-                top = 2.dp,
-                start = if (isMine) 0.dp else 42.dp,
-                end = if (isMine) 42.dp else 0.dp
-            ),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = formatMessageTime(message.createAt),
-                color = Color(0xFF8A8A8A),
-                fontSize = 10.sp
-            )
-            
-            if (statusText != null) {
-                Spacer(Modifier.width(4.dp))
-                if (statusText == "Đã đọc") {
-                    Icon(Icons.Default.DoneAll, null, tint = OrangePrimary, modifier = Modifier.size(14.dp))
-                    Spacer(Modifier.width(2.dp))
-                }
-                Text(
-                    text = statusText,
-                    color = if (statusText.contains("Đang") || statusText.contains("Lỗi")) Color.Gray else OrangePrimary,
-                    fontSize = 10.sp
-                )
-            }
-        }
-    }
-}
-
-fun formatMessageTime(isoString: String): String {
-    return try {
-        val sdf = if (isoString.contains("Z")) {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS'Z'", Locale.getDefault()).apply {
-                timeZone = TimeZone.getTimeZone("UTC")
-            }
-        } else {
-            SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.SSS", Locale.getDefault())
-        }
-        val date = sdf.parse(isoString)
-        val outSdf = SimpleDateFormat("HH:mm", Locale.getDefault())
-        outSdf.format(date!!)
-    } catch (e: Exception) {
-        ""
-    }
-}
-
-@Composable
 private fun ChatInputBar(
     value: String,
     onValueChange: (String) -> Unit,
     onSendClick: () -> Unit,
     onAddClick: () -> Unit,
+    onVoiceClick: () -> Unit,
     isSendEnabled: Boolean,
     modifier: Modifier = Modifier
 ) {
@@ -461,7 +780,7 @@ private fun ChatInputBar(
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(
-            onClick = {},
+            onClick = onVoiceClick,
             modifier = Modifier.size(34.dp).background(Color(0xFFF1F1F1), CircleShape)
         ) {
             Icon(Icons.Default.KeyboardVoice, null, tint = Color(0xFF5A5A5A), modifier = Modifier.size(20.dp))
