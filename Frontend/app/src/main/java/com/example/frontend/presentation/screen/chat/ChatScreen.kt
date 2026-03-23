@@ -126,16 +126,11 @@ fun ChatScreen(
                         itemsIndexed(uiState.messages, key = { _, msg -> msg.id }) { index, msg ->
                             val isMine = msg.sender.id == uiState.currentUser?.id
 
-                            // Thêm log để debug
-                            if (index == 0 && isMine) {
-                                Log.d("ChatDebug", "Kiểm tra tin nhắn cuối: ID=${msg.id}, isReadLatest=${uiState.isPartnerReadLatest}")
-                            }
-
                             val statusText = if (isMine && index == 0) {
                                 when {
                                     msg.id.startsWith("temp_") -> "• Đang gửi"
                                     msg.id.startsWith("failed_") -> "• Lỗi gửi"
-                                    uiState.isPartnerReadLatest -> "Đã đọc"
+                                    msg.isRead -> "Đã đọc"
                                     else -> "• Đã gửi"
                                 }
                             } else null

@@ -31,8 +31,7 @@ data class ChatUiState(
     val isConnected: Boolean = false,
     val currentUser: User? = null,
     val onlineUsers: Set<String> = emptySet(),
-    val isPartnerTyping: Boolean = false,
-    val isPartnerReadLatest: Boolean = false // Flag để biết đối phương đã đọc tin nhắn mới nhất chưa
+    val isPartnerTyping: Boolean = false
 )
 
 @HiltViewModel
@@ -109,9 +108,6 @@ class ChatViewModel @Inject constructor(
 
                         if (event.conversationId == currentConversationId) {
                             webSocketManager.markRead(event.conversationId)
-                            
-                            // Nếu mình nhận được tin nhắn từ người khác, thì flag "đối phương đã đọc tin của mình" không còn quan trọng cho tin cũ nữa
-                            // Nhưng thường flag này dùng cho tin nhắn CUỐI CÙNG LÀ CỦA MÌNH.
                         }
                         
                         if (currentConversationId == null || event.conversationId == currentConversationId) {
@@ -158,7 +154,6 @@ class ChatViewModel @Inject constructor(
     private fun observeMessagesRead() {
         viewModelScope.launch {
             webSocketManager.messagesReadEvent.collect { json ->
-                Log.d("ChatDebug", "ViewModel nhận tin nhắn đã đọc: $json")
                 if (json != null) {
                     try {
                         val jsonObj = JSONObject(json)
@@ -166,11 +161,17 @@ class ChatViewModel @Inject constructor(
                         val readerId = jsonObj.optString("userId")
 
                         if (convId == currentConversationId && readerId != _uiState.value.currentUser?.id) {
-                            Log.d("ChatDebug", "Khớp điều kiện! Cập nhật isPartnerReadLatest = true")
-                            _uiState.value = _uiState.value.copy(isPartnerReadLatest = true)
+                            // Cập nhật tất cả tin nhắn của mình thành "Đã đọc" trong State
+                            val updatedMessages = _uiState.value.messages.map { msg ->
+                                if (msg.sender.id == _uiState.value.currentUser?.id) {
+                                    msg.copy(isRead = true)
+                                } else msg
+                            }
+                            _uiState.value = _uiState.value.copy(messages = updatedMessages)
+                            Log.d("ChatDebug", "Đã cập nhật trạng thái isRead cho các tin nhắn trong UI")
                         }
                     } catch (e: Exception) {
-                        Log.e("ChatViewModel", "Lỗi parse messagesReadEvent: ${e.message}")
+                        Log.e("ChatViewModel", "Lỗi observeMessagesRead: ${e.message}")
                     }
                 }
             }
@@ -185,8 +186,7 @@ class ChatViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     _uiState.value = _uiState.value.copy(
                         isLoading = false,
-                        messages = result.data?.messages ?: emptyList(),
-                        isPartnerReadLatest = false // Reset khi load mới, BE sẽ emit event nếu họ đã đọc
+                        messages = result.data?.messages ?: emptyList()
                     )
                     webSocketManager.markRead(conversationId)
                 }
@@ -218,13 +218,12 @@ class ChatViewModel @Inject constructor(
                 displayName = currentUser.displayName ?: currentUser.username,
                 avatarUrl = currentUser.avatarUrl
             ),
-            media = emptyList()
+            media = emptyList(),
+            isRead = false
         )
         
-        // Khi mình gửi tin mới, mặc định đối phương chưa đọc tin này
         _uiState.value = _uiState.value.copy(
-            messages = listOf(tempMessage) + _uiState.value.messages,
-            isPartnerReadLatest = false
+            messages = listOf(tempMessage) + _uiState.value.messages
         )
 
         viewModelScope.launch {

@@ -15,7 +15,8 @@ data class MessageItem(
     val createAt: String,           // Chuỗi ISO 8601, bạn có thể map sang Date/LocalDateTime nếu cần
     val replyToMessageId: String?,  // Có thể null nếu không phải tin nhắn reply
     val sender: MessageSender,
-    val media: List<MessageMedia>
+    val media: List<MessageMedia>,
+    val isRead: Boolean = false
 )
 
 // 3. Model thông tin người gửi
