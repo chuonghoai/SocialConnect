@@ -60,6 +60,12 @@ class WebSocketManager @Inject constructor(
             try {
                 val token = tokenProvider.getAccessToken()
 
+                if (mSocket != null) {
+                    mSocket?.disconnect()
+                    mSocket?.off()
+                    mSocket = null 
+                }
+
                 if (mSocket == null) {
                     val options = IO.Options()
                     options.reconnection = true
