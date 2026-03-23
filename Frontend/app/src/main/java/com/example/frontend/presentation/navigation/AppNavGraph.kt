@@ -32,6 +32,7 @@ import com.example.frontend.presentation.screen.login.LoginScreen
 import com.example.frontend.presentation.screen.notification.NotificationScreen
 import com.example.frontend.presentation.screen.postdetail.PostDetailScreen
 import com.example.frontend.presentation.screen.profile.ProfileScreen
+import com.example.frontend.presentation.screen.otherprofile.OtherProfileScreen
 import com.example.frontend.presentation.screen.register.OtpVerificationScreen
 import com.example.frontend.presentation.screen.register.RegisterScreen
 import com.example.frontend.presentation.screen.register.RegisterViewModel
@@ -226,6 +227,17 @@ fun AppNavGraph(
                                 restoreState = true
                                 popUpTo(Routes.HOME) { saveState = true }
                             }
+                        },
+                        onAvatarClick = { clickedUserId ->
+                            if (clickedUserId == currentUser?.id) {
+                                navController.navigate(Routes.PROFILE) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else if (clickedUserId.isNotBlank()) {
+                                val encodedUserId = Uri.encode(clickedUserId)
+                                navController.navigate("${Routes.OTHER_PROFILE_BASE}/$encodedUserId")
+                            }
                         }
                     )
                 }
@@ -302,6 +314,15 @@ fun AppNavGraph(
 
                 composable(Routes.CHANGE_PASSWORD) {
                     ChangePasswordScreen(
+                        onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Routes.OTHER_PROFILE) { backStackEntry ->
+                    val targetUserId =
+                        backStackEntry.arguments?.getString("userId")?.let(Uri::decode).orEmpty()
+                    OtherProfileScreen(
+                        userId = targetUserId,
                         onBackClick = { navController.popBackStack() }
                     )
                 }

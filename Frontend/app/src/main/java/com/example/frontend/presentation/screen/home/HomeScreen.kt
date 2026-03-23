@@ -62,6 +62,7 @@ fun HomeScreen(
     onCreatePostClick: () -> Unit = {},
     onPostClick: (Post) -> Unit = {},
     onVideoClick: () -> Unit = {},
+    onAvatarClick: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -208,6 +209,7 @@ fun HomeScreen(
                                         shareTargetPost = post
                                         viewModel.loadShareFriends(currentUser?.id.orEmpty())
                                     },
+                                    onAvatarClick = onAvatarClick,
                                     onVideoClick = onVideoClick
                                 )
                             }

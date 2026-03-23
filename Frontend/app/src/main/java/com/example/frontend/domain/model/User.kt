@@ -11,5 +11,6 @@ data class User(
     val postCount: Long,
     val friendCount: Long,
     val caption: String?,
-    val avatarUrl: String?
+    val avatarUrl: String?,
+    val friendshipStatus: String? = "NONE"
 )

@@ -41,6 +41,19 @@ fun BottomBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = {
+                    if (selected) return@NavigationBarItem
+
+                    if (item.route == Routes.HOME) {
+                        val returnedToHome = navController.popBackStack(Routes.HOME, false)
+                        if (!returnedToHome) {
+                            navController.navigate(Routes.HOME) {
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                        return@NavigationBarItem
+                    }
+
                     navController.navigate(item.route) {
                         popUpTo(Routes.HOME) {
                             saveState = true

@@ -58,6 +58,23 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getUserProfile(userId: String): ApiResult<User> {
+        return try {
+            val user = authApi.getUserProfile(userId)
+            ApiResult.Success(user)
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = "Không thể tải thông tin người dùng (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng: Vui lòng kiểm tra kết nối.", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể tải thông tin người dùng", throwable = e)
+        }
+    }
+
     override suspend fun login(username: String, password: String): ApiResult<Unit> {
         return try {
             val body = mapOf("username" to username, "password" to password)
