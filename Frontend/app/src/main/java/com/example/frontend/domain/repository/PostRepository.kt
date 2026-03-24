@@ -1,6 +1,7 @@
 ﻿package com.example.frontend.domain.repository
 
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
 
 interface PostRepository {
@@ -36,5 +37,11 @@ interface PostRepository {
 
     suspend fun saveVideo(videoId: String): ApiResult<Boolean>
     suspend fun shareVideo(videoId: String): ApiResult<String>
-    suspend fun createVideoComment(videoId: String, content: String): ApiResult<Unit>
+    suspend fun getVideoComments(videoId: String, page: Int = 0, size: Int = 20): ApiResult<List<Comment>>
+    suspend fun createVideoComment(
+        videoId: String,
+        content: String,
+        parentCommentId: String? = null,
+        mediaId: String? = null
+    ): ApiResult<Unit>
 }

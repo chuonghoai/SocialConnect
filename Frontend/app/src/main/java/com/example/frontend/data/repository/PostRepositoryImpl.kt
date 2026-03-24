@@ -2,12 +2,14 @@
 
 import android.util.Log
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.data.mapper.toDomain
 import com.example.frontend.data.mapper.toDomainPost
 import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
 import com.google.gson.JsonParseException
@@ -265,10 +267,40 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-
-    override suspend fun createVideoComment(videoId: String, content: String): ApiResult<Unit> {
+    override suspend fun getVideoComments(
+        videoId: String,
+        page: Int,
+        size: Int
+    ): ApiResult<List<Comment>> {
         return try {
-            val requestBody = CreateCommentRequest(content = content)
+            val comments = postApi.getPostComments(
+                postId = videoId,
+                page = page,
+                size = size
+            ).map { it.toDomain() }
+            ApiResult.Success(comments)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể tải bình luận video", throwable = e)
+        }
+    }
+
+
+    override suspend fun createVideoComment(
+        videoId: String,
+        content: String,
+        parentCommentId: String?,
+        mediaId: String?
+    ): ApiResult<Unit> {
+        return try {
+            val requestBody = CreateCommentRequest(
+                content = content,
+                parentCommentId = parentCommentId,
+                mediaId = mediaId
+            )
             val response = postApi.createVideoComment(videoId, requestBody)
             if (response.isSuccessful) {
                 ApiResult.Success(Unit)
