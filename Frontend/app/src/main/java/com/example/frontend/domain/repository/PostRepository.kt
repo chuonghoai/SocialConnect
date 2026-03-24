@@ -31,4 +31,10 @@ interface PostRepository {
     suspend fun sharePost(postId: String): ApiResult<String>
 
     suspend fun createPost(content: String, visibility: String, mediaId: List<String>?): ApiResult<String>
+
+    suspend fun likeVideo(videoId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit>
+
+    suspend fun saveVideo(videoId: String): ApiResult<Boolean>
+    suspend fun shareVideo(videoId: String): ApiResult<String>
+    suspend fun createVideoComment(videoId: String, content: String): ApiResult<Unit>
 }

@@ -2,6 +2,7 @@ package com.example.frontend.presentation.screen.video
 
 import android.net.Uri
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.VerticalPager
@@ -42,8 +43,13 @@ import androidx.annotation.OptIn
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
+fun VideoScreen(
+    viewModel: VideoViewModel = hiltViewModel(),
+    onCommentClick: (String) -> Unit = {}
+) {
     val uiState by viewModel.uiState.collectAsState()
+    var commentVideoId by remember { mutableStateOf<String?>(null) }
+    var commentInput by remember { mutableStateOf("") }
 
     LaunchedEffect(Unit) {
         if (uiState is VideoUiState.Loading) viewModel.load()
@@ -82,7 +88,15 @@ fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
                     val isVisible = pagerState.currentPage == page
-                    ReelVideoItem(post = posts[page], isVisible = isVisible)
+                    val post = posts[page]
+                    ReelVideoItem(
+                        post = post,
+                        isVisible = isVisible,
+                        onLikeClick = { viewModel.onLikeVideo(post.id) },
+                        onCommentClick = { commentVideoId = post.id },
+                        onShareClick = { viewModel.onShareVideo(post.id) },
+                        onSaveClick = { viewModel.onSaveVideo(post.id) }
+                    )
                 }
 
                 if (state.isLoadingMore) {
@@ -97,10 +111,60 @@ fun VideoScreen(viewModel: VideoViewModel = hiltViewModel()) {
             }
         }
     }
+
+    if (commentVideoId != null) {
+        AlertDialog(
+            onDismissRequest = {
+                commentVideoId = null
+                commentInput = ""
+            },
+            title = { Text("Thêm bình luận") },
+            text = {
+                OutlinedTextField(
+                    value = commentInput,
+                    onValueChange = { commentInput = it },
+                    placeholder = { Text("Nhập nội dung...") },
+                    minLines = 3,
+                    maxLines = 4
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = commentInput.isNotBlank(),
+                    onClick = {
+                        val targetVideoId = commentVideoId ?: return@TextButton
+                        viewModel.onCreateVideoComment(targetVideoId, commentInput)
+                        onCommentClick(targetVideoId)
+                        commentVideoId = null
+                        commentInput = ""
+                    }
+                ) {
+                    Text("Gửi")
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        commentVideoId = null
+                        commentInput = ""
+                    }
+                ) {
+                    Text("Hủy")
+                }
+            }
+        )
+    }
 }
 
 @Composable
-fun ReelVideoItem(post: Post, isVisible: Boolean) {
+fun ReelVideoItem(
+    post: Post,
+    isVisible: Boolean,
+    onLikeClick: () -> Unit,
+    onCommentClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onSaveClick: () -> Unit
+) {
     var isMuted by remember { mutableStateOf(false) }
 
     Box(
@@ -141,17 +205,32 @@ fun ReelVideoItem(post: Post, isVisible: Boolean) {
                 }
 
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    InteractionIcon(iconRes = R.drawable.icon_hearth, text = post.likeCount.toString())
+                    InteractionIcon(
+                        iconRes = R.drawable.icon_hearth,
+                        text = post.likeCount.toString(),
+                        tint = if (post.isLiked) Color.Red else Color.White,
+                        onClick = onLikeClick
+                    )
                     Spacer(Modifier.height(20.dp))
-                    InteractionIcon(iconRes = R.drawable.icon_message, text = post.commentCount.toString())
+                    InteractionIcon(
+                        iconRes = R.drawable.icon_message,
+                        text = post.commentCount.toString(),
+                        onClick = onCommentClick
+                    )
                     Spacer(Modifier.height(20.dp))
-                    InteractionIcon(iconRes = R.drawable.icon_share, text = post.shareCount.toString())
+                    InteractionIcon(
+                        iconRes = R.drawable.icon_share,
+                        text = post.shareCount.toString(),
+                        onClick = onShareClick
+                    )
                     Spacer(Modifier.height(20.dp))
                     Icon(
                         Icons.Default.MoreHoriz,
-                        contentDescription = "More",
-                        tint = Color.White,
-                        modifier = Modifier.size(28.dp)
+                        contentDescription = "Save",
+                        tint = if (post.isSaved) Color(0xFFFFD54F) else Color.White,
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clickable(onClick = onSaveClick)
                     )
                     Spacer(Modifier.height(20.dp))
 
@@ -282,15 +361,23 @@ fun ReelVideoPlayer(
 }
 
 @Composable
-fun InteractionIcon(iconRes: Int, text: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+fun InteractionIcon(
+    iconRes: Int,
+    text: String,
+    tint: Color = Color.White,
+    onClick: () -> Unit
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
         Icon(
             painter = painterResource(id = iconRes),
             contentDescription = null,
             modifier = Modifier.size(32.dp),
-            tint = Color.White
+            tint = tint
         )
         Spacer(Modifier.height(4.dp))
-        Text(text = text, color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+        Text(text = text, color = tint, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
     }
 }

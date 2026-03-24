@@ -6,6 +6,7 @@ import com.example.frontend.data.mapper.toDomainPost
 import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.PostApi
+import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
@@ -190,9 +191,43 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun likeVideo(videoId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit> {
+        return try {
+            postApi.likeVideo(videoId)
+            postDao.updateLikeStatus(videoId, isLiked, likeCount)
+
+            ApiResult.Success(Unit)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Loi ket noi mang", throwable = e)
+        } catch (e: HttpException) {
+            val code = e.code()
+            val message = if (code == 401 || code == 403) {
+                "Phien dang nhap da het han. Vui long dang nhap lai."
+            } else {
+                "Loi may chu ($code)"
+            }
+            ApiResult.Error(code = code, message = message, throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Loi khong xac dinh", throwable = e)
+        }
+    }
+
     override suspend fun savePost(postId: String): ApiResult<Boolean> {
         return try {
             val response = postApi.savePost(postId)
+            ApiResult.Success(response["saved"] == true)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Network error", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Unexpected error", throwable = e)
+        }
+    }
+
+    override suspend fun saveVideo(videoId: String): ApiResult<Boolean> {
+        return try {
+            val response = postApi.saveVideo(videoId)
             ApiResult.Success(response["saved"] == true)
         } catch (e: IOException) {
             ApiResult.Error(message = "Network error", throwable = e)
@@ -215,6 +250,44 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "Không thể chia sẻ bài viết", throwable = e)
         }
     }
+
+
+    override suspend fun shareVideo(videoId: String): ApiResult<String> {
+        return try {
+            val response = postApi.shareVideo(videoId)
+            ApiResult.Success(response["postId"].orEmpty())
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể chia sẻ video", throwable = e)
+        }
+    }
+
+
+    override suspend fun createVideoComment(videoId: String, content: String): ApiResult<Unit> {
+        return try {
+            val requestBody = CreateCommentRequest(content = content)
+            val response = postApi.createVideoComment(videoId, requestBody)
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                ApiResult.Error(
+                    code = response.code(),
+                    message = "Lỗi máy chủ (${response.code()})"
+                )
+            }
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể tạo bình luận video", throwable = e)
+        }
+    }
+
+    
 
     override suspend fun createPost(content: String, visibility: String, mediaIds: List<String>?): ApiResult<String> {
         return try {
