@@ -42,8 +42,17 @@ interface PostApi {
     @POST(ApiRoutes.LIKE_POST)
     suspend fun likePost(@Path("postId") postId: String)
 
+    @POST(ApiRoutes.LIKE_VIDEO)
+    suspend fun likeVideo(@Path("videoId") videoId: String)
+
     @POST(ApiRoutes.SAVE_POST)
     suspend fun savePost(@Path("postId") postId: String): Map<String, Boolean>
+
+    @POST(ApiRoutes.SAVE_VIDEO)
+    suspend fun saveVideo(@Path("videoId") videoId: String): Map<String, Boolean>
+
+    @POST(ApiRoutes.SHARE_VIDEO)
+    suspend fun shareVideo(@Path("videoId") videoId: String): Map<String, String>
 
     @POST(ApiRoutes.CREATE_POST)
     suspend fun createPost(@Body request: CreatePostRequest): Map<String, String>
@@ -60,4 +69,11 @@ interface PostApi {
         @Path("postId") postId: String,
         @Body request: CreateCommentRequest
     ): Response<Unit>
+
+    @POST(ApiRoutes.CREATE_VIDEO_COMMENT)
+    suspend fun createVideoComment(
+        @Path("videoId") videoId: String,
+        @Body request: CreateCommentRequest
+    ): Response<Unit>
+
 }

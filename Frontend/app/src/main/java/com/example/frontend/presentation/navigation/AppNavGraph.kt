@@ -300,7 +300,7 @@ fun AppNavGraph(
                 }
 
                 composable(Routes.VIDEO) {
-                    VideoScreen()
+                    VideoScreen(currentUserAvatarUrl = currentUser?.avatarUrl)
                 }
 
                 composable(Routes.NOTIFICATION) {
