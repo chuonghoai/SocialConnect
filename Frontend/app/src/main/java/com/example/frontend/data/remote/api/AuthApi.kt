@@ -6,6 +6,7 @@ import com.example.frontend.domain.model.Token
 import com.example.frontend.domain.model.User
 import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Path
 import retrofit2.http.POST
 import retrofit2.Response
 import retrofit2.http.PUT
@@ -13,6 +14,9 @@ import retrofit2.http.PUT
 interface AuthApi {
     @GET(ApiRoutes.ME)
     suspend fun me(): User
+
+    @GET(ApiRoutes.USER_PROFILE)
+    suspend fun getUserProfile(@Path("userId") userId: String): User
 
     @POST(ApiRoutes.LOGIN)
     suspend fun login(@Body req: Map<String, String>): Token

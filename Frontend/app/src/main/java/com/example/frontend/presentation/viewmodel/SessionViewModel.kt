@@ -3,6 +3,7 @@ package com.example.frontend.presentation.viewmodel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.core.network.WebSocketManager
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -14,7 +15,8 @@ import javax.inject.Inject
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
-    private val getMeUseCase: GetMeUseCase
+    private val getMeUseCase: GetMeUseCase,
+    private val webSocketManager: WebSocketManager
 ) : ViewModel() {
 
     private val _currentUser = MutableStateFlow<User?>(null)
@@ -25,6 +27,7 @@ class SessionViewModel @Inject constructor(
             when (val result = getMeUseCase()) {
                 is ApiResult.Success -> {
                     _currentUser.value = result.data
+                    webSocketManager.connect();
                 }
                 is ApiResult.Error -> {
                     _currentUser.value = null

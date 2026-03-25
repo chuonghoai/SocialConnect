@@ -17,6 +17,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
@@ -39,6 +44,16 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material3.*
+import androidx.compose.animation.animateContentSize
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -49,9 +64,18 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -64,6 +88,9 @@ import com.example.frontend.R
 import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.ui.theme.OrangePrimary
+import kotlin.math.hypot
+import java.time.LocalDateTime
 
 @Composable
 fun PostCard(
@@ -71,6 +98,7 @@ fun PostCard(
     isOwnPost: Boolean = false,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
+    onVideoClick: (() -> Unit)? = null,
     onSaveClick: (() -> Unit)? = null,
     saveMenuLabel: String = "Lưu bài viết",
     onShareClick: (() -> Unit)? = null,
@@ -79,6 +107,7 @@ fun PostCard(
     onChangeVisibility: ((String) -> Unit)? = null,
     onHidePost: (() -> Unit)? = null,
     onReportPost: (() -> Unit)? = null
+    onAvatarClick: ((String) -> Unit)? = null
 ) {
     var isMoreMenuExpanded by remember { mutableStateOf(false) }
     var showVisibilityDialog by remember { mutableStateOf(false) }
@@ -91,17 +120,28 @@ fun PostCard(
     val shouldShowSharedCaption = shouldRenderOriginalPost &&
         trimmedContent.isNotEmpty() &&
         trimmedContent != trimmedOriginalContent
+    val mediaItems = post.toMediaItems()
+    val clipboardManager = LocalClipboardManager.current
 
     val postMedia = resolveMedia(post.kind, post.cdnUrl, post.media)
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        shape = RectangleShape
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(
+            0.5.dp,
+            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
+        ),
+        elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(modifier = Modifier.padding(16.dp)) {
+        Column(
+            modifier = Modifier
+                .padding(16.dp)
+                .animateContentSize()
+        ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = post.userAvatar,
@@ -109,7 +149,8 @@ fun PostCard(
                     modifier = Modifier
                         .size(40.dp)
                         .clip(CircleShape)
-                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                        .clickable(enabled = onAvatarClick != null) { onAvatarClick?.invoke(post.userId) },
                     contentScale = ContentScale.Crop,
                     error = painterResource(R.drawable.icon_user)
                 )
@@ -117,7 +158,7 @@ fun PostCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = post.displayName,
-                        fontWeight = FontWeight.Bold,
+                        style = MaterialTheme.typography.titleMedium,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -199,6 +240,41 @@ fun PostCard(
                                 enabled = onReportPost != null
                             )
                         }
+                        DropdownMenuItem(
+                            text = { Text(saveMenuLabel) },
+                            enabled = onSaveClick != null,
+                            onClick = {
+                                isMoreMenuExpanded = false
+                                onSaveClick?.invoke()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Chia sẻ bài viết") },
+                            enabled = onShareClick != null,
+                            onClick = {
+                                isMoreMenuExpanded = false
+                                onShareClick?.invoke()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Sao chép liên kết") },
+                            onClick = {
+                                isMoreMenuExpanded = false
+                                clipboardManager.setText(AnnotatedString("https://socialconnect.app/posts/${post.id}"))
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Ẩn bài viết") },
+                            onClick = {
+                                isMoreMenuExpanded = false
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Báo cáo bài viết") },
+                            onClick = {
+                                isMoreMenuExpanded = false
+                            }
+                        )
                     }
                 }
             }
@@ -236,6 +312,12 @@ fun PostCard(
                         onShareClick = onShareClick
                     )
                 }
+                if (mediaItems.isNotEmpty()) {
+                    PostMediaPreview(
+                        mediaItems = mediaItems,
+                        onVideoClick = onVideoClick
+                    )
+                }
             }
 
             Spacer(Modifier.height(12.dp))
@@ -260,7 +342,13 @@ fun PostCard(
                 InteractionItem(
                     R.drawable.icon_share,
                     post.shareCount.toString(),
+                    enabled = onShareClick != null,
                     onClick = { onShareClick?.invoke() }
+                )
+                Spacer(Modifier.width(24.dp))
+                SaveInteractionItem(
+                    isSaved = post.isSaved,
+                    onClick = onSaveClick
                 )
             }
         }
@@ -297,9 +385,15 @@ fun PostCard(
     }
 }
 
+private data class PostMediaItem(
+    val url: String,
+    val kind: String
+)
+
 @Composable
 private fun SharedPostPreviewCard(originalPost: OriginalPost) {
     val originalMedia = resolveMedia(originalPost.kind, originalPost.cdnUrl, originalPost.media)
+    val mediaItems = originalPost.toMediaItems()
 
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -347,6 +441,9 @@ private fun SharedPostPreviewCard(originalPost: OriginalPost) {
 
             if (originalMedia.isNotEmpty()) {
                 PostMediaGallery(mediaItems = originalMedia)
+            }
+            if (mediaItems.isNotEmpty()) {
+                PostMediaPreview(mediaItems = mediaItems)
             }
         }
     }
@@ -761,6 +858,131 @@ private fun FullscreenVideo(url: String) {
     }
 }
 
+private fun Post.toMediaItems(): List<PostMediaItem> {
+    val mediaFromArray = media.orEmpty().toPostMediaItems()
+    if (mediaFromArray.isNotEmpty()) return mediaFromArray
+
+    val mediaFromMediaIds = mediaIds.orEmpty().toPostMediaItems()
+    if (mediaFromMediaIds.isNotEmpty()) return mediaFromMediaIds
+
+    val urlsFromArrays = buildList {
+        addAll(mediaUrls.orEmpty())
+        addAll(images.orEmpty())
+        addAll(videos.orEmpty())
+    }
+        .map { it.trim() }
+        .filter { it.isNotBlank() }
+        .distinct()
+
+    if (urlsFromArrays.isNotEmpty()) {
+        return urlsFromArrays.map { url ->
+            val forceKind = if (videos.orEmpty().contains(url)) "VIDEO" else null
+            val normalizedKind = normalizeKind(forceKind, url)
+            PostMediaItem(url = url, kind = normalizedKind)
+        }
+    }
+
+    val urls = parseMediaUrls(cdnUrl)
+    if (urls.isEmpty()) return emptyList()
+
+    val kinds = parseKinds(kind)
+    return urls.mapIndexed { index, url ->
+        val normalizedKind = normalizeKind(
+            rawKind = kinds.getOrNull(index) ?: kinds.firstOrNull(),
+            url = url
+        )
+        PostMediaItem(url = url, kind = normalizedKind)
+    }
+}
+
+private fun List<PostMedia>.toPostMediaItems(): List<PostMediaItem> {
+    return mapNotNull { mediaItem ->
+        val url = mediaItem.resolvedUrl().trim()
+        if (url.isBlank()) {
+            null
+        } else {
+            val normalizedKind = normalizeKind(
+                rawKind = mediaItem.kind?.ifBlank { null },
+                url = url
+            )
+            PostMediaItem(url = url, kind = normalizedKind)
+        }
+    }
+}
+
+private fun OriginalPost.toMediaItems(): List<PostMediaItem> {
+    val urls = parseMediaUrls(cdnUrl)
+    if (urls.isEmpty()) return emptyList()
+
+    val kinds = parseKinds(kind)
+    return urls.mapIndexed { index, url ->
+        val normalizedKind = normalizeKind(
+            rawKind = kinds.getOrNull(index) ?: kinds.firstOrNull(),
+            url = url
+        )
+        PostMediaItem(url = url, kind = normalizedKind)
+    }
+}
+
+private fun parseMediaUrls(raw: String): List<String> {
+    val trimmed = raw.trim()
+    if (trimmed.isEmpty()) return emptyList()
+
+    val extractedByRegex = URL_REGEX.findAll(trimmed)
+        .map { it.value.trim() }
+        .distinct()
+        .toList()
+
+    if (extractedByRegex.size > 1) return extractedByRegex
+
+    val splitCandidates = trimmed.split(Regex("[|,;\\n]"))
+        .map { it.cleanToken() }
+        .filter { it.isNotEmpty() }
+
+    if (splitCandidates.size > 1) {
+        return splitCandidates
+    }
+
+    return listOf(trimmed.cleanToken())
+}
+
+private fun parseKinds(rawKind: String): List<String> {
+    val cleaned = rawKind.trim()
+    if (cleaned.isEmpty()) return emptyList()
+
+    return cleaned.split(Regex("[|,;\\n]"))
+        .map { it.cleanToken().uppercase() }
+        .filter { it.isNotEmpty() }
+}
+
+private fun normalizeKind(rawKind: String?, url: String): String {
+    if (rawKind == null) return inferKindFromUrl(url)
+    if (rawKind.contains("VIDEO")) return "VIDEO"
+    if (rawKind.contains("IMAGE")) return "IMAGE"
+    return inferKindFromUrl(url)
+}
+
+private fun inferKindFromUrl(url: String): String {
+    val normalized = url.lowercase()
+    if (normalized.contains("/video/") || normalized.contains("resource_type=video")) {
+        return "VIDEO"
+    }
+
+    val extension = normalized.substringBefore("?").substringAfterLast('.', missingDelimiterValue = "")
+    return if (VIDEO_EXTENSIONS.contains(extension)) "VIDEO" else "IMAGE"
+}
+
+private fun String.cleanToken(): String {
+    return trim()
+        .trim('"')
+        .trim('\'')
+        .trimStart('[')
+        .trimEnd(']')
+}
+
+private val URL_REGEX = Regex("""https?://[^\s"'|,\]\[]+""")
+private val VIDEO_EXTENSIONS = setOf("mp4", "mov", "webm", "m3u8", "mkv", "avi", "3gp", "flv")
+
 @Composable
 fun InteractionItem(
     iconRes: Int,
@@ -771,7 +993,10 @@ fun InteractionItem(
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier.clickable(onClick = onClick)
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 2.dp, vertical = 1.dp)
     ) {
         Icon(
             painter = painterResource(id = iconRes),
@@ -784,6 +1009,30 @@ fun InteractionItem(
             text = count,
             fontSize = 12.sp,
             color = textColor
+        )
+    }
+}
+
+@Composable
+private fun SaveInteractionItem(
+    isSaved: Boolean,
+    onClick: (() -> Unit)?
+) {
+    val enabled = onClick != null
+    val iconTint = if (isSaved) OrangePrimary else MaterialTheme.colorScheme.onSurfaceVariant
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(enabled = enabled) { onClick?.invoke() }
+            .padding(horizontal = 2.dp, vertical = 1.dp)
+    ) {
+        Icon(
+            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+            contentDescription = "Lưu bài viết",
+            modifier = Modifier.size(22.dp),
+            tint = iconTint
         )
     }
 }

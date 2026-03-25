@@ -2,11 +2,15 @@
 
 import android.util.Log
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.data.mapper.toDomain
+import com.example.frontend.data.mapper.toDomainPost
 import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.PostApi
+import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
 import com.example.frontend.data.remote.dto.UpdatePostRequest
+import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
 import com.google.gson.JsonParseException
@@ -31,7 +35,13 @@ class PostRepositoryImpl @Inject constructor(
                 postDao.clearAllPosts()
             }
 
-            val posts = postApi.getNewsFeed(lastPostId = afterId)
+            val posts = postApi.getNewsFeed(lastPostId = afterId).map { it.toDomainPost() }
+            posts.forEach { post ->
+                Log.d(
+                    TAG,
+                    "newsfeed post=${post.id}, mediaCount=${post.media.orEmpty().size}, cdnUrl=${post.cdnUrl}"
+                )
+            }
 
             if (afterId == null && !isRefresh) {
                 postDao.clearAllPosts()
@@ -47,16 +57,22 @@ class PostRepositoryImpl @Inject constructor(
                     return ApiResult.Success(localPosts)
                 }
             }
-            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+            ApiResult.Error(message = "Loi mang: Vui long kiem tra lai ket noi Internet.", throwable = e)
 
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+            val code = e.code()
+            val message = if (code == 401 || code == 403) {
+                "Phien dang nhap da het han. Vui long dang nhap lai."
+            } else {
+                "Loi may chu ($code). Vui long thu lai sau."
+            }
+            ApiResult.Error(code = code, message = message, throwable = e)
         } catch (e: JsonParseException) {
-            ApiResult.Error(message = "Dữ liệu phản hồi từ máy chủ không hợp lệ.", throwable = e)
+            ApiResult.Error(message = "Du lieu tu server khong dung dinh dang.", throwable = e)
         } catch (e: Exception) {
             Log.e(TAG, "getNewsFeed() unexpected error", e)
             ApiResult.Error(
-                message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi không xác định.",
+                message = e.message?.takeIf { it.isNotBlank() } ?: "Da xay ra loi khong xac dinh.",
                 throwable = e
             )
         }
@@ -70,7 +86,7 @@ class PostRepositoryImpl @Inject constructor(
         return try {
             if (isRefresh && afterId == null) postDao.clearUserPosts(userId)
 
-            val posts = postApi.getUserPosts(userId, afterId)
+            val posts = postApi.getUserPosts(userId, afterId).map { it.toDomainPost() }
 
             if (afterId == null && !isRefresh) postDao.clearUserPosts(userId)
             postDao.insertPosts(posts.map { it.toEntity() })
@@ -81,30 +97,37 @@ class PostRepositoryImpl @Inject constructor(
                 val localPosts = postDao.getPostsByUserId(userId).map { it.toDomain() }
                 if (localPosts.isNotEmpty()) return ApiResult.Success(localPosts)
             }
-            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+            ApiResult.Error(message = "Loi mang", throwable = e)
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ", throwable = e)
+            val code = e.code()
+            val message = if (code == 401 || code == 403) {
+                "Phien dang nhap da het han. Vui long dang nhap lai."
+            } else {
+                "Loi may chu"
+            }
+            ApiResult.Error(code = code, message = message, throwable = e)
         } catch (e: JsonParseException) {
-            ApiResult.Error(message = "Dữ liệu phản hồi từ máy chủ không hợp lệ.", throwable = e)
+            ApiResult.Error(message = "Du lieu tu server khong dung dinh dang.", throwable = e)
         } catch (e: Exception) {
             Log.e(TAG, "getUserPosts() unexpected error", e)
-            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi", throwable = e)
+            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Loi khong xac dinh", throwable = e)
         }
     }
 
     override suspend fun getSavedPosts(afterId: String?, isRefresh: Boolean): ApiResult<List<Post>> {
         return try {
-            val posts = postApi.getSavedPosts(lastPostId = afterId).map { it.copy(isSaved = true) }
+            val posts = postApi.getSavedPosts(lastPostId = afterId)
+                .map { it.toDomainPost().copy(isSaved = true) }
             ApiResult.Success(posts)
         } catch (e: IOException) {
-            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+            ApiResult.Error(message = "Network error", throwable = e)
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
         } catch (e: JsonParseException) {
-            ApiResult.Error(message = "Dữ liệu phản hồi từ máy chủ không hợp lệ.", throwable = e)
+            ApiResult.Error(message = "Invalid server response format.", throwable = e)
         } catch (e: Exception) {
             Log.e(TAG, "getSavedPosts() unexpected error", e)
-            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi", throwable = e)
+            ApiResult.Error(message = e.message?.takeIf { it.isNotBlank() } ?: "Unexpected error", throwable = e)
         }
     }
 
@@ -114,7 +137,7 @@ class PostRepositoryImpl @Inject constructor(
                 postDao.clearCachedVideos()
             }
 
-            val videos = postApi.getVideo(lastPostId = afterId)
+            val videos = postApi.getVideo(lastPostId = afterId).map { it.toDomainPost() }
 
             if (afterId == null && !isRefresh) {
                 postDao.clearCachedVideos()
@@ -130,16 +153,22 @@ class PostRepositoryImpl @Inject constructor(
                     return ApiResult.Success(localVideos)
                 }
             }
-            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+            ApiResult.Error(message = "Loi mang: Vui long kiem tra lai ket noi Internet.", throwable = e)
 
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+            val code = e.code()
+            val message = if (code == 401 || code == 403) {
+                "Phien dang nhap da het han. Vui long dang nhap lai."
+            } else {
+                "Loi may chu ($code). Vui long thu lai sau."
+            }
+            ApiResult.Error(code = code, message = message, throwable = e)
         } catch (e: JsonParseException) {
-            ApiResult.Error(message = "Dữ liệu phản hồi từ máy chủ không hợp lệ.", throwable = e)
+            ApiResult.Error(message = "Du lieu tu server khong dung dinh dang.", throwable = e)
         } catch (e: Exception) {
             Log.e(TAG, "getVideos() unexpected error", e)
             ApiResult.Error(
-                message = e.message?.takeIf { it.isNotBlank() } ?: "Đã xảy ra lỗi không xác định.",
+                message = e.message?.takeIf { it.isNotBlank() } ?: "Da xay ra loi khong xac dinh.",
                 throwable = e
             )
         }
@@ -152,11 +181,38 @@ class PostRepositoryImpl @Inject constructor(
 
             ApiResult.Success(Unit)
         } catch (e: IOException) {
-            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+            ApiResult.Error(message = "Loi ket noi mang", throwable = e)
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+            val code = e.code()
+            val message = if (code == 401 || code == 403) {
+                "Phien dang nhap da het han. Vui long dang nhap lai."
+            } else {
+                "Loi may chu ($code)"
+            }
+            ApiResult.Error(code = code, message = message, throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Đã xảy ra lỗi", throwable = e)
+            ApiResult.Error(message = "Loi khong xac dinh", throwable = e)
+        }
+    }
+
+    override suspend fun likeVideo(videoId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit> {
+        return try {
+            postApi.likeVideo(videoId)
+            postDao.updateLikeStatus(videoId, isLiked, likeCount)
+
+            ApiResult.Success(Unit)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Loi ket noi mang", throwable = e)
+        } catch (e: HttpException) {
+            val code = e.code()
+            val message = if (code == 401 || code == 403) {
+                "Phien dang nhap da het han. Vui long dang nhap lai."
+            } else {
+                "Loi may chu ($code)"
+            }
+            ApiResult.Error(code = code, message = message, throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Loi khong xac dinh", throwable = e)
         }
     }
 
@@ -165,11 +221,24 @@ class PostRepositoryImpl @Inject constructor(
             val response = postApi.savePost(postId)
             ApiResult.Success(response["saved"] == true)
         } catch (e: IOException) {
-            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+            ApiResult.Error(message = "Network error", throwable = e)
         } catch (e: HttpException) {
-            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Đã xảy ra lỗi", throwable = e)
+            ApiResult.Error(message = "Unexpected error", throwable = e)
+        }
+    }
+
+    override suspend fun saveVideo(videoId: String): ApiResult<Boolean> {
+        return try {
+            val response = postApi.saveVideo(videoId)
+            ApiResult.Success(response["saved"] == true)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Network error", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Unexpected error", throwable = e)
         }
     }
 
@@ -186,12 +255,81 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun createPost(content: String, visibility: String, mediaId: List<String>?): ApiResult<String> {
+
+    override suspend fun shareVideo(videoId: String): ApiResult<String> {
         return try {
+            val response = postApi.shareVideo(videoId)
+            ApiResult.Success(response["postId"].orEmpty())
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể chia sẻ video", throwable = e)
+        }
+    }
+
+    override suspend fun getVideoComments(
+        videoId: String,
+        page: Int,
+        size: Int
+    ): ApiResult<List<Comment>> {
+        return try {
+            val comments = postApi.getPostComments(
+                postId = videoId,
+                page = page,
+                size = size
+            ).map { it.toDomain() }
+            ApiResult.Success(comments)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể tải bình luận video", throwable = e)
+        }
+    }
+
+
+    override suspend fun createVideoComment(
+        videoId: String,
+        content: String,
+        parentCommentId: String?,
+        mediaId: String?
+    ): ApiResult<Unit> {
+        return try {
+            val requestBody = CreateCommentRequest(
+                content = content,
+                parentCommentId = parentCommentId,
+                mediaId = mediaId
+            )
+            val response = postApi.createVideoComment(videoId, requestBody)
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                ApiResult.Error(
+                    code = response.code(),
+                    message = "Lỗi máy chủ (${response.code()})"
+                )
+            }
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể tạo bình luận video", throwable = e)
+        }
+    }
+
+    
+
+    override suspend fun createPost(content: String, visibility: String, mediaIds: List<String>?): ApiResult<String> {
+        return try {
+            val normalizedVisibility = normalizeVisibility(visibility)
             val requestBody = CreatePostRequest(
                 content = content,
-                visibility = visibility,
-                mediaId = mediaId
+                visibility = normalizedVisibility,
+                mediaId = mediaIds
             )
 
             val response = postApi.createPost(requestBody)
@@ -199,9 +337,24 @@ class PostRepositoryImpl @Inject constructor(
 
             ApiResult.Success(returnedPostId)
         } catch (e: HttpException) {
-            ApiResult.Error(message = "Lỗi máy chủ (${e.code()}): ${e.message()}", throwable = e)
+            val serverBody = e.response()?.errorBody()?.string()?.take(500).orEmpty()
+            val message = if (serverBody.isNotBlank()) {
+                "Loi Server (${e.code()}): $serverBody"
+            } else {
+                "Loi Server (${e.code()}): ${e.message()}"
+            }
+            ApiResult.Error(message = message, throwable = e)
         } catch (e: Exception) {
-            ApiResult.Error(message = "Không thể đăng bài: ${e.message}", throwable = e)
+            ApiResult.Error(message = "Loi dang bai: ${e.message}", throwable = e)
+        }
+    }
+
+    private fun normalizeVisibility(raw: String): String {
+        return when (raw.trim().lowercase()) {
+            "cong khai", "công khai", "public" -> "PUBLIC"
+            "ban be", "bạn bè", "friends", "friend" -> "FRIENDS"
+            "rieng tu", "riêng tư", "private" -> "PRIVATE"
+            else -> raw.trim().uppercase()
         }
     }
 
@@ -243,3 +396,4 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 }
+

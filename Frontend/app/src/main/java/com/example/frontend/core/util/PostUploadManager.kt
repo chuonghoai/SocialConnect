@@ -1,6 +1,7 @@
 ﻿package com.example.frontend.core.util
 
 import android.net.Uri
+import android.util.Log
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.PostUseCase.CreatePostUseCase
@@ -29,10 +30,16 @@ class PostUploadManager @Inject constructor(
     private val createPostUseCase: CreatePostUseCase,
     private val notificationManager: AppNotificationManager
 ) {
+    companion object {
+        private const val TAG = "PostUploadManager"
+    }
+
     private val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     private val _uploadState = MutableStateFlow(UploadState())
     val uploadState: StateFlow<UploadState> = _uploadState.asStateFlow()
+    private val _postCreatedTick = MutableStateFlow(0L)
+    val postCreatedTick: StateFlow<Long> = _postCreatedTick.asStateFlow()
 
     private val _postCreatedEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
     val postCreatedEvents: SharedFlow<Unit> = _postCreatedEvents.asSharedFlow()
@@ -70,6 +77,11 @@ class PostUploadManager @Inject constructor(
 
             _uploadState.value = UploadState(isUploading = true, progressText = "Dang hoan tat bai viet...")
 
+            Log.d(
+                TAG,
+                "createPost payload: picked=${uris.size}, uploadedIds=${mediaIdsToSave.size}, ids=$mediaIdsToSave"
+            )
+
             when (val postRes = createPostUseCase(content, visibility, mediaIdsToSave.ifEmpty { null })) {
                 is ApiResult.Success -> {
                     _uploadState.value = UploadState(isUploading = false)
@@ -85,4 +97,3 @@ class PostUploadManager @Inject constructor(
         }
     }
 }
-

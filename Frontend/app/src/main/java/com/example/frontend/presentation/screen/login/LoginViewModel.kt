@@ -4,8 +4,10 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.network.TokenProvider
+import com.example.frontend.core.network.WebSocketManager
 import com.example.frontend.domain.usecase.AuthUseCase.LoginUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,7 +17,8 @@ import javax.inject.Inject
 @HiltViewModel
 class LoginViewModel @Inject constructor(
     private val loginUseCase: LoginUseCase,
-    private val tokenProvider: TokenProvider
+    private val tokenProvider: TokenProvider,
+    private val webSocketManager: WebSocketManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(LoginUiState())
@@ -28,6 +31,8 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             val token = tokenProvider.getAccessToken()
             if (!token.isNullOrBlank()) onLoggedIn()
+            delay(200);
+            webSocketManager.connect();
         }
     }
 
@@ -50,7 +55,11 @@ class LoginViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = _uiState.value.copy(loading = true, error = null)
             when (val res = loginUseCase(u, p)) {
-                is ApiResult.Success -> onLoggedIn()
+                is ApiResult.Success -> {
+                    onLoggedIn();
+                    delay(200);
+                    webSocketManager.connect();
+                }
                 is ApiResult.Error -> _uiState.value = _uiState.value.copy(
                     loading = false,
                     error = res.message.ifBlank { "Login failed" }

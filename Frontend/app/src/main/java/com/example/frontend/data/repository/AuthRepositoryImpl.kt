@@ -2,6 +2,7 @@ package com.example.frontend.data.repository
 
 import ChangePasswordRequest
 import UpdateProfileRequest
+import android.util.Log
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.datastore.TokenDataStore
 import com.example.frontend.data.local.dao.PostDao
@@ -64,6 +65,23 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 
+    override suspend fun getUserProfile(userId: String): ApiResult<User> {
+        return try {
+            val user = authApi.getUserProfile(userId)
+            ApiResult.Success(user)
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = "Không thể tải thông tin người dùng (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng: Vui lòng kiểm tra kết nối.", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể tải thông tin người dùng", throwable = e)
+        }
+    }
+
     override suspend fun login(username: String, password: String): ApiResult<Unit> {
         return try {
             val body = mapOf("username" to username, "password" to password)
@@ -89,10 +107,17 @@ class AuthRepositoryImpl @Inject constructor(
     }
 
     override suspend fun logout() {
-        authApi.logout()
-        tokenDataStore.clear()
-        userDao.clearUser()
-        postDao.clearAllPosts()
+        try {
+            authApi.logout()
+        } catch (e: Exception) {
+            // Log lỗi logout nhưng vẫn tiếp tục xóa dữ liệu local
+            Log.e("AuthRepository", "Lỗi khi gọi API logout: ${e.message}")
+        } finally {
+            // Đảm bảo dữ liệu local luôn được xóa để người dùng thoát được màn hình
+            tokenDataStore.clear()
+            userDao.clearUser()
+            postDao.clearAllPosts()
+        }
     }
 
     override suspend fun register(

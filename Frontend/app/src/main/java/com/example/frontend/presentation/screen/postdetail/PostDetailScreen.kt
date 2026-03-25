@@ -1,4 +1,4 @@
-﻿package com.example.frontend.presentation.screen.postdetail
+package com.example.frontend.presentation.screen.postdetail
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -125,7 +125,7 @@ fun PostDetailScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            // â”€â”€ BÃ i Ä‘Äƒng gá»‘c â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Bài đăng gốc ──────────────────────────────────────────────
             item {
                 uiState.post?.let { post ->
                     PostDetailHeader(
@@ -138,7 +138,7 @@ fun PostDetailScreen(
                 }
             }
 
-            // â”€â”€ Divider + tiÃªu Ä‘á» pháº§n bÃ¬nh luáº­n â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Divider + tiêu đề phần bình luận ──────────────────────────
             item {
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 16.dp),
@@ -159,7 +159,7 @@ fun PostDetailScreen(
                 }
             }
 
-            // â”€â”€ Loading skeleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Loading skeleton ───────────────────────────────────────────
             if (uiState.isLoadingComments) {
                 item {
                     Box(
@@ -173,7 +173,7 @@ fun PostDetailScreen(
                 }
             }
 
-            // â”€â”€ Danh sÃ¡ch comment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Danh sách comment ──────────────────────────────────────────
             items(uiState.comments, key = { it.id }) { comment ->
                 CommentItem(
                     comment = comment,
@@ -227,7 +227,7 @@ fun PostDetailScreen(
                 }
             }
 
-            // â”€â”€ Empty / Error state â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+            // ── Empty / Error state ────────────────────────────────────────
             if (!uiState.isLoadingComments && uiState.comments.isEmpty()) {
                 item {
                     Box(
@@ -269,9 +269,9 @@ fun PostDetailScreen(
     }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Post chi tiáº¿t (header + content + actions)
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Post chi tiết (header + content + actions)
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun PostDetailHeader(
     post: Post,
@@ -285,7 +285,7 @@ private fun PostDetailHeader(
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp)
     ) {
-        // Avatar + TÃªn + Thá»i gian
+        // Avatar + Tên + Thời gian
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = post.userAvatar,
@@ -315,7 +315,7 @@ private fun PostDetailHeader(
 
         Spacer(Modifier.height(8.dp))
 
-        // Ná»™i dung bÃ i Ä‘Äƒng (full, khÃ´ng truncate)
+        // Nội dung bài đăng (full, không truncate)
         Text(
             text = post.content,
             fontSize = 15.sp,
@@ -323,7 +323,7 @@ private fun PostDetailHeader(
             color = MaterialTheme.colorScheme.onSurface
         )
 
-        // Media (áº£nh / video)
+        // Media (ảnh / video)
         if (post.cdnUrl.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Box(
@@ -345,7 +345,7 @@ private fun PostDetailHeader(
                         contentScale = ContentScale.FillWidth
                     )
                 } else if (post.kind == "VIDEO") {
-                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl)
+                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl);
                 }
             }
         }
@@ -354,7 +354,7 @@ private fun PostDetailHeader(
 
         // Actions: Like / Comment / Share
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Like button (cÃ³ animation)
+            // Like button (có animation)
             IconButton(
                 onClick = onLikeClick,
                 modifier = Modifier.size(36.dp)
@@ -407,9 +407,9 @@ private fun PostDetailHeader(
     }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Item comment Ä‘Æ¡n
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Item comment đơn
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun CommentItem(
     comment: Comment,
@@ -445,7 +445,7 @@ private fun CommentItem(
 
         Spacer(Modifier.width(12.dp))
 
-        // Ná»™i dung comment
+        // Nội dung comment
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -544,9 +544,9 @@ private fun CommentItem(
     }
 }
 
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-// Bottom bar nháº­p comment
-// â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+// ─────────────────────────────────────────────────────────────────────────────
+// Bottom bar nhập comment
+// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun CommentInputBar(
     avatarUrl: String,
@@ -632,7 +632,7 @@ private fun CommentInputBar(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar cá»§a current user
+                // Avatar của current user
                 AsyncImage(
                     model = avatarUrl,
                     contentDescription = null,
@@ -703,4 +703,3 @@ private fun CommentInputBar(
         }
     }
 }
-

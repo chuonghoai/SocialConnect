@@ -2,11 +2,13 @@ package com.example.frontend.presentation.navigation.bottomnav
 
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.border
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Text
+import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -29,6 +31,8 @@ fun BottomBar(
 
     NavigationBar(
         modifier = modifier,
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 8.dp,
         windowInsets = NavigationBarDefaults.windowInsets
     ) {
         items.forEach { item ->
@@ -37,6 +41,19 @@ fun BottomBar(
             NavigationBarItem(
                 selected = selected,
                 onClick = {
+                    if (selected) return@NavigationBarItem
+
+                    if (item.route == Routes.HOME) {
+                        val returnedToHome = navController.popBackStack(Routes.HOME, false)
+                        if (!returnedToHome) {
+                            navController.navigate(Routes.HOME) {
+                                launchSingleTop = true
+                                restoreState = true
+                            }
+                        }
+                        return@NavigationBarItem
+                    }
+
                     navController.navigate(item.route) {
                         popUpTo(Routes.HOME) {
                             saveState = true
@@ -45,7 +62,12 @@ fun BottomBar(
                         restoreState = true
                     }
                 },
-                icon = { BottomBarIcon(item.icon) }
+                icon = { BottomBarIcon(icon = item.icon, selected = selected) },
+                colors = NavigationBarItemDefaults.colors(
+                    selectedIconColor = MaterialTheme.colorScheme.primary,
+                    unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                )
 //                label = { Text(item.label) }
             )
         }
@@ -53,13 +75,18 @@ fun BottomBar(
 }
 
 @Composable
-private fun BottomBarIcon(icon: BottomNavIcon) {
+private fun BottomBarIcon(icon: BottomNavIcon, selected: Boolean) {
     when (icon) {
         is BottomNavIcon.Drawable -> {
             Icon(
                 painter = painterResource(icon.resId),
                 contentDescription = null,
-                modifier = Modifier.size(24.dp)
+                modifier = Modifier.size(24.dp),
+                tint = if (selected) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                }
             )
         }
 
@@ -77,7 +104,16 @@ private fun BottomBarIcon(icon: BottomNavIcon) {
                     contentDescription = "Profile avatar",
                     modifier = Modifier
                         .size(24.dp)
-                        .clip(CircleShape),
+                        .clip(CircleShape)
+                        .border(
+                            width = if (selected) 1.5.dp else 0.dp,
+                            color = if (selected) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.surface
+                            },
+                            shape = CircleShape
+                        ),
                     placeholder = painterResource(icon.fallbackResId),
                     error = painterResource(icon.fallbackResId)
                 )
