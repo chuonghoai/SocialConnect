@@ -13,12 +13,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 import org.json.JSONObject
 import javax.inject.Inject
 import com.example.frontend.core.webrtc.WebRtcClient
+import kotlinx.coroutines.flow.asStateFlow
 import org.webrtc.VideoTrack
 
 @HiltViewModel
@@ -31,7 +31,6 @@ class CallViewModel @Inject constructor(
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
 
-    // Khởi tạo State và Event
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
 
@@ -39,6 +38,7 @@ class CallViewModel @Inject constructor(
     val uiEvent: SharedFlow<CallUiEvent> = _uiEvent.asSharedFlow()
 
     init {
+        webRtcClient.listener = this // BẮT BUỘC: gán listener để nhận callback SDP/ICE
         observeSocketConnection()
         observeCallEvents()
         setupAudio()
@@ -59,7 +59,6 @@ class CallViewModel @Inject constructor(
 
     private fun observeCallEvents() {
         viewModelScope.launch {
-            // Receiver incoming call
             callsSocketHandler.incomingCall.collect { event ->
                 _uiState.value = _uiState.value.copy(
                     status = "ringing",
@@ -73,7 +72,6 @@ class CallViewModel @Inject constructor(
             }
         }
 
-        // Receiver response accept/reject
         viewModelScope.launch {
             callsSocketHandler.callResponse.collect { event ->
                 if (event.accepted) {
@@ -88,7 +86,6 @@ class CallViewModel @Inject constructor(
             }
         }
 
-        // Receiver offer
         viewModelScope.launch {
             callsSocketHandler.webrtcOffer.collect { event ->
                 webRtcClient.initializePeerConnection()
@@ -98,7 +95,6 @@ class CallViewModel @Inject constructor(
             }
         }
 
-        // Receiver answer
         viewModelScope.launch {
             callsSocketHandler.webrtcAnswer.collect { event ->
                 webRtcClient.onRemoteSessionReceived(event.data)
@@ -106,7 +102,6 @@ class CallViewModel @Inject constructor(
             }
         }
 
-        // Exchange network (ICE Candidate)
         viewModelScope.launch {
             callsSocketHandler.webrtcIceCandidate.collect { event ->
                 webRtcClient.addIceCandidate(event.data)
@@ -114,7 +109,6 @@ class CallViewModel @Inject constructor(
             }
         }
 
-        // Receiver reject calling event
         viewModelScope.launch {
             callsSocketHandler.callEnded.collect { senderId ->
                 _uiState.value = _uiState.value.copy(status = "ended")
@@ -124,7 +118,6 @@ class CallViewModel @Inject constructor(
             }
         }
 
-        // Call error
         viewModelScope.launch {
             callsSocketHandler.callError.collect { message ->
                 _uiState.value = _uiState.value.copy(errorMessage = message)
@@ -142,9 +135,10 @@ class CallViewModel @Inject constructor(
             callerName = name,
             callerAvatarUrl = avatar,
             isIncomingCall = false,
-            isSpeakerOn = isVideoCall
+            isSpeakerOn = isVideoCall // Video call mặc định bật loa ngoài
         )
         audioManager.isSpeakerphoneOn = isVideoCall
+        
         webRtcClient.startLocalMedia(isVideoCall)
         _uiState.value = _uiState.value.copy(localVideoTrack = webRtcClient.localVideoTrack)
         callsSocketHandler.makeCall(targetUserId, isVideoCall)
@@ -156,6 +150,7 @@ class CallViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(status = "accepted")
 
         audioManager.isSpeakerphoneOn = isVideoCall
+        
         webRtcClient.startLocalMedia(isVideoCall)
         _uiState.value = _uiState.value.copy(localVideoTrack = webRtcClient.localVideoTrack)
 
@@ -206,32 +201,19 @@ class CallViewModel @Inject constructor(
         resetAudio()
     }
 
-    fun sendOffer(targetUserId: String, sdp: JSONObject) {
-        callsSocketHandler.sendOffer(targetUserId, sdp)
-    }
-
-    fun sendAnswer(targetUserId: String, sdp: JSONObject) {
-        callsSocketHandler.sendAnswer(targetUserId, sdp)
-    }
-
-    fun sendIceCandidate(targetUserId: String, candidate: JSONObject) {
-        callsSocketHandler.sendIceCandidate(targetUserId, candidate)
-    }
-
-    fun clearError() {
-        _uiState.value = _uiState.value.copy(errorMessage = null)
-    }
-
     override fun onTransferOffer(sdp: JSONObject) {
-        _uiState.value.targetUserId?.let { callsSocketHandler.sendOffer(it, sdp) }
+        val target = _uiState.value.targetUserId
+        if (target.isNotEmpty()) callsSocketHandler.sendOffer(target, sdp)
     }
 
     override fun onTransferAnswer(sdp: JSONObject) {
-        _uiState.value.targetUserId?.let { callsSocketHandler.sendAnswer(it, sdp) }
+        val target = _uiState.value.targetUserId
+        if (target.isNotEmpty()) callsSocketHandler.sendAnswer(target, sdp)
     }
 
     override fun onTransferIceCandidate(candidate: JSONObject) {
-        _uiState.value.targetUserId?.let { callsSocketHandler.sendIceCandidate(it, candidate) }
+        val target = _uiState.value.targetUserId
+        if (target.isNotEmpty()) callsSocketHandler.sendIceCandidate(target, candidate)
     }
 
     override fun onRemoteVideoTrackReceived(videoTrack: VideoTrack) {
@@ -241,5 +223,6 @@ class CallViewModel @Inject constructor(
     override fun onCleared() {
         super.onCleared()
         webRtcClient.endCall()
+        resetAudio()
     }
 }

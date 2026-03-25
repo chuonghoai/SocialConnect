@@ -398,6 +398,14 @@ fun WebRTCVideoView(
     eglBaseContext: EglBase.Context,
     modifier: Modifier = Modifier
 ) {
+    // Dùng DisposableEffect để đảm bảo renderer được giải phóng đúng cách
+    // khi composable bị removed khỏi tree (khi từ chối / kết thúc cuộc gọi)
+    DisposableEffect(videoTrack) {
+        onDispose {
+            // Không làm gì ở đây, việc cleanup renderer được xử lý bên dưới
+        }
+    }
+
     AndroidView(
         factory = { context ->
             SurfaceViewRenderer(context).apply {
@@ -408,10 +416,22 @@ fun WebRTCVideoView(
                     setMirror(true)
                     setZOrderMediaOverlay(true)
                 }
+                // Thêm sink ngay tại factory để tránh double-add trong update
+                videoTrack.addSink(this)
             }
         },
         update = { renderer ->
-            videoTrack.addSink(renderer)
+            // Không cần addSink ở đây nữa vì đã làm trong factory
+            // Tránh addSink nhiều lần (gây duplicate frame)
+        },
+        onRelease = { renderer ->
+            // Được gọi khi AndroidView bị remove khỏi composition
+            try {
+                videoTrack.removeSink(renderer)
+                renderer.release()
+            } catch (e: Exception) {
+                // Bỏ qua lỗi nếu track đã bị dispose trước
+            }
         },
         modifier = modifier
     )
