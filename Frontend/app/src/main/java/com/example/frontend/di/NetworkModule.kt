@@ -34,12 +34,7 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
-import android.content.Context
-import com.example.frontend.data.remote.api.ConversationApi
 import com.example.frontend.data.repository.ConversationRepositoryImpl
-import dagger.hilt.android.qualifiers.ApplicationContext
-import com.example.frontend.domain.repository.MediaRepository
-import com.example.frontend.data.repository.MediaRepositoryImpl
 import com.example.frontend.domain.repository.ConversationRepository
 import com.example.frontend.data.remote.api.MessageApi
 import com.example.frontend.data.repository.MessageRepositoryImpl
@@ -180,5 +175,13 @@ object NetworkModule {
         messageApi: MessageApi
     ): MessageRepository {
         return MessageRepositoryImpl(messageApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFriendRepository(
+        conversationApi: ConversationApi
+    ): FriendRepository {
+        return FriendRepositoryImpl(conversationApi)
     }
 }
