@@ -154,4 +154,8 @@ dependencies {
 
     // socket.io
     implementation("io.socket:socket.io-client:2.1.1")
+
+    // WebRTC
+//    implementation("org.webrtc:google-webrtc:1.0.32006")
+     implementation("io.getstream:stream-webrtc-android:1.1.1")
 }

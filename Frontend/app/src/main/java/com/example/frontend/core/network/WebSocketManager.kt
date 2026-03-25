@@ -35,6 +35,9 @@ class WebSocketManager @Inject constructor(
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected
 
+    private val _connectedSocket = MutableStateFlow<Socket?>(null)
+    val connectedSocket: StateFlow<Socket?> = _connectedSocket.asStateFlow()
+
     private val _incomingMessages = MutableStateFlow<String?>(null)
     val incomingMessages: StateFlow<String?> = _incomingMessages
 
@@ -101,17 +104,20 @@ class WebSocketManager @Inject constructor(
     private fun setupListeners() {
         mSocket?.on(Socket.EVENT_CONNECT) {
             _isConnected.value = true
+            _connectedSocket.value = mSocket
             Log.d("WebSocket", "Đã kết nối thành công tới Socket.io")
         }
 
         mSocket?.on(Socket.EVENT_DISCONNECT) { args ->
             _isConnected.value = false
+            _connectedSocket.value = null
             Log.d("WebSocket", "Đã đóng kết nối: ${args.getOrNull(0)}")
         }
 
         mSocket?.on(Socket.EVENT_CONNECT_ERROR) { args ->
             val error = args.getOrNull(0)
             _isConnected.value = false
+            _connectedSocket.value = null
             Log.e("WebSocket", "Lỗi kết nối Socket (EVENT_CONNECT_ERROR): $error")
             if (error is Throwable) {
                 error.printStackTrace()
@@ -209,6 +215,15 @@ class WebSocketManager @Inject constructor(
         mSocket?.off()
         mSocket = null
         _isConnected.value = false
+        _connectedSocket.value = null
+    }
+
+    fun emit(event: String, vararg args: Any) {
+        if (mSocket?.connected() == true) {
+            mSocket?.emit(event, *args)
+        } else {
+            Log.e("WebSocket", "Không thể emit event $event do chưa kết nối Socket")
+        }
     }
 
     fun sendMessage(
@@ -219,48 +234,38 @@ class WebSocketManager @Inject constructor(
         temporaryId: String? = null,
         replyToId: String? = null
     ) {
-        if (mSocket?.connected() == true) {
-            try {
-                val payload = JSONObject().apply {
-                    put("conversationId", conversationId)
-                    put("content", content)
-                    put("type", type)
-                    mediaId?.let { put("mediaId", it) }
-                    temporaryId?.let { put("temporaryId", it) }
-                    replyToId?.let { put("replyToId", it) }
-                }
-                mSocket?.emit("send_message", payload)
-            } catch (e: Exception) {
-                Log.e("WebSocket", "Lỗi khi gửi tin nhắn: ${e.message}")
+        try {
+            val payload = JSONObject().apply {
+                put("conversationId", conversationId)
+                put("content", content)
+                put("type", type)
+                mediaId?.let { put("mediaId", it) }
+                temporaryId?.let { put("temporaryId", it) }
+                replyToId?.let { put("replyToId", it) }
             }
-        } else {
-            Log.e("WebSocket", "Không thể gửi tin nhắn do chưa kết nối Socket")
+            emit("send_message", payload)
+        } catch (e: Exception) {
+            Log.e("WebSocket", "Lỗi khi gửi tin nhắn: ${e.message}")
         }
     }
 
     fun sendTypingEvent(conversationId: String, isTyping: Boolean) {
-        if (mSocket?.connected() == true) {
-            try {
-                val payload = JSONObject().apply {
-                    put("conversationId", conversationId)
-                    put("isTyping", isTyping)
-                }
-                Log.d("WebSocket", ">>> Gửi event 'typing': convId=$conversationId, isTyping=$isTyping")
-                mSocket?.emit("typing", payload)
-            } catch (e: Exception) {
-                Log.e("WebSocket", "Lỗi khi gửi typing event: ${e.message}")
+        try {
+            val payload = JSONObject().apply {
+                put("conversationId", conversationId)
+                put("isTyping", isTyping)
             }
-        } else {
-            Log.e("WebSocket", "Socket chưa kết nối, không thể gửi event typing")
+            Log.d("WebSocket", ">>> Gửi event 'typing': convId=$conversationId, isTyping=$isTyping")
+            emit("typing", payload)
+        } catch (e: Exception) {
+            Log.e("WebSocket", "Lỗi khi gửi typing event: ${e.message}")
         }
     }
 
     fun markRead(conversationId: String) {
-        if (mSocket?.connected() == true) {
-            val payload = JSONObject().apply {
-                put("conversationId", conversationId)
-            }
-            mSocket?.emit("mark_read", payload)
+        val payload = JSONObject().apply {
+            put("conversationId", conversationId)
         }
+        emit("mark_read", payload)
     }
 }

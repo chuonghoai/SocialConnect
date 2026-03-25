@@ -23,4 +23,6 @@ object Routes {
     const val CHANGE_PASSWORD = "change_password"
     const val CREATE_POST = "create_post"
     const val POST_DETAIL = "post_detail"
+    const val CALL_BASE = "call"
+    const val CALL = "$CALL_BASE/{targetUserId}?isVideoCall={isVideoCall}&isIncoming={isIncoming}&fullname={fullname}&avatarUrl={avatarUrl}"
 }

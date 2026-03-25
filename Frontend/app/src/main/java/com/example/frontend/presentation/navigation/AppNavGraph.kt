@@ -12,7 +12,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -46,12 +48,18 @@ import com.example.frontend.presentation.screen.create_post.CreatePostScreen
 import com.example.frontend.presentation.screen.create_post.CreatePostViewModel
 import com.example.frontend.presentation.screen.profile.EditProfileScreen
 import com.example.frontend.presentation.screen.setting.ChangePasswordScreen
+import com.example.frontend.presentation.screen.calls.CallScreen
+import com.example.frontend.presentation.screen.calls.CallUiEvent
+import com.example.frontend.presentation.screen.calls.CallViewModel
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AppNavGraph(
     sessionViewModel: SessionViewModel = hiltViewModel(),
-    mainViewModel: MainViewModel = hiltViewModel()
+    mainViewModel: MainViewModel = hiltViewModel(),
+    callViewModel: CallViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
 
@@ -71,6 +79,19 @@ fun AppNavGraph(
     val showBottomBar = currentBaseRoute in bottomBarRoutes
 
     val notifState by mainViewModel.notificationManager.notification.collectAsState()
+
+    // Lắng nghe cuộc gọi đến toàn cục
+    LaunchedEffect(callViewModel) {
+        callViewModel.uiEvent.collect { event ->
+            if (event is CallUiEvent.IncomingCall) {
+                val encodedName = Uri.encode(event.name)
+                val encodedAvatar = Uri.encode(event.avatar)
+                navController.navigate(
+                    "${Routes.CALL_BASE}/${event.callerId}?isVideoCall=${event.isVideo}&isIncoming=true&fullname=$encodedName&avatarUrl=$encodedAvatar"
+                )
+            }
+        }
+    }
 
     Box(modifier = Modifier.fillMaxSize()) {
         Scaffold(
@@ -334,6 +355,65 @@ fun AppNavGraph(
                         conversationName = conversationName,
                         conversationAvatarUrl = conversationAvatar,
                         onBackClick = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Routes.CALL) { backStackEntry ->
+                    val targetUserId = backStackEntry.arguments?.getString("targetUserId") ?: ""
+                    val isVideoCall = backStackEntry.arguments?.getString("isVideoCall")?.toBoolean() ?: false
+                    val isIncoming = backStackEntry.arguments?.getString("isIncoming")?.toBoolean() ?: false
+                    val fullname = backStackEntry.arguments?.getString("fullname")?.let(Uri::decode) ?: ""
+                    val avatarUrl = backStackEntry.arguments?.getString("avatarUrl")?.let(Uri::decode) ?: ""
+
+                    val uiState by callViewModel.uiState.collectAsState()
+                    var callDuration by remember { mutableIntStateOf(0) }
+
+                    LaunchedEffect(uiState.status) {
+                        if (uiState.status == "accepted") {
+                            while (true) {
+                                delay(1000)
+                                callDuration++
+                            }
+                        }
+                    }
+
+                    LaunchedEffect(uiState.status) {
+                        if (uiState.status == "rejected" || uiState.status == "ended") {
+                            delay(1500)
+                            callViewModel.clearState()
+                            navController.popBackStack()
+                        }
+                    }
+
+                    val formattedDuration = String.format("%02d:%02d", callDuration / 60, callDuration % 60)
+
+                    // Khởi tạo cuộc gọi (Chỉ dành cho người GỌI)
+                    LaunchedEffect(Unit) {
+                        if (!isIncoming && uiState.status == "idle") {
+                            callViewModel.startCall(targetUserId, isVideoCall, fullname, avatarUrl)
+                        }
+                    }
+
+                    CallScreen(
+                        status = uiState.status,
+                        fullname = if (isIncoming && uiState.callerName.isNotEmpty()) uiState.callerName else fullname,
+                        avatarUrl = if (isIncoming && uiState.callerAvatarUrl.isNotEmpty()) uiState.callerAvatarUrl else avatarUrl,
+                        isVideoCall = uiState.isVideoCall,
+                        isIncoming = uiState.isIncomingCall,
+                        formattedDuration = formattedDuration,
+                        isMicOn = uiState.isMicOn,
+                        isCamOn = uiState.isCamOn,
+                        isSpeakerOn = uiState.isSpeakerOn,
+                        localVideoTrack = uiState.localVideoTrack,
+                        remoteVideoTrack = uiState.remoteVideoTrack,
+                        eglBaseContext = callViewModel.webRtcClient.eglBaseContext,
+                        onSwitchCamera = { callViewModel.switchCamera() },
+                        onToggleMic = { callViewModel.toggleMic() },
+                        onToggleCam = { callViewModel.toggleCamera() },
+                        onToggleSpeaker = { callViewModel.toggleSpeaker() },
+                        onAcceptCall = { callViewModel.acceptCall(targetUserId) },
+                        onRejectCall = { callViewModel.declineCall(targetUserId) },
+                        onEndCall = { callViewModel.endCall(targetUserId) },
                     )
                 }
             }
