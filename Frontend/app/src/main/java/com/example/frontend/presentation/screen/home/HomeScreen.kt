@@ -61,6 +61,7 @@ fun HomeScreen(
     currentUser: User?,
     onNavigateToMessages: () -> Unit = {},
     onCreatePostClick: () -> Unit = {},
+    onEditPostClick: (String) -> Unit = {},
     onPostClick: (Post) -> Unit = {},
     onVideoClick: () -> Unit = {},
     onAvatarClick: (String) -> Unit = {},
@@ -204,6 +205,7 @@ fun HomeScreen(
                             items(state.posts, key = { it.id }) { post ->
                                 PostCard(
                                     post = post,
+                                    isOwnPost = currentUser?.id == post.userId,
                                     onLikeClick = {
                                         viewModel.toggleLike(post.id)
                                     },
@@ -218,9 +220,26 @@ fun HomeScreen(
                                     onShareClick = {
                                         shareTargetPost = post
                                         viewModel.loadShareFriends(currentUser?.id.orEmpty())
+                                        // viewModel.sharePost(post.id)
                                     },
                                     onAvatarClick = onAvatarClick,
                                     onVideoClick = onVideoClick
+                                    },
+                                    onEditPostRequest = {
+                                        onEditPostClick(post.id)
+                                    },
+                                    onDeletePost = {
+                                        viewModel.deletePost(post.id)
+                                    },
+                                    onChangeVisibility = { visibility ->
+                                        viewModel.changePostVisibility(post.id, visibility)
+                                    },
+                                    onHidePost = {
+                                        viewModel.hidePost(post.id)
+                                    },
+                                    onReportPost = {
+                                        viewModel.reportPost()
+                                    }
                                 )
                             }
 

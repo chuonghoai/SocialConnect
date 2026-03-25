@@ -1,8 +1,10 @@
 package com.example.frontend.presentation.screen.forgotpassword
 
+import android.widget.Toast
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -15,6 +17,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
@@ -30,25 +33,23 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.platform.LocalContext
-import android.widget.Toast
-import android.view.KeyEvent as AndroidKeyEvent
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.hilt.navigation.compose.hiltViewModel
 
 @Composable
@@ -116,7 +117,16 @@ fun ForgotPasswordOtpScreen(
 
             OtpInputField(
                 otpText = state.otp,
-                onOtpChange = viewModel::updateOtp
+                onOtpChange = viewModel::updateOtp,
+                enabled = !state.loading,
+                onDone = {
+                    if (!state.loading) {
+                        viewModel.verifyOtp { email, otp ->
+                            Toast.makeText(context, "OTP hợp lệ", Toast.LENGTH_SHORT).show()
+                            onOtpVerified(email, otp)
+                        }
+                    }
+                }
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -198,77 +208,71 @@ private fun formatAsMinuteSecond(totalSeconds: Int): String {
 @Composable
 private fun OtpInputField(
     otpText: String,
-    onOtpChange: (String) -> Unit
+    onOtpChange: (String) -> Unit,
+    enabled: Boolean,
+    onDone: () -> Unit
 ) {
-    val focusRequesters = remember { List(6) { FocusRequester() } }
+    val focusRequester = remember { FocusRequester() }
+    var hasFocus by remember { mutableStateOf(false) }
 
-    Row(
-        horizontalArrangement = Arrangement.Center,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        repeat(6) { index ->
-            val char = otpText.getOrNull(index)?.toString().orEmpty()
-
-            OutlinedTextField(
-                value = char,
-                onValueChange = { input ->
-                    val digit = input.filter { it.isDigit() }
-                    if (digit.isEmpty()) {
-                        val updated = otpText.toMutableList().apply {
-                            if (index < size) removeAt(index)
-                        }.joinToString("")
-                        onOtpChange(updated)
-                        return@OutlinedTextField
-                    }
-
-                    val current = otpText.padEnd(6, ' ').toCharArray()
-                    current[index] = digit.last()
-                    val updated = current.concatToString().replace(" ", "")
-                    onOtpChange(updated)
-
-                    if (index < 5) {
-                        focusRequesters[index + 1].requestFocus()
-                    }
-                },
+    BasicTextField(
+        value = otpText,
+        onValueChange = { input ->
+            val filtered = input.filter { it.isDigit() }.take(6)
+            onOtpChange(filtered)
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .focusRequester(focusRequester)
+            .onFocusChanged { hasFocus = it.isFocused },
+        enabled = enabled,
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.NumberPassword,
+            imeAction = ImeAction.Done
+        ),
+        keyboardActions = KeyboardActions(onDone = { onDone() }),
+        decorationBox = {
+            Row(
                 modifier = Modifier
-                    .width(45.dp)
-                    .padding(horizontal = 4.dp)
-                    .focusRequester(focusRequesters[index])
-                    .onKeyEvent { keyEvent ->
-                        if (
-                            keyEvent.nativeKeyEvent.action == AndroidKeyEvent.ACTION_DOWN &&
-                            keyEvent.nativeKeyEvent.keyCode == AndroidKeyEvent.KEYCODE_DEL
-                        ) {
-                            if (char.isEmpty() && index > 0) {
-                                focusRequesters[index - 1].requestFocus()
-                            }
-                        }
-                        false
-                    },
-                singleLine = true,
-                textStyle = MaterialTheme.typography.headlineSmall.copy(
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 20.sp,
-                    textAlign = TextAlign.Center
-                ),
-                keyboardOptions = KeyboardOptions(
-                    keyboardType = KeyboardType.NumberPassword,
-                    imeAction = if (index == 5) ImeAction.Done else ImeAction.Next
-                ),
-                keyboardActions = KeyboardActions(
-                    onNext = { if (index < 5) focusRequesters[index + 1].requestFocus() }
-                ),
-                shape = RoundedCornerShape(12.dp),
-                colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFFFF8A00),
-                    unfocusedBorderColor = Color(0xFFE0E0E0),
-                    focusedContainerColor = Color.White,
-                    unfocusedContainerColor = Color.White,
-                    cursorColor = Color(0xFFFF8A00)
-                )
-            )
+                    .fillMaxWidth()
+                    .clickable(enabled = enabled) { focusRequester.requestFocus() },
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                repeat(6) { index ->
+                    val char = otpText.getOrNull(index)?.toString().orEmpty()
+                    val isActive = hasFocus && index == otpText.length.coerceAtMost(5)
+                    Box(
+                        modifier = Modifier
+                            .width(45.dp)
+                            .height(50.dp)
+                            .padding(horizontal = 4.dp)
+                            .background(
+                                color = Color.White,
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                            .border(
+                                width = if (isActive) 2.dp else 1.dp,
+                                color = if (isActive) Color(0xFFFF8A00) else Color(0xFFE0E0E0),
+                                shape = RoundedCornerShape(12.dp)
+                            ),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = char,
+                            style = MaterialTheme.typography.headlineSmall.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 20.sp
+                            ),
+                            color = Color(0xFF1E1E1E),
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
         }
-    }
+    )
 }
 
 @Composable

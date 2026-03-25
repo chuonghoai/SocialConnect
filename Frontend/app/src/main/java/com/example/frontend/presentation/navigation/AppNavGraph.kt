@@ -41,12 +41,17 @@ import com.example.frontend.presentation.screen.register.RegisterViewModel
 import com.example.frontend.presentation.screen.search.SearchScreen
 import com.example.frontend.presentation.screen.setting.SettingScreen
 import com.example.frontend.presentation.screen.video.VideoScreen
+import com.example.frontend.presentation.viewmodel.AuthSessionViewModel
 import com.example.frontend.presentation.viewmodel.MainViewModel
 import com.example.frontend.presentation.viewmodel.SessionViewModel
 import com.example.frontend.ui.component.AppNotification
+import com.example.frontend.ui.component.NotificationType
 import androidx.navigation.compose.navigation
 import com.example.frontend.presentation.screen.create_post.CreatePostScreen
 import com.example.frontend.presentation.screen.create_post.CreatePostViewModel
+import com.example.frontend.presentation.screen.edit_post.EditPostScreen
+import com.example.frontend.presentation.screen.home.HomeUiState
+import com.example.frontend.presentation.screen.home.HomeViewModel
 import com.example.frontend.presentation.screen.profile.EditProfileScreen
 import com.example.frontend.presentation.screen.setting.ChangePasswordScreen
 import com.example.frontend.presentation.screen.calls.CallScreen
@@ -60,6 +65,7 @@ import kotlinx.coroutines.flow.collectLatest
 fun AppNavGraph(
     sessionViewModel: SessionViewModel = hiltViewModel(),
     mainViewModel: MainViewModel = hiltViewModel(),
+    authSessionViewModel: AuthSessionViewModel = hiltViewModel()
     callViewModel: CallViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
@@ -81,6 +87,19 @@ fun AppNavGraph(
 
     val notifState by mainViewModel.notificationManager.notification.collectAsState()
 
+    LaunchedEffect(Unit) {
+        authSessionViewModel.sessionExpiredEvents.collectLatest {
+            sessionViewModel.clearSession()
+            mainViewModel.notificationManager.showMessage(
+                message = "Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.",
+                type = NotificationType.ERROR
+            )
+            navController.navigate(Routes.LOGIN) {
+                popUpTo(Routes.HOME) { inclusive = true }
+                launchSingleTop = true
+            }
+        }
+    }
     // Lắng nghe cuộc gọi đến toàn cục
     LaunchedEffect(callViewModel) {
         callViewModel.uiEvent.collect { event ->
@@ -239,6 +258,9 @@ fun AppNavGraph(
                         onCreatePostClick = {
                             navController.navigate(Routes.CREATE_POST)
                         },
+                        onEditPostClick = { postId ->
+                            navController.navigate("${Routes.EDIT_POST_BASE}/$postId")
+                        },
                         onPostClick = { _ ->
                             navController.navigate(Routes.POST_DETAIL)
                         },
@@ -292,6 +314,35 @@ fun AppNavGraph(
                         viewModel = createPostViewModel,
                         onBackClick = { navController.popBackStack() },
                         onSuccess = { navController.popBackStack() }
+                    )
+                }
+
+                composable(Routes.EDIT_POST) { backStackEntry ->
+                    val postId = backStackEntry.arguments?.getString("postId").orEmpty()
+                    val currentUser by sessionViewModel.currentUser.collectAsState()
+                    val homeEntry = remember(backStackEntry) {
+                        navController.getBackStackEntry(Routes.HOME)
+                    }
+                    val homeViewModel: HomeViewModel = hiltViewModel(homeEntry)
+                    val homeUiState by homeViewModel.uiState.collectAsState()
+                    val editingPost = (homeUiState as? HomeUiState.Success)
+                        ?.posts
+                        ?.firstOrNull { it.id == postId }
+
+                    EditPostScreen(
+                        currentUser = currentUser,
+                        initialContent = editingPost?.content.orEmpty(),
+                        initialVisibility = editingPost?.visibility ?: "Công khai",
+                        onBackClick = { navController.popBackStack() },
+                        onComplete = { content, visibility ->
+                            if (content != editingPost?.content) {
+                                homeViewModel.editPost(postId, content)
+                            }
+                            if (visibility != editingPost?.visibility) {
+                                homeViewModel.changePostVisibility(postId, visibility)
+                            }
+                            navController.popBackStack()
+                        }
                     )
                 }
 

@@ -1,11 +1,22 @@
 ﻿package com.example.frontend.ui.component
 
 import android.net.Uri
-import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -16,6 +27,23 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -32,6 +60,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
@@ -50,6 +82,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import coil.decode.VideoFrameDecoder
+import coil.request.ImageRequest
 import com.example.frontend.R
 import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
@@ -61,15 +95,22 @@ import java.time.LocalDateTime
 @Composable
 fun PostCard(
     post: Post,
+    isOwnPost: Boolean = false,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onVideoClick: (() -> Unit)? = null,
     onSaveClick: (() -> Unit)? = null,
     saveMenuLabel: String = "Lưu bài viết",
     onShareClick: (() -> Unit)? = null,
+    onEditPostRequest: (() -> Unit)? = null,
+    onDeletePost: (() -> Unit)? = null,
+    onChangeVisibility: ((String) -> Unit)? = null,
+    onHidePost: (() -> Unit)? = null,
+    onReportPost: (() -> Unit)? = null
     onAvatarClick: ((String) -> Unit)? = null
-    ) {
+) {
     var isMoreMenuExpanded by remember { mutableStateOf(false) }
+    var showVisibilityDialog by remember { mutableStateOf(false) }
 
     val isSharedPost = post.type.equals("SHARED", ignoreCase = true)
     val originalPost = post.originalPost
@@ -81,6 +122,8 @@ fun PostCard(
         trimmedContent != trimmedOriginalContent
     val mediaItems = post.toMediaItems()
     val clipboardManager = LocalClipboardManager.current
+
+    val postMedia = resolveMedia(post.kind, post.cdnUrl, post.media)
 
     Card(
         modifier = Modifier
@@ -147,6 +190,56 @@ fun PostCard(
                         expanded = isMoreMenuExpanded,
                         onDismissRequest = { isMoreMenuExpanded = false }
                     ) {
+                        if (isOwnPost) {
+                            DropdownMenuItem(
+                                text = { Text("Sửa bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onEditPostRequest?.invoke()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Đổi quyền bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    showVisibilityDialog = true
+                                },
+                                enabled = onChangeVisibility != null
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Xóa bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onDeletePost?.invoke()
+                                },
+                                enabled = onDeletePost != null
+                            )
+                        } else {
+                            DropdownMenuItem(
+                                text = { Text(saveMenuLabel) },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onSaveClick?.invoke()
+                                },
+                                enabled = onSaveClick != null
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ẩn bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onHidePost?.invoke()
+                                },
+                                enabled = onHidePost != null
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Báo cáo bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onReportPost?.invoke()
+                                },
+                                enabled = onReportPost != null
+                            )
+                        }
                         DropdownMenuItem(
                             text = { Text(saveMenuLabel) },
                             enabled = onSaveClick != null,
@@ -207,6 +300,18 @@ fun PostCard(
                     )
                 }
 
+                if (postMedia.isNotEmpty()) {
+                    PostMediaGallery(
+                        mediaItems = postMedia,
+                        isLiked = post.isLiked,
+                        likeCount = post.likeCount,
+                        commentCount = post.commentCount,
+                        shareCount = post.shareCount,
+                        onLikeClick = onLikeClick,
+                        onCommentClick = onCommentClick,
+                        onShareClick = onShareClick
+                    )
+                }
                 if (mediaItems.isNotEmpty()) {
                     PostMediaPreview(
                         mediaItems = mediaItems,
@@ -248,6 +353,36 @@ fun PostCard(
             }
         }
     }
+
+    if (showVisibilityDialog) {
+        AlertDialog(
+            onDismissRequest = { showVisibilityDialog = false },
+            title = { Text("Đổi quyền bài viết") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    listOf("Công khai", "Bạn bè", "Riêng tư").forEach { option ->
+                        Text(
+                            text = option,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .clickable {
+                                    showVisibilityDialog = false
+                                    onChangeVisibility?.invoke(option)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 10.dp)
+                        )
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { showVisibilityDialog = false }) {
+                    Text("Đóng")
+                }
+            }
+        )
+    }
 }
 
 private data class PostMediaItem(
@@ -257,6 +392,7 @@ private data class PostMediaItem(
 
 @Composable
 private fun SharedPostPreviewCard(originalPost: OriginalPost) {
+    val originalMedia = resolveMedia(originalPost.kind, originalPost.cdnUrl, originalPost.media)
     val mediaItems = originalPost.toMediaItems()
 
     Card(
@@ -303,6 +439,9 @@ private fun SharedPostPreviewCard(originalPost: OriginalPost) {
                 Spacer(Modifier.height(8.dp))
             }
 
+            if (originalMedia.isNotEmpty()) {
+                PostMediaGallery(mediaItems = originalMedia)
+            }
             if (mediaItems.isNotEmpty()) {
                 PostMediaPreview(mediaItems = mediaItems)
             }
@@ -310,55 +449,42 @@ private fun SharedPostPreviewCard(originalPost: OriginalPost) {
     }
 }
 
-@Composable
-fun PostMediaContent(kind: String, cdnUrl: String) {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-    ) {
-        if (kind == "IMAGE") {
-            AsyncImage(
-                model = cdnUrl,
-                contentDescription = null,
-                modifier = Modifier.fillMaxWidth(),
-                contentScale = ContentScale.FillWidth
-            )
-        } else if (kind == "VIDEO") {
-            AndroidView(
-                factory = { ctx ->
-                    VideoView(ctx).apply {
-                        setVideoURI(Uri.parse(cdnUrl))
-                        val controller = MediaController(ctx)
-                        controller.setAnchorView(this)
-                        setMediaController(controller)
-                        setOnPreparedListener {
-                            it.isLooping = true
-                            start()
-                        }
-                    }
-                },
-                modifier = Modifier.fillMaxWidth().aspectRatio(16f / 9f)
-            )
+private fun resolveMedia(kind: String, cdnUrl: String, media: List<PostMedia>): List<PostMedia> {
+    val normalizedFromList = media
+        .filter { it.cdnUrl.isNotBlank() }
+        .map {
+            if (it.kind.isBlank()) it.copy(kind = kind.ifBlank { "IMAGE" }) else it
         }
+
+    if (normalizedFromList.isNotEmpty()) return normalizedFromList
+
+    return if (cdnUrl.isNotBlank()) {
+        listOf(PostMedia(kind = kind.ifBlank { "IMAGE" }, cdnUrl = cdnUrl))
+    } else {
+        emptyList()
     }
 }
 
 @Composable
-private fun PostMediaPreview(
-    mediaItems: List<PostMediaItem>,
-    onVideoClick: (() -> Unit)? = null
-) {
-    if (mediaItems.isEmpty()) return
-
-    var isViewerOpen by remember(mediaItems) { mutableStateOf(false) }
-    var selectedIndex by remember(mediaItems) { mutableStateOf(0) }
-
-    val openViewer: (Int) -> Unit = { index ->
-        selectedIndex = index.coerceIn(0, mediaItems.lastIndex)
-        isViewerOpen = true
+fun PostMediaContent(kind: String, cdnUrl: String) {
+    val mediaItems = resolveMedia(kind = kind, cdnUrl = cdnUrl, media = emptyList())
+    if (mediaItems.isNotEmpty()) {
+        PostMediaGallery(mediaItems = mediaItems)
     }
+}
+
+@Composable
+private fun PostMediaGallery(
+    mediaItems: List<PostMedia>,
+    isLiked: Boolean = false,
+    likeCount: Int = 0,
+    commentCount: Int = 0,
+    shareCount: Int = 0,
+    onLikeClick: (() -> Unit)? = null,
+    onCommentClick: (() -> Unit)? = null,
+    onShareClick: (() -> Unit)? = null
+) {
+    var viewerStartIndex by remember(mediaItems) { mutableIntStateOf(-1) }
 
     Box(
         modifier = Modifier
@@ -366,218 +492,188 @@ private fun PostMediaPreview(
             .clip(RoundedCornerShape(8.dp))
             .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
     ) {
-        if (mediaItems.size == 1) {
-            val item = mediaItems.first()
-            if (item.kind == "VIDEO") {
-                FeedVideoPlayer(
-                    videoUrl = item.url,
-                    shouldPlay = true,
-                    mediaAspectRatio = 16f / 9f,
-                    onVideoClick = {
-                        if (onVideoClick != null) onVideoClick()
-                        else openViewer(0)
-                    }
-                )
-            } else {
-                AsyncImage(
-                    model = item.url,
-                    contentDescription = null,
+        when (mediaItems.size) {
+            1 -> {
+                MediaTile(
+                    item = mediaItems[0],
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(4f / 3f)
-                        .clickable { openViewer(0) },
-                    contentScale = ContentScale.Crop
+                        .height(360.dp),
+                    onClick = { viewerStartIndex = 0 }
                 )
             }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-            ) {
-                MediaGridPreview(
-                    mediaItems = mediaItems,
-                    onItemClick = { index ->
-                        val item = mediaItems[index]
-                        if (item.kind == "VIDEO" && onVideoClick != null) {
-                            onVideoClick()
-                        } else {
-                            openViewer(index)
-                        }
+
+            2 -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                ) {
+                    MediaTile(
+                        item = mediaItems[0],
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewerStartIndex = 0 }
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    MediaTile(
+                        item = mediaItems[1],
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewerStartIndex = 1 }
+                    )
+                }
+            }
+
+            3 -> {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp)
+                ) {
+                    MediaTile(
+                        item = mediaItems[0],
+                        modifier = Modifier.weight(1f),
+                        onClick = { viewerStartIndex = 0 }
+                    )
+                    Spacer(Modifier.width(2.dp))
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        MediaTile(
+                            item = mediaItems[1],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 1 }
+                        )
+                        MediaTile(
+                            item = mediaItems[2],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 2 }
+                        )
                     }
-                )
+                }
+            }
+
+            else -> {
+                val extraCount = mediaItems.size - 4
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(320.dp),
+                    horizontalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        MediaTile(
+                            item = mediaItems[0],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 0 }
+                        )
+                        MediaTile(
+                            item = mediaItems[1],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 1 }
+                        )
+                    }
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        MediaTile(
+                            item = mediaItems[2],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 2 }
+                        )
+                        MediaTile(
+                            item = mediaItems[3],
+                            modifier = Modifier.weight(1f),
+                            onClick = { viewerStartIndex = 3 },
+                            overlayText = if (extraCount > 0) "+$extraCount" else null
+                        )
+                    }
+                }
             }
         }
     }
 
-    if (isViewerOpen) {
-        MediaViewerDialog(
+    if (viewerStartIndex >= 0) {
+        FullScreenMediaViewer(
             mediaItems = mediaItems,
-            initialPage = selectedIndex,
-            onDismiss = { isViewerOpen = false }
+            initialPage = viewerStartIndex,
+            onDismiss = { viewerStartIndex = -1 },
+            isLiked = isLiked,
+            likeCount = likeCount,
+            commentCount = commentCount,
+            shareCount = shareCount,
+            onLikeClick = onLikeClick,
+            onCommentClick = onCommentClick,
+            onShareClick = onShareClick
         )
     }
 }
 
 @Composable
-private fun MediaGridPreview(
-    mediaItems: List<PostMediaItem>,
-    onItemClick: (Int) -> Unit
-) {
-    if (mediaItems.isEmpty()) return
-
-    val previewItems = mediaItems.take(4)
-    val hiddenCount = (mediaItems.size - 4).coerceAtLeast(0)
-    val spacing = 2.dp
-
-    when (mediaItems.size) {
-        1 -> {
-            MediaTile(
-                item = previewItems[0],
-                modifier = Modifier.fillMaxSize(),
-                onClick = { onItemClick(0) }
-            )
-        }
-
-        2 -> {
-            Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                MediaTile(
-                    item = previewItems[0],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    onClick = { onItemClick(0) }
-                )
-                MediaTile(
-                    item = previewItems[1],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    onClick = { onItemClick(1) }
-                )
-            }
-        }
-
-        3 -> {
-            Row(modifier = Modifier.fillMaxSize(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                MediaTile(
-                    item = previewItems[0],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    onClick = { onItemClick(0) }
-                )
-
-                Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
-                    verticalArrangement = Arrangement.spacedBy(spacing)
-                ) {
-                    MediaTile(
-                        item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        onClick = { onItemClick(1) }
-                    )
-                    MediaTile(
-                        item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
-                        onClick = { onItemClick(2) }
-                    )
-                }
-            }
-        }
-
-        4 -> {
-            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing)) {
-                Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    MediaTile(
-                        item = previewItems[0],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(0) }
-                    )
-                    MediaTile(
-                        item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(1) }
-                    )
-                }
-
-                Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    MediaTile(
-                        item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(2) }
-                    )
-                    MediaTile(
-                        item = previewItems[3],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(3) }
-                    )
-                }
-            }
-        }
-
-        else -> {
-            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing)) {
-                Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    MediaTile(
-                        item = previewItems[0],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(0) }
-                    )
-                    MediaTile(
-                        item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(1) }
-                    )
-                }
-
-                Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    MediaTile(
-                        item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(2) }
-                    )
-                    MediaTile(
-                        item = previewItems[3],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(3) },
-                        overlayText = if (hiddenCount > 0) "+$hiddenCount" else null
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
 private fun MediaTile(
-    item: PostMediaItem,
+    item: PostMedia,
     modifier: Modifier,
     onClick: () -> Unit,
     overlayText: String? = null
 ) {
-    Box(modifier = modifier.clickable(onClick = onClick)) {
-        if (item.kind == "VIDEO") {
-            FeedVideoPlayer(
-                videoUrl = item.url,
-                shouldPlay = true,
-                mediaAspectRatio = 1f,
-                onVideoClick = null
-            )
+    val isVideo = item.kind.equals("VIDEO", ignoreCase = true)
+    val context = LocalContext.current
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(2.dp))
+            .clickable(onClick = onClick)
+    ) {
+        val model = if (isVideo) {
+            ImageRequest.Builder(context)
+                .data(item.cdnUrl)
+                .decoderFactory(VideoFrameDecoder.Factory())
+                .crossfade(true)
+                .build()
         } else {
-            AsyncImage(
-                model = item.url,
-                contentDescription = null,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
+            item.cdnUrl
+        }
+
+        AsyncImage(
+            model = model,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop,
+            error = painterResource(R.drawable.icon_image)
+        )
+
+        if (isVideo) {
+            Box(
+                modifier = Modifier
+                    .align(Alignment.Center)
+                    .size(40.dp)
+                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.icon_play_video),
+                    contentDescription = null,
+                    tint = Color.White,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
         }
 
         if (!overlayText.isNullOrBlank()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .background(Color.Black.copy(alpha = 0.48f)),
+                    .background(Color.Black.copy(alpha = 0.55f)),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
                     text = overlayText,
                     color = Color.White,
-                    style = MaterialTheme.typography.headlineSmall,
+                    fontSize = 30.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
@@ -586,54 +682,64 @@ private fun MediaTile(
 }
 
 @Composable
-private fun MediaViewerDialog(
-    mediaItems: List<PostMediaItem>,
+private fun FullScreenMediaViewer(
+    mediaItems: List<PostMedia>,
     initialPage: Int,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    isLiked: Boolean = false,
+    likeCount: Int = 0,
+    commentCount: Int = 0,
+    shareCount: Int = 0,
+    onLikeClick: (() -> Unit)? = null,
+    onCommentClick: (() -> Unit)? = null,
+    onShareClick: (() -> Unit)? = null
 ) {
+    val pagerState = rememberPagerState(
+        initialPage = initialPage,
+        pageCount = { mediaItems.size }
+    )
+
     Dialog(
         onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false
+        )
     ) {
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
         ) {
-            val pagerState = rememberPagerState(
-                initialPage = initialPage.coerceIn(0, mediaItems.lastIndex),
-                pageCount = { mediaItems.size }
-            )
-
             HorizontalPager(
                 state = pagerState,
                 modifier = Modifier.fillMaxSize()
             ) { page ->
                 val item = mediaItems[page]
-                if (item.kind == "VIDEO") {
-                    FeedVideoPlayer(
-                        videoUrl = item.url,
-                        shouldPlay = pagerState.currentPage == page,
-                        mediaAspectRatio = 16f / 9f,
-                        onVideoClick = null
-                    )
+                if (item.kind.equals("VIDEO", ignoreCase = true)) {
+                    FullscreenVideo(url = item.cdnUrl)
                 } else {
-                    ZoomableMediaImage(imageUrl = item.url)
+                    AsyncImage(
+                        model = item.cdnUrl,
+                        contentDescription = null,
+                        modifier = Modifier.fillMaxSize(),
+                        contentScale = ContentScale.Fit,
+                        error = painterResource(R.drawable.icon_image)
+                    )
                 }
             }
 
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .statusBarsPadding()
-                    .padding(8.dp),
+                    .padding(horizontal = 12.dp, vertical = 16.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Close viewer",
+                        contentDescription = "Close",
                         tint = Color.White
                     )
                 }
@@ -641,186 +747,112 @@ private fun MediaViewerDialog(
                 Text(
                     text = "${pagerState.currentPage + 1}/${mediaItems.size}",
                     color = Color.White,
-                    textAlign = TextAlign.End,
-                    style = MaterialTheme.typography.bodyMedium
+                    style = MaterialTheme.typography.titleMedium
                 )
             }
-        }
-    }
-}
 
-@Composable
-private fun ZoomableMediaImage(imageUrl: String) {
-    var scale by remember(imageUrl) { mutableStateOf(1f) }
-    var offset by remember(imageUrl) { mutableStateOf(Offset.Zero) }
-    var containerSize by remember(imageUrl) { mutableStateOf(IntSize.Zero) }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .onSizeChanged { containerSize = it }
-            .pointerInput(imageUrl) {
-                detectTapGestures(
-                    onDoubleTap = {
-                        if (scale > 1f) {
-                            scale = 1f
-                            offset = Offset.Zero
-                        } else {
-                            scale = 2f
-                        }
-                    }
-                )
-            }
-            .pointerInput(imageUrl) {
-                awaitEachGesture {
-                    var lastDistance = 0f
-                    var lastCentroid: Offset? = null
-
-                    do {
-                        val event = awaitPointerEvent()
-                        val pressedPointers = event.changes.filter { it.pressed }
-
-                        if (pressedPointers.size >= 2) {
-                            val p1 = pressedPointers[0].position
-                            val p2 = pressedPointers[1].position
-
-                            val centroid = Offset(
-                                x = (p1.x + p2.x) / 2f,
-                                y = (p1.y + p2.y) / 2f
+            if (onLikeClick != null || onCommentClick != null || onShareClick != null) {
+                Surface(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(12.dp),
+                    color = Color.Black.copy(alpha = 0.45f),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 14.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (onLikeClick != null) {
+                            LikeComponent(
+                                isLiked = isLiked,
+                                likeCount = likeCount,
+                                onLikeClick = onLikeClick,
+                                isVertical = false,
+                                unlikedTint = Color.White.copy(alpha = 0.85f),
+                                textColor = Color.White
                             )
-                            val distance = distanceBetween(p1, p2)
-
-                            if (lastDistance > 0f) {
-                                val zoomChange = distance / lastDistance
-                                val newScale = (scale * zoomChange).coerceIn(1f, 4f)
-                                val pan = if (lastCentroid != null) centroid - lastCentroid!! else Offset.Zero
-
-                                scale = newScale
-                                offset = if (newScale > 1f) {
-                                    clampOffset(offset + pan, newScale, containerSize)
-                                } else {
-                                    Offset.Zero
-                                }
-
-                                event.changes.forEach { it.consume() }
-                            }
-
-                            lastDistance = distance
-                            lastCentroid = centroid
-                        } else {
-                            lastDistance = 0f
-                            lastCentroid = null
                         }
-                    } while (event.changes.any { it.pressed })
+
+                        Spacer(Modifier.width(24.dp))
+
+                        InteractionItem(
+                            iconRes = R.drawable.icon_message,
+                            count = commentCount.toString(),
+                            onClick = {
+                                onDismiss()
+                                onCommentClick?.invoke()
+                            },
+                            iconTint = Color.White,
+                            textColor = Color.White
+                        )
+
+                        Spacer(Modifier.width(24.dp))
+
+                        InteractionItem(
+                            iconRes = R.drawable.icon_share,
+                            count = shareCount.toString(),
+                            onClick = { onShareClick?.invoke() },
+                            iconTint = Color.White,
+                            textColor = Color.White
+                        )
+                    }
                 }
             }
-            .pointerInput(scale, imageUrl) {
-                if (scale <= 1f) return@pointerInput
-                detectDragGestures { change, dragAmount ->
-                    change.consume()
-                    offset = clampOffset(offset + dragAmount, scale, containerSize)
-                }
-            }
-    ) {
-        AsyncImage(
-            model = imageUrl,
-            contentDescription = null,
-            modifier = Modifier
-                .fillMaxSize()
-                .graphicsLayer {
-                    scaleX = scale
-                    scaleY = scale
-                    translationX = offset.x
-                    translationY = offset.y
-                },
-            contentScale = ContentScale.Fit
-        )
+        }
     }
-}
-
-private fun clampOffset(offset: Offset, scale: Float, size: IntSize): Offset {
-    if (scale <= 1f || size == IntSize.Zero) return Offset.Zero
-
-    val maxX = (size.width * (scale - 1f)) / 2f
-    val maxY = (size.height * (scale - 1f)) / 2f
-    return Offset(
-        x = offset.x.coerceIn(-maxX, maxX),
-        y = offset.y.coerceIn(-maxY, maxY)
-    )
-}
-
-private fun distanceBetween(a: Offset, b: Offset): Float {
-    return hypot(a.x - b.x, a.y - b.y)
 }
 
 @Composable
-private fun FeedVideoPlayer(
-    videoUrl: String,
-    shouldPlay: Boolean,
-    mediaAspectRatio: Float,
-    onVideoClick: (() -> Unit)?
-) {
-    var isPrepared by remember(videoUrl) { mutableStateOf(false) }
-    var hasEnded by remember(videoUrl) { mutableStateOf(false) }
-    var videoViewRef by remember(videoUrl) { mutableStateOf<VideoView?>(null) }
+private fun FullscreenVideo(url: String) {
+    var showReplay by remember(url) { mutableStateOf(false) }
+    var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
 
-    LaunchedEffect(shouldPlay, isPrepared, hasEnded) {
-        val videoView = videoViewRef ?: return@LaunchedEffect
-        if (!isPrepared) return@LaunchedEffect
-
-        if (shouldPlay && !hasEnded && !videoView.isPlaying) {
-            videoView.start()
-        }
-
-        if (!shouldPlay && videoView.isPlaying) {
-            videoView.pause()
-        }
-    }
-
-    DisposableEffect(videoUrl) {
-        onDispose {
-            videoViewRef?.stopPlayback()
-            videoViewRef = null
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(mediaAspectRatio)
-            .clickable(enabled = onVideoClick != null) {
-                onVideoClick?.invoke()
-            }
-    ) {
+    Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
             factory = { ctx ->
                 VideoView(ctx).apply {
                     videoViewRef = this
-                    setVideoURI(Uri.parse(videoUrl))
-                    setOnPreparedListener { mediaPlayer ->
-                        mediaPlayer.isLooping = false
-                        isPrepared = true
-                        hasEnded = false
-                        if (shouldPlay) start()
+                    setVideoURI(Uri.parse(url))
+                    setOnPreparedListener {
+                        showReplay = false
+                        start()
                     }
                     setOnCompletionListener {
-                        hasEnded = true
+                        showReplay = true
                     }
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            update = {
+                it.setVideoURI(Uri.parse(url))
+                it.setOnPreparedListener { mp ->
+                    showReplay = false
+                    mp.isLooping = false
+                    it.start()
+                }
+                it.setOnCompletionListener {
+                    showReplay = true
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .aspectRatio(16f / 9f)
+                .align(Alignment.Center)
         )
 
-        if (hasEnded) {
-            FilledTonalButton(
+        if (showReplay) {
+            Button(
                 onClick = {
-                    hasEnded = false
+                    showReplay = false
                     videoViewRef?.seekTo(0)
                     videoViewRef?.start()
                 },
                 modifier = Modifier.align(Alignment.Center)
             ) {
-                Text("Xem lại")
+                Text("Xem lại", textAlign = TextAlign.Center)
             }
         }
     }
@@ -955,8 +987,9 @@ private val VIDEO_EXTENSIONS = setOf("mp4", "mov", "webm", "m3u8", "mkv", "avi",
 fun InteractionItem(
     iconRes: Int,
     count: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit = {}
+    onClick: () -> Unit = {},
+    iconTint: Color = MaterialTheme.colorScheme.onSurfaceVariant,
+    textColor: Color = MaterialTheme.colorScheme.onSurfaceVariant
 ) {
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -968,14 +1001,14 @@ fun InteractionItem(
         Icon(
             painter = painterResource(id = iconRes),
             contentDescription = null,
-            modifier = Modifier.size(21.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
+            modifier = Modifier.size(20.dp),
+            tint = iconTint
         )
         Spacer(Modifier.width(4.dp))
         Text(
             text = count,
             fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            color = textColor
         )
     }
 }
@@ -1007,7 +1040,7 @@ private fun SaveInteractionItem(
 fun formatTimeAgo(timeString: String): String {
     return try {
         timeString.substring(0, 10)
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         "Vừa xong"
     }
 }

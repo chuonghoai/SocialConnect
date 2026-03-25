@@ -3,10 +3,14 @@
 import com.example.frontend.data.remote.dto.CommentResponseDto
 import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import com.example.frontend.data.remote.dto.UpdatePostRequest
+import com.example.frontend.domain.model.Post
 import retrofit2.http.Query
 import retrofit2.Response
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.POST
 import retrofit2.http.Path
 
@@ -56,6 +60,15 @@ interface PostApi {
 
     @POST(ApiRoutes.CREATE_POST)
     suspend fun createPost(@Body request: CreatePostRequest): Map<String, String>
+
+    @PATCH(ApiRoutes.UPDATE_POST)
+    suspend fun updatePost(
+        @Path("postId") postId: String,
+        @Body request: UpdatePostRequest
+    ): Response<Unit>
+
+    @DELETE(ApiRoutes.DELETE_POST)
+    suspend fun deletePost(@Path("postId") postId: String): Response<Unit>
 
     @GET(ApiRoutes.GET_POST_COMMENTS)
     suspend fun getPostComments(

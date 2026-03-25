@@ -1,4 +1,4 @@
-package com.example.frontend.core.util
+﻿package com.example.frontend.core.util
 
 import android.net.Uri
 import android.util.Log
@@ -9,8 +9,11 @@ import com.example.frontend.ui.component.NotificationType
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -38,9 +41,16 @@ class PostUploadManager @Inject constructor(
     private val _postCreatedTick = MutableStateFlow(0L)
     val postCreatedTick: StateFlow<Long> = _postCreatedTick.asStateFlow()
 
+    private val _postCreatedEvents = MutableSharedFlow<Unit>(extraBufferCapacity = 1)
+    val postCreatedEvents: SharedFlow<Unit> = _postCreatedEvents.asSharedFlow()
+
+    fun notifyPostChanged() {
+        _postCreatedEvents.tryEmit(Unit)
+    }
+
     fun uploadPost(content: String, visibility: String, uris: List<Uri>) {
         applicationScope.launch {
-            _uploadState.value = UploadState(isUploading = true, progressText = "Đang chuẩn bị...")
+            _uploadState.value = UploadState(isUploading = true, progressText = "Dang chuan bi...")
 
             val mediaIdsToSave = mutableListOf<String>()
 
@@ -48,7 +58,7 @@ class PostUploadManager @Inject constructor(
                 for ((index, uri) in uris.withIndex()) {
                     _uploadState.value = UploadState(
                         isUploading = true,
-                        progressText = "Đang tải file ${index + 1}/${uris.size}..."
+                        progressText = "Dang tai file ${index + 1}/${uris.size}..."
                     )
 
                     when (val uploadRes = uploadMediaUseCase(uri)) {
@@ -56,7 +66,7 @@ class PostUploadManager @Inject constructor(
                         is ApiResult.Error -> {
                             _uploadState.value = UploadState(isUploading = false)
                             notificationManager.showMessage(
-                                "Lỗi upload file: ${uploadRes.message}",
+                                "Loi upload file: ${uploadRes.message}",
                                 NotificationType.ERROR
                             )
                             return@launch
@@ -65,7 +75,7 @@ class PostUploadManager @Inject constructor(
                 }
             }
 
-            _uploadState.value = UploadState(isUploading = true, progressText = "Đang hoàn tất bài viết...")
+            _uploadState.value = UploadState(isUploading = true, progressText = "Dang hoan tat bai viet...")
 
             Log.d(
                 TAG,
@@ -75,13 +85,13 @@ class PostUploadManager @Inject constructor(
             when (val postRes = createPostUseCase(content, visibility, mediaIdsToSave.ifEmpty { null })) {
                 is ApiResult.Success -> {
                     _uploadState.value = UploadState(isUploading = false)
-                    _postCreatedTick.value = System.currentTimeMillis()
-                    notificationManager.showMessage("Đăng bài viết thành công!", NotificationType.SUCCESS)
+                    notifyPostChanged()
+                    notificationManager.showMessage("Dang bai viet thanh cong!", NotificationType.SUCCESS)
                 }
 
                 is ApiResult.Error -> {
                     _uploadState.value = UploadState(isUploading = false)
-                    notificationManager.showMessage("Lỗi đăng bài: ${postRes.message}", NotificationType.ERROR)
+                    notificationManager.showMessage("Loi dang bai: ${postRes.message}", NotificationType.ERROR)
                 }
             }
         }
