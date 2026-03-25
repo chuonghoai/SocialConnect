@@ -354,7 +354,17 @@ fun AppNavGraph(
                         partnerId = partnerId,
                         conversationName = conversationName,
                         conversationAvatarUrl = conversationAvatar,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onVoiceCallClick = {
+                            val encodedName = Uri.encode(conversationName)
+                            val encodedAvatar = Uri.encode(conversationAvatar ?: "")
+                            navController.navigate("${Routes.CALL_BASE}/$partnerId?isVideoCall=false&isIncoming=false&fullname=$encodedName&avatarUrl=$encodedAvatar")
+                        },
+                        onVideoCallClick = {
+                            val encodedName = Uri.encode(conversationName)
+                            val encodedAvatar = Uri.encode(conversationAvatar ?: "")
+                            navController.navigate("${Routes.CALL_BASE}/$partnerId?isVideoCall=true&isIncoming=false&fullname=$encodedName&avatarUrl=$encodedAvatar")
+                        }
                     )
                 }
 

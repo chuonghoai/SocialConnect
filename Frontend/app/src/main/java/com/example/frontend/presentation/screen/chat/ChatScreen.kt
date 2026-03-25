@@ -17,6 +17,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -70,6 +71,8 @@ fun ChatScreen(
     conversationName: String = "Người dùng",
     conversationAvatarUrl: String? = null,
     onBackClick: () -> Unit = {},
+    onVoiceCallClick: () -> Unit = {},
+    onVideoCallClick: () -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -280,6 +283,8 @@ fun ChatScreen(
             avatarUrl = conversationAvatarUrl,
             isOnline = isPartnerOnline,
             onBackClick = onBackClick,
+            onVoiceCallClick = onVoiceCallClick,
+            onVideoCallClick = onVideoCallClick,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .zIndex(10f)
@@ -778,6 +783,8 @@ private fun ChatTopBar(
     avatarUrl: String?,
     isOnline: Boolean,
     onBackClick: () -> Unit,
+    onVoiceCallClick: () -> Unit,
+    onVideoCallClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -837,10 +844,10 @@ private fun ChatTopBar(
             )
         }
 
-        IconButton(onClick = {}) {
+        IconButton(onClick = onVoiceCallClick) {
             Icon(Icons.Default.Phone, null, tint = Color(0xFF212121), modifier = Modifier.size(20.dp))
         }
-        IconButton(onClick = {}) {
+        IconButton(onClick = onVideoCallClick) {
             Icon(Icons.Default.Videocam, null, tint = Color(0xFF212121), modifier = Modifier.size(21.dp))
         }
     }

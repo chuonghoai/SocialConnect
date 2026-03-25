@@ -6,10 +6,11 @@ import org.json.JSONObject
 import org.webrtc.*
 import javax.inject.Inject
 import javax.inject.Singleton
+import dagger.hilt.android.qualifiers.ApplicationContext
 
 @Singleton
 class WebRtcClient @Inject constructor(
-    private val context: Context
+    @ApplicationContext private val context: Context
 ) {
     // EglBase dùng để render phần cứng cho Video
     val eglBaseContext: EglBase.Context by lazy { EglBase.create().eglBaseContext }
@@ -104,13 +105,15 @@ class WebRtcClient @Inject constructor(
         }
 
         peerConnection?.createOffer(object : SdpObserverAdapter() {
-            override fun onCreateSuccess(desc: SessionDescription) {
-                peerConnection?.setLocalDescription(SdpObserverAdapter(), desc)
-                val sdpJson = JSONObject().apply {
-                    put("type", desc.type.canonicalForm())
-                    put("sdp", desc.description)
+            override fun onCreateSuccess(desc: SessionDescription?) {
+                desc?.let { nonNullDesc -> // Kiểm tra null trước khi dùng
+                    peerConnection?.setLocalDescription(SdpObserverAdapter(), nonNullDesc)
+                    val sdpJson = JSONObject().apply {
+                        put("type", nonNullDesc.type.canonicalForm())
+                        put("sdp", nonNullDesc.description)
+                    }
+                    listener?.onTransferOffer(sdpJson) // Gửi socket
                 }
-                listener?.onTransferOffer(sdpJson) // Gửi socket
             }
         }, constraints)
     }
@@ -123,13 +126,15 @@ class WebRtcClient @Inject constructor(
         }
 
         peerConnection?.createAnswer(object : SdpObserverAdapter() {
-            override fun onCreateSuccess(desc: SessionDescription) {
-                peerConnection?.setLocalDescription(SdpObserverAdapter(), desc)
-                val sdpJson = JSONObject().apply {
-                    put("type", desc.type.canonicalForm())
-                    put("sdp", desc.description)
+            override fun onCreateSuccess(desc: SessionDescription?) {
+                desc?.let { nonNullDesc -> // Kiểm tra null
+                    peerConnection?.setLocalDescription(SdpObserverAdapter(), nonNullDesc)
+                    val sdpJson = JSONObject().apply {
+                        put("type", nonNullDesc.type.canonicalForm())
+                        put("sdp", nonNullDesc.description)
+                    }
+                    listener?.onTransferAnswer(sdpJson) // Gửi socket
                 }
-                listener?.onTransferAnswer(sdpJson) // Gửi socket
             }
         }, constraints)
     }
