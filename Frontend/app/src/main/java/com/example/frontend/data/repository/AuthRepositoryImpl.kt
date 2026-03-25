@@ -2,6 +2,7 @@ package com.example.frontend.data.repository
 
 import ChangePasswordRequest
 import UpdateProfileRequest
+import android.util.Log
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.datastore.TokenDataStore
 import com.example.frontend.data.local.dao.PostDao
@@ -108,9 +109,11 @@ class AuthRepositoryImpl @Inject constructor(
     override suspend fun logout() {
         try {
             authApi.logout()
-        } catch (_: Exception) {
-            // Ignore server logout errors (401/timeout...) and always clear local session.
+        } catch (e: Exception) {
+            // Log lỗi logout nhưng vẫn tiếp tục xóa dữ liệu local
+            Log.e("AuthRepository", "Lỗi khi gọi API logout: ${e.message}")
         } finally {
+            // Đảm bảo dữ liệu local luôn được xóa để người dùng thoát được màn hình
             tokenDataStore.clear()
             userDao.clearUser()
             postDao.clearAllPosts()

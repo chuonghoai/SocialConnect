@@ -34,10 +34,22 @@ import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.example.frontend.data.repository.ConversationRepositoryImpl
+import com.example.frontend.domain.repository.ConversationRepository
+import com.example.frontend.data.remote.api.MessageApi
+import com.example.frontend.data.repository.MessageRepositoryImpl
+import com.example.frontend.domain.repository.MessageRepository
+import com.google.gson.Gson
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson {
+        return Gson()
+    }
 
     @Provides
     @Singleton
@@ -65,12 +77,13 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideRetrofit(
-        okHttpClient: OkHttpClient
+        okHttpClient: OkHttpClient,
+        gson: Gson
     ): Retrofit {
         return Retrofit.Builder()
             .baseUrl(AppConfig.BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 
@@ -140,6 +153,28 @@ object NetworkModule {
     @Singleton
     fun provideConversationApi(retrofit: Retrofit): ConversationApi {
         return retrofit.create(ConversationApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideConversationRepository(
+        conversationApi: ConversationApi
+    ): ConversationRepository {
+        return ConversationRepositoryImpl(conversationApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMessageApi(retrofit: Retrofit): MessageApi {
+        return retrofit.create(MessageApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMessageRepository(
+        messageApi: MessageApi
+    ): MessageRepository {
+        return MessageRepositoryImpl(messageApi)
     }
 
     @Provides

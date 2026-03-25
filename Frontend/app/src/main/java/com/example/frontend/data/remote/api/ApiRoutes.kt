@@ -24,5 +24,8 @@ object ApiRoutes {
     const val CREATE_POST = "api/posts"
     const val UPDATE_PROFILE = "/api/auth/me"
     const val CHANGE_PASSWORD = "/auth/change-password"
+
+    // Conversation
     const val CONVERSATIONS = "api/conversations"
+    const val MESSAGES = "api/messages/{conversationId}"
 }

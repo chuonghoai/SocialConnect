@@ -2,17 +2,17 @@
 
 import android.net.Uri
 import android.util.Log
-import android.widget.MediaController
-import android.widget.VideoView
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -21,18 +21,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.ui.viewinterop.AndroidView
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.User
+import com.example.frontend.presentation.viewmodel.WebSocketViewModel
 import com.example.frontend.ui.theme.OrangePrimary
 import java.time.LocalDateTime
 import androidx.compose.animation.AnimatedVisibility
@@ -53,6 +52,8 @@ import com.example.frontend.ui.component.SharePostCaptionDialog
 import com.example.frontend.ui.component.ShareDropdownOption
 import com.example.frontend.ui.component.ShareFriendItem
 import com.example.frontend.ui.component.ScrollToTopButton
+import com.example.frontend.ui.theme.OrangePrimary
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -63,7 +64,8 @@ fun HomeScreen(
     onPostClick: (Post) -> Unit = {},
     onVideoClick: () -> Unit = {},
     onAvatarClick: (String) -> Unit = {},
-    viewModel: HomeViewModel = hiltViewModel()
+    viewModel: HomeViewModel = hiltViewModel(),
+    webSocketViewModel: WebSocketViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val isRefreshing by viewModel.isRefreshing.collectAsState()
@@ -84,7 +86,6 @@ fun HomeScreen(
         derivedStateOf {
             val totalItems = listState.layoutInfo.totalItemsCount
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-
             totalItems > 0 && lastVisibleItem >= totalItems - 3
         }
     }
@@ -92,6 +93,15 @@ fun HomeScreen(
     val showScrollToTop by remember {
         derivedStateOf {
             listState.firstVisibleItemIndex > 1
+        }
+    }
+
+    val isConnected by webSocketViewModel.isConnected.collectAsState()
+    
+    // Chỉ gọi kết nối khi màn hình được khởi tạo và chưa có kết nối
+    LaunchedEffect(Unit) {
+        if (!isConnected) {
+            webSocketViewModel.connect()
         }
     }
 

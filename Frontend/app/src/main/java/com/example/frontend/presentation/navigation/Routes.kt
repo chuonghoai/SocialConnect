@@ -19,10 +19,12 @@ object Routes {
     const val NOTIFICATION = "notification"
     const val CONVERSATION_LIST = "conversation_list"
     const val CHAT_BASE = "chat"
-    const val CHAT = "chat/{conversationId}?name={name}&avatar={avatar}"
+    const val CHAT = "chat/{conversationId}?partnerId={partnerId}&name={name}&avatar={avatar}"
     const val SETTING ="setting"
     const val EDIT_PROFILE = "edit_profile"
     const val CHANGE_PASSWORD = "change_password"
     const val CREATE_POST = "create_post"
     const val POST_DETAIL = "post_detail"
+    const val CALL_BASE = "call"
+    const val CALL = "$CALL_BASE/{targetUserId}?isVideoCall={isVideoCall}&isIncoming={isIncoming}&fullname={fullname}&avatarUrl={avatarUrl}"
 }
