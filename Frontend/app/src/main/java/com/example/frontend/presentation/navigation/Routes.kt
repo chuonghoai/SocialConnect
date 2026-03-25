@@ -12,6 +12,8 @@ object Routes {
     const val FORGOT_PASSWORD_RESET = "$FORGOT_PASSWORD_RESET_BASE?email={email}&otp={otp}"
     const val HOME = "home"
     const val PROFILE = "profile"
+    const val OTHER_PROFILE_BASE = "other_profile"
+    const val OTHER_PROFILE = "$OTHER_PROFILE_BASE/{userId}"
     const val VIDEO = "video"
     const val SEARCH = "search"
     const val NOTIFICATION = "notification"

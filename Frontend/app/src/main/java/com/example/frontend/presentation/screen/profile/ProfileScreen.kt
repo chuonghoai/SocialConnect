@@ -1,5 +1,6 @@
 ﻿package com.example.frontend.presentation.screen.profile
 
+import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -35,6 +36,9 @@ import com.example.frontend.R
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.User
 import com.example.frontend.ui.component.PostCard
+import com.example.frontend.ui.component.SharePostCaptionDialog
+import com.example.frontend.ui.component.ShareDropdownOption
+import com.example.frontend.ui.component.ShareFriendItem
 import com.example.frontend.ui.component.ScrollToTopButton
 import com.example.frontend.ui.theme.OrangePrimary
 import kotlinx.coroutines.launch
@@ -55,6 +59,14 @@ fun ProfileScreen(
     val successState = uiState as? ProfileUiState.Success
     val currentUser = successState?.user
     val selectedTabIndex = successState?.selectedTabIndex ?: 0
+    val shareFriendsState by viewModel.shareFriendsState.collectAsState()
+    var shareTargetPost by remember { mutableStateOf<Post?>(null) }
+    val postTargets = remember {
+        listOf(ShareDropdownOption(id = "feed", label = "Bảng feed"))
+    }
+    val privacyOptions = remember {
+        listOf(ShareDropdownOption(id = "only_me", label = "Chỉ mình tôi"))
+    }
 
     val showScrollToTop by remember {
         derivedStateOf {
@@ -172,7 +184,15 @@ fun ProfileScreen(
                                 }
                             } else {
                                 items(tabPosts) { post ->
-                                    PostCard(post = post, onSaveClick = { viewModel.toggleSavePost(post.id) }, saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết")
+                                    PostCard(
+                                        post = post,
+                                        onSaveClick = { viewModel.toggleSavePost(post.id) },
+                                        saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
+                                        onShareClick = {
+                                            shareTargetPost = post
+                                            viewModel.loadShareFriends(currentUser?.id.orEmpty())
+                                        }
+                                    )
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
                             }
@@ -196,6 +216,45 @@ fun ProfileScreen(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)
                         .padding(end = 16.dp, bottom = 16.dp)
+                )
+            }
+
+            shareTargetPost?.let { post ->
+                SharePostCaptionDialog(
+                    post = post,
+                    currentUserId = currentUser?.id.orEmpty(),
+                    currentUserName = currentUser?.displayName ?: "Người dùng",
+                    currentUserAvatarUrl = currentUser?.avatarUrl,
+                    postTargets = postTargets,
+                    privacyOptions = privacyOptions,
+                    friends = shareFriendsState.friends.map { friend ->
+                        ShareFriendItem(
+                            id = friend.id,
+                            name = friend.displayName,
+                            avatarUrl = friend.avatarUrl
+                        )
+                    },
+                    isFriendsLoading = shareFriendsState.isLoading,
+                    friendsError = shareFriendsState.error,
+                    onRetryLoadFriends = {
+                        viewModel.loadShareFriends(
+                            currentUserId = currentUser?.id.orEmpty(),
+                            forceRefresh = true
+                        )
+                    },
+                    onDismiss = { shareTargetPost = null },
+                    onConfirmShare = { shareData ->
+                        Log.d(
+                            "SharePost",
+                            "shareNow postId=${shareData.postId}, shareText=${shareData.shareText}, " +
+                                "target=${shareData.target}, privacy=${shareData.privacy}, " +
+                                "selectedFriendIds=${shareData.selectedFriendIds.joinToString()}, " +
+                                "currentUserId=${shareData.currentUserId}"
+                        )
+                        // TODO(BE): hỗ trợ gửi caption + selectedFriendIds trong endpoint share/message để FE nối payload đầy đủ.
+                        viewModel.sharePost(shareData)
+                        shareTargetPost = null
+                    }
                 )
             }
         }

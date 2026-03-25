@@ -39,7 +39,7 @@ class StartViewModel @Inject constructor(
                 is ApiResult.Error -> {
                     // Token het han/khong hop le -> clear session va tro ve login.
                     if (meResult.code == 401 || meResult.code == 403) {
-                        logoutUseCase()
+                        runCatching { logoutUseCase() }
                         _startDestination.value = Routes.LOGIN
                     } else {
                         // Neu chi la loi mang tam thoi, van giu HOME de dung du lieu local.
