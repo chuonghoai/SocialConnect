@@ -14,7 +14,6 @@ object ApiRoutes {
     const val SHARE_POST = "api/posts/{postId}/share"
     const val LIKE_POST = "api/posts/{postId}/like"
     const val SAVE_POST = "api/posts/{postId}/save"
-    const val SHARE_POST = "api/posts/{postId}/share"
     const val UPDATE_POST = "api/posts/{postId}"
     const val DELETE_POST = "api/posts/{postId}"
     const val LIKE_VIDEO = "api/videos/{videoId}/like"

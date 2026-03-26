@@ -65,7 +65,7 @@ import kotlinx.coroutines.flow.collectLatest
 fun AppNavGraph(
     sessionViewModel: SessionViewModel = hiltViewModel(),
     mainViewModel: MainViewModel = hiltViewModel(),
-    authSessionViewModel: AuthSessionViewModel = hiltViewModel()
+    authSessionViewModel: AuthSessionViewModel = hiltViewModel(),
     callViewModel: CallViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()

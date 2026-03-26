@@ -1,4 +1,4 @@
-﻿package com.example.frontend.ui.component
+package com.example.frontend.ui.component
 
 import android.net.Uri
 import android.widget.VideoView
@@ -50,7 +50,6 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.animation.animateContentSize
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -65,9 +64,7 @@ import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalClipboardManager
@@ -106,7 +103,7 @@ fun PostCard(
     onDeletePost: (() -> Unit)? = null,
     onChangeVisibility: ((String) -> Unit)? = null,
     onHidePost: (() -> Unit)? = null,
-    onReportPost: (() -> Unit)? = null
+    onReportPost: (() -> Unit)? = null,
     onAvatarClick: ((String) -> Unit)? = null
 ) {
     var isMoreMenuExpanded by remember { mutableStateOf(false) }
@@ -342,7 +339,6 @@ fun PostCard(
                 InteractionItem(
                     R.drawable.icon_share,
                     post.shareCount.toString(),
-                    enabled = onShareClick != null,
                     onClick = { onShareClick?.invoke() }
                 )
                 Spacer(Modifier.width(24.dp))
@@ -385,10 +381,7 @@ fun PostCard(
     }
 }
 
-private data class PostMediaItem(
-    val url: String,
-    val kind: String
-)
+
 
 @Composable
 private fun SharedPostPreviewCard(originalPost: OriginalPost) {
@@ -449,11 +442,11 @@ private fun SharedPostPreviewCard(originalPost: OriginalPost) {
     }
 }
 
-private fun resolveMedia(kind: String, cdnUrl: String, media: List<PostMedia>): List<PostMedia> {
-    val normalizedFromList = media
-        .filter { it.cdnUrl.isNotBlank() }
+private fun resolveMedia(kind: String, cdnUrl: String, media: List<PostMedia>?): List<PostMedia> {
+    val normalizedFromList = media.orEmpty()
+        .filter { it.cdnUrl?.isNotBlank() == true }
         .map {
-            if (it.kind.isBlank()) it.copy(kind = kind.ifBlank { "IMAGE" }) else it
+            if (it.kind?.isBlank() == true) it.copy(kind = kind.ifBlank { "IMAGE" }) else it
         }
 
     if (normalizedFromList.isNotEmpty()) return normalizedFromList
@@ -807,7 +800,7 @@ private fun FullScreenMediaViewer(
 }
 
 @Composable
-private fun FullscreenVideo(url: String) {
+private fun FullscreenVideo(url: String?) {
     var showReplay by remember(url) { mutableStateOf(false) }
     var videoViewRef by remember { mutableStateOf<VideoView?>(null) }
 
@@ -858,7 +851,7 @@ private fun FullscreenVideo(url: String) {
     }
 }
 
-private fun Post.toMediaItems(): List<PostMediaItem> {
+private fun Post.toMediaItems(): List<PostMedia> {
     val mediaFromArray = media.orEmpty().toPostMediaItems()
     if (mediaFromArray.isNotEmpty()) return mediaFromArray
 
@@ -878,7 +871,7 @@ private fun Post.toMediaItems(): List<PostMediaItem> {
         return urlsFromArrays.map { url ->
             val forceKind = if (videos.orEmpty().contains(url)) "VIDEO" else null
             val normalizedKind = normalizeKind(forceKind, url)
-            PostMediaItem(url = url, kind = normalizedKind)
+            PostMedia(cdnUrl = url, kind = normalizedKind)
         }
     }
 
@@ -891,11 +884,11 @@ private fun Post.toMediaItems(): List<PostMediaItem> {
             rawKind = kinds.getOrNull(index) ?: kinds.firstOrNull(),
             url = url
         )
-        PostMediaItem(url = url, kind = normalizedKind)
+        PostMedia(cdnUrl = url, kind = normalizedKind)
     }
 }
 
-private fun List<PostMedia>.toPostMediaItems(): List<PostMediaItem> {
+private fun List<PostMedia>.toPostMediaItems(): List<PostMedia> {
     return mapNotNull { mediaItem ->
         val url = mediaItem.resolvedUrl().trim()
         if (url.isBlank()) {
@@ -905,12 +898,12 @@ private fun List<PostMedia>.toPostMediaItems(): List<PostMediaItem> {
                 rawKind = mediaItem.kind?.ifBlank { null },
                 url = url
             )
-            PostMediaItem(url = url, kind = normalizedKind)
+            PostMedia(cdnUrl = url, kind = normalizedKind)
         }
     }
 }
 
-private fun OriginalPost.toMediaItems(): List<PostMediaItem> {
+private fun OriginalPost.toMediaItems(): List<PostMedia> {
     val urls = parseMediaUrls(cdnUrl)
     if (urls.isEmpty()) return emptyList()
 
@@ -920,7 +913,7 @@ private fun OriginalPost.toMediaItems(): List<PostMediaItem> {
             rawKind = kinds.getOrNull(index) ?: kinds.firstOrNull(),
             url = url
         )
-        PostMediaItem(url = url, kind = normalizedKind)
+        PostMedia(cdnUrl = url, kind = normalizedKind)
     }
 }
 
@@ -995,7 +988,7 @@ fun InteractionItem(
         verticalAlignment = Alignment.CenterVertically,
         modifier = Modifier
             .clip(RoundedCornerShape(14.dp))
-            .clickable(enabled = enabled, onClick = onClick)
+            .clickable(enabled = true, onClick = onClick)
             .padding(horizontal = 2.dp, vertical = 1.dp)
     ) {
         Icon(
@@ -1036,6 +1029,476 @@ private fun SaveInteractionItem(
         )
     }
 }
+
+@Composable
+private fun PostMediaPreview(
+    mediaItems: List<PostMedia>,
+    onVideoClick: (() -> Unit)? = null
+) {
+    if (mediaItems.isEmpty()) return
+
+    var isViewerOpen by remember(mediaItems) { mutableStateOf(false) }
+    var selectedIndex by remember(mediaItems) { mutableStateOf(0) }
+
+    val openViewer: (Int) -> Unit = { index ->
+        selectedIndex = index.coerceIn(0, mediaItems.lastIndex)
+        isViewerOpen = true
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(8.dp))
+            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
+    ) {
+        if (mediaItems.size == 1) {
+            val item = mediaItems.first()
+            if (item.kind == "VIDEO") {
+                FeedVideoPlayer(
+                    videoUrl = item.cdnUrl,
+                    shouldPlay = true,
+                    mediaAspectRatio = 16f / 9f,
+                    onVideoClick = {
+                        if (onVideoClick != null) onVideoClick()
+                        else openViewer(0)
+                    }
+                )
+            } else {
+                AsyncImage(
+                    model = item.cdnUrl,
+                    contentDescription = null,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(4f / 3f)
+                        .clickable { openViewer(0) },
+                    contentScale = ContentScale.Crop
+                )
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(1f)
+            ) {
+                MediaGridPreview(
+                    mediaItems = mediaItems,
+                    onItemClick = { index ->
+                        val item = mediaItems[index]
+                        if (item.kind == "VIDEO" && onVideoClick != null) {
+                            onVideoClick()
+                        } else {
+                            openViewer(index)
+                        }
+                    }
+                )
+            }
+        }
+    }
+
+    if (isViewerOpen) {
+        MediaViewerDialog(
+            mediaItems = mediaItems,
+            initialPage = selectedIndex,
+            onDismiss = { isViewerOpen = false }
+        )
+    }
+}
+
+@Composable
+private fun MediaGridPreview(
+    mediaItems: List<PostMedia>,
+    onItemClick: (Int) -> Unit
+) {
+    if (mediaItems.isEmpty()) return
+
+    val previewItems = mediaItems.take(4)
+    val hiddenCount = (mediaItems.size - 4).coerceAtLeast(0)
+    val spacing = 2.dp
+
+    when (mediaItems.size) {
+        1 -> {
+            MediaTile(
+                item = previewItems[0],
+                modifier = Modifier.fillMaxSize(),
+                onClick = { onItemClick(0) }
+            )
+        }
+
+        2 -> {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(spacing)
+            ) {
+                MediaTile(
+                    item = previewItems[0],
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    onClick = { onItemClick(0) }
+                )
+                MediaTile(
+                    item = previewItems[1],
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    onClick = { onItemClick(1) }
+                )
+            }
+        }
+
+        3 -> {
+            Row(
+                modifier = Modifier.fillMaxSize(),
+                horizontalArrangement = Arrangement.spacedBy(spacing)
+            ) {
+                MediaTile(
+                    item = previewItems[0],
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    onClick = { onItemClick(0) }
+                )
+
+                Column(
+                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    verticalArrangement = Arrangement.spacedBy(spacing)
+
+
+                ) {
+                    MediaTile(
+                        item = previewItems[1],
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        onClick = { onItemClick(1) }
+                    )
+
+                    MediaTile(
+                        item = previewItems[2],
+                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        onClick = { onItemClick(2) }
+                    )
+                }
+            }
+        }
+
+        4 -> {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(spacing)
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing)
+                ) {
+                    MediaTile(
+                        item = previewItems[0],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(0) }
+                    )
+                    MediaTile(
+                        item = previewItems[1],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(1) }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing)
+                ) {
+                    MediaTile(
+                        item = previewItems[2],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(2) }
+                    )
+                    MediaTile(
+                        item = previewItems[3],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(3) }
+                    )
+
+
+                }
+            }
+        }
+
+        else -> {
+            Column(
+                modifier = Modifier.fillMaxSize(),
+                verticalArrangement = Arrangement.spacedBy(spacing)
+            ) {
+                Row(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing)
+                ) {
+                    MediaTile(
+                        item = previewItems[0],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(0) }
+                    )
+                    MediaTile(
+                        item = previewItems[1],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(1) }
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(spacing)
+                ) {
+                    MediaTile(
+                        item = previewItems[2],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(2) }
+                    )
+                    MediaTile(
+                        item = previewItems[3],
+                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        onClick = { onItemClick(3) },
+                        overlayText = if (hiddenCount > 0) "+$hiddenCount" else null
+                    )
+
+
+                }
+            }
+        }
+    }
+
+}
+
+@Composable
+private fun FeedVideoPlayer(
+    videoUrl: String?,
+    shouldPlay: Boolean,
+    mediaAspectRatio: Float,
+    onVideoClick: (() -> Unit)?
+) {
+    var isPrepared by remember(videoUrl) { mutableStateOf(false) }
+    var hasEnded by remember(videoUrl) { mutableStateOf(false) }
+    var videoViewRef by remember(videoUrl) { mutableStateOf<VideoView?>(null) }
+
+    LaunchedEffect(shouldPlay, isPrepared, hasEnded) {
+        val videoView = videoViewRef ?: return@LaunchedEffect
+        if (!isPrepared) return@LaunchedEffect
+        if (shouldPlay && !hasEnded && !videoView.isPlaying) {
+            videoView.start()
+        }
+
+        if (!shouldPlay && videoView.isPlaying) {
+            videoView.pause()
+        }
+    }
+
+    DisposableEffect(videoUrl) {
+        onDispose {
+            videoViewRef?.stopPlayback()
+            videoViewRef = null
+        }
+    }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .aspectRatio(mediaAspectRatio)
+            .clickable(enabled = onVideoClick != null) {
+                onVideoClick?.invoke()
+            }
+    ) {
+        AndroidView(
+            factory = { ctx ->
+                VideoView(ctx).apply {
+                    videoViewRef = this
+                    setVideoURI(Uri.parse(videoUrl))
+                    setOnPreparedListener { mediaPlayer ->
+                        mediaPlayer.isLooping = false
+                        isPrepared = true
+                        hasEnded = false
+                        if (shouldPlay) start()
+                    }
+                    setOnCompletionListener {
+                        hasEnded = true
+                    }
+                }
+            },
+            modifier = Modifier.fillMaxSize()
+        )
+
+        if (hasEnded) {
+            FilledTonalButton(
+                onClick = {
+                    hasEnded = false
+                    videoViewRef?.seekTo(0)
+                    videoViewRef?.start()
+                },
+                modifier = Modifier.align(Alignment.Center)
+            ) {
+                Text("Xem lại")
+            }
+        }
+    }
+}
+
+@Composable
+private fun MediaViewerDialog(
+    mediaItems: List<PostMedia>,
+    initialPage: Int,
+    onDismiss: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(Color.Black)
+        ) {
+            val pagerState = rememberPagerState(
+                initialPage = initialPage.coerceIn(0, mediaItems.lastIndex),
+                pageCount = { mediaItems.size }
+            )
+
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize()
+            ) { page ->
+                val item = mediaItems[page]
+                if (item.kind == "VIDEO") {
+                    FeedVideoPlayer(
+                        videoUrl = item.cdnUrl,
+                        shouldPlay = pagerState.currentPage == page,
+                        mediaAspectRatio = 16f / 9f,
+                        onVideoClick = null
+                    )
+                } else {
+                    ZoomableMediaImage(imageUrl = item.cdnUrl)
+                }
+            }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .statusBarsPadding()
+                    .padding(8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = onDismiss) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close viewer",
+                        tint = Color.White
+                    )
+                }
+                Text(
+                    text = "${pagerState.currentPage + 1}/${mediaItems.size}",
+                    color = Color.White,
+                    textAlign = TextAlign.End,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ZoomableMediaImage(imageUrl: String?) {
+    var scale by remember(imageUrl) { mutableStateOf(1f) }
+    var offset by remember(imageUrl) { mutableStateOf(Offset.Zero) }
+    var containerSize by remember(imageUrl) { mutableStateOf(IntSize.Zero) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .onSizeChanged { containerSize = it }
+            .pointerInput(imageUrl) {
+                detectTapGestures(
+                    onDoubleTap = {
+                        if (scale > 1f) {
+                            scale = 1f
+                            offset = Offset.Zero
+                        } else {
+                            scale = 2f
+                        }
+                    }
+                )
+            }
+            .pointerInput(imageUrl) {
+                awaitEachGesture {
+                    var lastDistance = 0f
+                    var lastCentroid: Offset? = null
+
+                    do {
+                        val event = awaitPointerEvent()
+                        val pressedPointers = event.changes.filter { it.pressed }
+
+                        if (pressedPointers.size >= 2) {
+                            val p1 = pressedPointers[0].position
+                            val p2 = pressedPointers[1].position
+
+                            val centroid = Offset(
+                                x = (p1.x + p2.x) / 2f,
+                                y = (p1.y + p2.y) / 2f
+                            )
+                            val distance = distanceBetween(p1, p2)
+
+                            if (lastDistance > 0f) {
+                                val zoomChange = distance / lastDistance
+                                val newScale = (scale * zoomChange).coerceIn(1f, 4f)
+                                val pan = if (lastCentroid != null) centroid - lastCentroid!! else Offset.Zero
+
+                                scale = newScale
+                                offset = if (newScale > 1f) {
+                                    clampOffset(offset + pan, newScale, containerSize)
+                                } else {
+                                    Offset.Zero
+                                }
+
+                                event.changes.forEach { it.consume() }
+                            }
+
+                            lastDistance = distance
+                            lastCentroid = centroid
+                        } else {
+                            lastDistance = 0f
+                            lastCentroid = null
+                        }
+                    } while (event.changes.any { it.pressed })
+                }
+            }
+            .pointerInput(scale, imageUrl) {
+                if (scale <= 1f) return@pointerInput
+                detectDragGestures { change, dragAmount ->
+                    change.consume()
+                    offset = clampOffset(offset + dragAmount, scale, containerSize)
+                }
+            }
+    ) {
+        AsyncImage(
+            model = imageUrl,
+            contentDescription = null,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    scaleX = scale
+                    scaleY = scale
+                    translationX = offset.x
+                    translationY = offset.y
+                },
+            contentScale = ContentScale.Fit
+        )
+    }
+}
+
+private fun clampOffset(offset: Offset, scale: Float, size: IntSize): Offset {
+    if (scale <= 1f || size == IntSize.Zero) return Offset.Zero
+
+    val maxX = (size.width * (scale - 1f)) / 2f
+    val maxY = (size.height * (scale - 1f)) / 2f
+    return Offset(
+        x = offset.x.coerceIn(-maxX, maxX),
+        y = offset.y.coerceIn(-maxY, maxY)
+    )
+}
+
+private fun distanceBetween(a: Offset, b: Offset): Float {
+    return hypot(a.x - b.x, a.y - b.y)
+}
+
 
 fun formatTimeAgo(timeString: String): String {
     return try {
