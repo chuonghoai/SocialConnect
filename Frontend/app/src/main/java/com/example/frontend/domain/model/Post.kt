@@ -75,23 +75,22 @@ data class Post(
         value = "media",
         alternate = ["medias", "attachments", "files", "mediaList"]
     )
-    val media: List<PostMedia> = emptyList(),
+    val media: List<PostMedia>? = emptyList(),
+    val isLiked: Boolean = false,
+    val isSaved: Boolean = false,
+    val originalPost: OriginalPost? = null,
     @SerializedName(
         value = "mediaIds_alt",
         alternate = ["mediaIds", "mediaID", "mediaIDs", "mediaId"]
     )
-    val mediaIds: List<PostMedia> = emptyList(),
+    val mediaIds: List<PostMedia>? = null,
     @SerializedName(
         value = "cdnUrls",
         alternate = ["urls", "mediaUrls", "imageUrls", "videoUrls"]
     )
-    val mediaUrls: List<String> = emptyList(),
+    val mediaUrls: List<String>? = null,
     @SerializedName(value = "images")
-    val images: List<String> = emptyList(),
+    val images: List<String>? = null,
     @SerializedName(value = "videos")
-    val videos: List<String> = emptyList(),
-    val isLiked: Boolean = false,
-    val isSaved: Boolean = false,
-    val originalPost: OriginalPost? = null
+    val videos: List<String>? = null
 )
-
