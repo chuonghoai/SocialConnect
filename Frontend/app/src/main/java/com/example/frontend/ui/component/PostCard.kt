@@ -1,5 +1,6 @@
 package com.example.frontend.ui.component
 
+import android.annotation.SuppressLint
 import android.net.Uri
 import android.widget.VideoView
 import androidx.compose.animation.animateContentSize
@@ -23,11 +24,22 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.animation.animateContentSize
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Forward5
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material.icons.filled.Replay
+import androidx.compose.material.icons.filled.Replay5
+import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.VolumeOff
+import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -62,6 +74,7 @@ import com.example.frontend.domain.model.PostMedia
 import com.example.frontend.ui.theme.OrangePrimary
 import java.time.LocalDateTime
 import kotlin.math.hypot
+import kotlinx.coroutines.delay
 
 @Composable
 fun PostCard(
@@ -726,15 +739,14 @@ private fun FullScreenMediaViewer(
             ) { page ->
                 val item = mediaItems[page]
                 if (item.kind.equals("VIDEO", ignoreCase = true)) {
-                    FullscreenVideo(url = item.cdnUrl)
-                } else {
-                    AsyncImage(
-                        model = item.cdnUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
-                        error = painterResource(R.drawable.icon_image)
+                    FeedVideoPlayer(
+                        videoUrl = item.cdnUrl,
+                        shouldPlay = pagerState.currentPage == page,
+                        mediaAspectRatio = 0f,
+                        onVideoClick = null
                     )
+                } else {
+                    ZoomableMediaImage(imageUrl = item.cdnUrl)
                 }
             }
 
@@ -1148,12 +1160,16 @@ private fun MediaGridPreview(
             ) {
                 MediaTile(
                     item = previewItems[0],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     onClick = { onItemClick(0) }
                 )
                 MediaTile(
                     item = previewItems[1],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     onClick = { onItemClick(1) }
                 )
             }
@@ -1166,25 +1182,33 @@ private fun MediaGridPreview(
             ) {
                 MediaTile(
                     item = previewItems[0],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     onClick = { onItemClick(0) }
                 )
 
                 Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(spacing)
 
 
                 ) {
                     MediaTile(
                         item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                         onClick = { onItemClick(1) }
                     )
 
                     MediaTile(
                         item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                         onClick = { onItemClick(2) }
                     )
                 }
@@ -1197,33 +1221,45 @@ private fun MediaGridPreview(
                 verticalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing)
                 ) {
                     MediaTile(
                         item = previewItems[0],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(0) }
                     )
                     MediaTile(
                         item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(1) }
                     )
                 }
 
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing)
                 ) {
                     MediaTile(
                         item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(2) }
                     )
                     MediaTile(
                         item = previewItems[3],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(3) }
                     )
 
@@ -1238,33 +1274,45 @@ private fun MediaGridPreview(
                 verticalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing)
                 ) {
                     MediaTile(
                         item = previewItems[0],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(0) }
                     )
                     MediaTile(
                         item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(1) }
                     )
                 }
 
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing)
                 ) {
                     MediaTile(
                         item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(2) }
                     )
                     MediaTile(
                         item = previewItems[3],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(3) },
                         overlayText = if (hiddenCount > 0) "+$hiddenCount" else null
                     )
@@ -1276,85 +1324,257 @@ private fun MediaGridPreview(
     }
 
 }
-
 @Composable
-private fun FeedVideoPlayer(
+fun FeedVideoPlayer(
     videoUrl: String?,
     shouldPlay: Boolean,
     mediaAspectRatio: Float,
-    onVideoClick: (() -> Unit)?
+    onVideoClick: (() -> Unit)?,
+    onLongPress: (() -> Unit)? = null
 ) {
     var isPrepared by remember(videoUrl) { mutableStateOf(false) }
     var hasEnded by remember(videoUrl) { mutableStateOf(false) }
     var videoViewRef by remember(videoUrl) { mutableStateOf<VideoView?>(null) }
+    var mediaPlayerRef by remember(videoUrl) { mutableStateOf<android.media.MediaPlayer?>(null) }
+
+    var showControls by remember { mutableStateOf(false) }
+    var isPlaying by remember(shouldPlay) { mutableStateOf(shouldPlay) }
+    var currentPosition by remember { mutableIntStateOf(0) }
+    var videoDuration by remember { mutableIntStateOf(0) }
+    var isMuted by remember { mutableStateOf(false) }
 
     LaunchedEffect(shouldPlay, isPrepared, hasEnded) {
         val videoView = videoViewRef ?: return@LaunchedEffect
         if (!isPrepared) return@LaunchedEffect
-        if (shouldPlay && !hasEnded && !videoView.isPlaying) {
+        if (shouldPlay && !hasEnded) {
             videoView.start()
-        }
-
-        if (!shouldPlay && videoView.isPlaying) {
+            isPlaying = true
+        } else if (!shouldPlay) {
             videoView.pause()
+            isPlaying = false
         }
     }
 
-    DisposableEffect(videoUrl) {
-        onDispose {
-            videoViewRef?.stopPlayback()
-            videoViewRef = null
+    LaunchedEffect(showControls, isPlaying) {
+        if (showControls && isPlaying) {
+            delay(3000)
+            showControls = false
         }
+    }
+
+    LaunchedEffect(isPlaying, isPrepared, showControls) {
+        while (isPlaying && isPrepared && showControls) {
+            videoViewRef?.let {
+                currentPosition = it.currentPosition
+            }
+            delay(250)
+        }
+    }
+
+    val baseModifier = if (mediaAspectRatio > 0f) {
+        Modifier
+            .fillMaxWidth()
+            .aspectRatio(mediaAspectRatio)
+    } else {
+        Modifier.fillMaxSize()
     }
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .aspectRatio(mediaAspectRatio)
-            .clickable(enabled = onVideoClick != null) {
-                onVideoClick?.invoke()
+        modifier = baseModifier
+            .background(Color.Black)
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = {
+                        showControls = !showControls
+                        onVideoClick?.invoke()
+                    },
+                    onLongPress = { onLongPress?.invoke() }
+                )
             }
     ) {
         AndroidView(
             factory = { ctx ->
                 VideoView(ctx).apply {
                     videoViewRef = this
-                    setVideoURI(Uri.parse(videoUrl))
+                    setVideoURI(android.net.Uri.parse(videoUrl))
                     setOnPreparedListener { mediaPlayer ->
+                        mediaPlayerRef = mediaPlayer
                         mediaPlayer.isLooping = false
+                        videoDuration = mediaPlayer.duration
                         isPrepared = true
                         hasEnded = false
-                        if (shouldPlay) start()
+                        if (shouldPlay) {
+                            start()
+                            isPlaying = true
+                        }
+                        mediaPlayer.setVolume(if (isMuted) 0f else 1f, if (isMuted) 0f else 1f)
                     }
                     setOnCompletionListener {
                         hasEnded = true
+                        isPlaying = false
+                        showControls = true
                     }
                 }
             },
             modifier = Modifier.fillMaxSize()
         )
 
-        if (hasEnded) {
-            FilledTonalButton(
-                onClick = {
-                    hasEnded = false
-                    videoViewRef?.seekTo(0)
-                    videoViewRef?.start()
-                },
-                modifier = Modifier.align(Alignment.Center)
+        if (isPrepared && showControls && !hasEnded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.45f))
             ) {
-                Text("Xem lại")
+                Row(
+                    modifier = Modifier.align(Alignment.Center),
+                    horizontalArrangement = Arrangement.spacedBy(32.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(onClick = {
+                        val newPos = (currentPosition - 5000).coerceAtLeast(0)
+                        videoViewRef?.seekTo(newPos)
+                        currentPosition = newPos
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Replay5,
+                            contentDescription = "Lùi 5 giây",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            if (isPlaying) {
+                                videoViewRef?.pause()
+                                isPlaying = false
+                            } else {
+                                videoViewRef?.start()
+                                isPlaying = true
+                            }
+                        },
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
+                            contentDescription = "Phát/Tạm dừng",
+                            tint = Color.White,
+                            modifier = Modifier.size(56.dp)
+                        )
+                    }
+
+                    IconButton(onClick = {
+                        val newPos = (currentPosition + 5000).coerceAtMost(videoDuration)
+                        videoViewRef?.seekTo(newPos)
+                        currentPosition = newPos
+                    }) {
+                        Icon(
+                            imageVector = Icons.Default.Forward5,
+                            contentDescription = "Tới 5 giây",
+                            tint = Color.White,
+                            modifier = Modifier.size(36.dp)
+                        )
+                    }
+                }
+
+                Row(
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = formatVideoDuration(currentPosition),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    Slider(
+                        value = if (videoDuration > 0) currentPosition.toFloat() / videoDuration else 0f,
+                        onValueChange = { percent ->
+                            val newPos = (percent * videoDuration).toInt()
+                            currentPosition = newPos
+                            videoViewRef?.seekTo(newPos)
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .padding(horizontal = 8.dp),
+                        colors = SliderDefaults.colors(
+                            thumbColor = Color.White,
+                            activeTrackColor = Color.White,
+                            inactiveTrackColor = Color.White.copy(alpha = 0.4f)
+                        )
+                    )
+
+                    Text(
+                        text = formatVideoDuration(videoDuration),
+                        color = Color.White,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.Medium
+                    )
+
+                    IconButton(
+                        onClick = {
+                            isMuted = !isMuted
+                            mediaPlayerRef?.setVolume(if (isMuted) 0f else 1f, if (isMuted) 0f else 1f)
+                        },
+                        modifier = Modifier.padding(start = 4.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
+                            contentDescription = "Âm lượng",
+                            tint = Color.White
+                        )
+                    }
+                }
+            }
+        }
+
+        if (hasEnded) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.6f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    IconButton(
+                        onClick = {
+                            hasEnded = false
+                            videoViewRef?.seekTo(0)
+                            videoViewRef?.start()
+                            isPlaying = true
+                            showControls = false
+                        },
+                        modifier = Modifier.size(64.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Replay,
+                            contentDescription = "Xem lại",
+                            tint = Color.White,
+                            modifier = Modifier.size(48.dp)
+                        )
+                    }
+                    Text("Xem lại", color = Color.White, fontSize = 14.sp)
+                }
             }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun MediaViewerDialog(
+fun MediaViewerDialog(
     mediaItems: List<PostMedia>,
     initialPage: Int,
     onDismiss: () -> Unit
 ) {
+    var showOptions by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    val coroutineScope = rememberCoroutineScope()
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -1378,14 +1598,34 @@ private fun MediaViewerDialog(
                     FeedVideoPlayer(
                         videoUrl = item.cdnUrl,
                         shouldPlay = pagerState.currentPage == page,
-                        mediaAspectRatio = 16f / 9f,
-                        onVideoClick = null
+                        mediaAspectRatio = 0f,
+                        onVideoClick = null,
+                        onLongPress = { showOptions = true }
                     )
                 } else {
-                    ZoomableMediaImage(imageUrl = item.cdnUrl)
+                    ZoomableMediaImage(imageUrl = item.cdnUrl, onLongPress = { showOptions = true })
                 }
             }
 
+            // Options Overlay
+            if (showOptions) {
+                val currentMediaItem = mediaItems[pagerState.currentPage]
+                MediaOptionBottomSheet(
+                    mediaUrl = currentMediaItem.cdnUrl,
+                    isVideo = currentMediaItem.kind == "VIDEO",
+                    sheetState = sheetState,
+                    coroutineScope = coroutineScope,
+                    onDismissRequest = {
+                        // Tắt modal khi người dùng bấm ra ngoài hoặc vuốt xuống
+                        showOptions = false
+                    },
+                    onShareClick = {
+                        // Xử lý share
+                    }
+                )
+            }
+
+            // Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1394,12 +1634,21 @@ private fun MediaViewerDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close viewer",
-                        tint = Color.White
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close viewer",
+                            tint = Color.White
+                        )
+                    }
+                    IconButton(onClick = { showOptions = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Options",
+                            tint = Color.White
+                        )
+                    }
                 }
                 Text(
                     text = "${pagerState.currentPage + 1}/${mediaItems.size}",
@@ -1413,7 +1662,7 @@ private fun MediaViewerDialog(
 }
 
 @Composable
-private fun ZoomableMediaImage(imageUrl: String?) {
+fun ZoomableMediaImage(imageUrl: String?, onLongPress: () -> Unit = {}) {
     var scale by remember(imageUrl) { mutableStateOf(1f) }
     var offset by remember(imageUrl) { mutableStateOf(Offset.Zero) }
     var containerSize by remember(imageUrl) { mutableStateOf(IntSize.Zero) }
@@ -1431,7 +1680,8 @@ private fun ZoomableMediaImage(imageUrl: String?) {
                         } else {
                             scale = 2f
                         }
-                    }
+                    },
+                    onLongPress = { onLongPress() }
                 )
             }
             .pointerInput(imageUrl) {
@@ -1456,7 +1706,8 @@ private fun ZoomableMediaImage(imageUrl: String?) {
                             if (lastDistance > 0f) {
                                 val zoomChange = distance / lastDistance
                                 val newScale = (scale * zoomChange).coerceIn(1f, 4f)
-                                val pan = if (lastCentroid != null) centroid - lastCentroid!! else Offset.Zero
+                                val pan =
+                                    if (lastCentroid != null) centroid - lastCentroid!! else Offset.Zero
 
                                 scale = newScale
                                 offset = if (newScale > 1f) {
@@ -1525,3 +1776,11 @@ fun formatTimeAgo(timeString: String): String {
     }
 }
 
+// Helper: format video duration
+@SuppressLint("DefaultLocale")
+private fun formatVideoDuration(durationMillis: Int): String {
+    val totalSeconds = durationMillis / 1000
+    val minutes = totalSeconds / 60
+    val seconds = totalSeconds % 60
+    return String.format("%02d:%02d", minutes, seconds)
+}

@@ -45,5 +45,6 @@ object ApiRoutes {
 
     // Conversation
     const val CONVERSATIONS = "api/conversations"
+    const val CONVERSATIONS_SEARCH = "api/conversations/search/{keyword}"
     const val MESSAGES = "api/messages/{conversationId}"
 }
