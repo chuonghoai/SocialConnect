@@ -2,13 +2,6 @@
 
 import com.google.gson.annotations.SerializedName
 
-data class NestedMedia(
-    @SerializedName(value = "url", alternate = ["secure_url", "secureUrl", "link"])
-    val url: String = "",
-    @SerializedName(value = "cdnUrl", alternate = ["cdn_url", "path"])
-    val cdnUrl: String = ""
-)
-
 data class PostMedia(
     @SerializedName(
         value = "cdnUrl",
@@ -25,24 +18,31 @@ data class PostMedia(
             "videoUrl"
         ]
     )
-    val cdnUrl: String? = null,
+    val cdnUrl: String = "",
     @SerializedName(
         value = "kind",
         alternate = ["type", "resource_type", "resourceType", "mediaType"]
     )
-    val kind: String? = null,
+    val kind: String = "",
     @SerializedName(value = "media", alternate = ["file", "attachment", "asset"])
     val nested: NestedMedia? = null
 ) {
     fun resolvedUrl(): String {
         return when {
-            !cdnUrl.isNullOrBlank() -> cdnUrl.orEmpty()
-            !nested?.url.isNullOrBlank() -> nested?.url.orEmpty()
-            !nested?.cdnUrl.isNullOrBlank() -> nested?.cdnUrl.orEmpty()
+            cdnUrl.isNotBlank() -> cdnUrl
+            nested?.url?.isNotBlank() == true -> nested.url
+            nested?.cdnUrl?.isNotBlank() == true -> nested.cdnUrl
             else -> ""
         }
     }
 }
+
+data class NestedMedia(
+    @SerializedName(value = "url", alternate = ["secure_url", "secureUrl", "link"])
+    val url: String = "",
+    @SerializedName(value = "cdnUrl", alternate = ["cdn_url", "path"])
+    val cdnUrl: String = ""
+)
 
 data class OriginalPost(
     val id: String = "",

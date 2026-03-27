@@ -47,6 +47,7 @@ import kotlinx.coroutines.flow.map
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailScreen(
+    postId: String? = null,
     onBack: () -> Unit,
     viewModel: PostDetailViewModel = hiltViewModel()
 ) {
@@ -59,8 +60,8 @@ fun PostDetailScreen(
         viewModel.onMediaSelected(uri)
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadPostDetail()
+    LaunchedEffect(postId) {
+        viewModel.loadPostDetail(postId)
     }
 
     LaunchedEffect(listState) {
@@ -78,6 +79,8 @@ fun PostDetailScreen(
                 viewModel.loadMoreComments()
             }
     }
+
+    val commentItems = remember(uiState.comments) { buildCommentTree(uiState.comments) }
 
     Scaffold(
         topBar = {
@@ -174,14 +177,15 @@ fun PostDetailScreen(
             }
 
             // ── Danh sách comment ──────────────────────────────────────────
-            items(uiState.comments, key = { it.id }) { comment ->
+            items(commentItems, key = { it.comment.id }) { item ->
                 CommentItem(
-                    comment = comment,
-                    onReply = { viewModel.onReplyToComment(comment) }
+                    comment = item.comment,
+                    level = item.level,
+                    onReply = { viewModel.onReplyToComment(item.comment) }
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(
-                        start = if (comment.parentCommentId == null) 68.dp else 86.dp,
+                        start = (68 + (item.level * 34)).dp,
                         end = 16.dp
                     ),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -413,18 +417,19 @@ private fun PostDetailHeader(
 @Composable
 private fun CommentItem(
     comment: Comment,
+    level: Int,
     onReply: () -> Unit
 ) {
     var isLiked by remember { mutableStateOf(false) }
     var likeCount by remember { mutableIntStateOf(comment.likeCount) }
 
-    val isReply = comment.parentCommentId != null
+    val startPad = 16.dp + (level * 34).dp
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                start = if (isReply) 34.dp else 16.dp,
+                start = startPad,
                 end = 16.dp,
                 top = 8.dp,
                 bottom = 8.dp
@@ -702,4 +707,34 @@ private fun CommentInputBar(
             }
         }
     }
+}
+
+
+private data class CommentUiItem(
+    val comment: Comment,
+    val level: Int
+)
+
+private fun buildCommentTree(comments: List<Comment>): List<CommentUiItem> {
+    if (comments.isEmpty()) return emptyList()
+
+    val byParent = comments.groupBy { it.parentCommentId }
+    val roots = byParent[null].orEmpty()
+    val result = mutableListOf<CommentUiItem>()
+
+    fun dfs(node: Comment, level: Int) {
+        result.add(CommentUiItem(node, level))
+        val children = byParent[node.id].orEmpty().sortedBy { it.createdAt }
+        children.forEach { child -> dfs(child, level + 1) }
+    }
+
+    roots.forEach { root -> dfs(root, 0) }
+
+    val rootIds = roots.map { it.id }.toSet()
+    val orphans = comments.filter { it.parentCommentId != null && it.parentCommentId !in rootIds && it !in roots }
+    orphans.sortedBy { it.createdAt }.forEach { orphan ->
+        if (result.none { it.comment.id == orphan.id }) result.add(CommentUiItem(orphan, 0))
+    }
+
+    return result
 }

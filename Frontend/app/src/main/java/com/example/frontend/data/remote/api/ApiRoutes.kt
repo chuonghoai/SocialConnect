@@ -28,8 +28,20 @@ object ApiRoutes {
     const val GET_SIGNATURE = "api/media/signature"
     const val SAVE_MEDIA = "api/media"
     const val CREATE_POST = "api/posts"
+    const val GET_POST_BY_ID = "api/posts/{id}"
     const val UPDATE_PROFILE = "/api/auth/me"
     const val CHANGE_PASSWORD = "/auth/change-password"
+    const val GET_NOTIFICATIONS_ME = "api/notifications/me"
+    const val MARK_NOTIFICATION_READ = "api/notifications/{notificationId}/read"
+    const val GET_MY_FRIENDS = "api/users/me/friends"
+    const val ADD_FRIEND = "api/users/me/friends"
+    const val GET_FRIEND_REQUESTS = "api/users/me/friends/requests"
+    const val ACCEPT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/accept"
+    const val REJECT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/reject"
+    const val GET_USER_FRIENDS = "api/users/{userId}/friends"
+
+
+
 
     // Conversation
     const val CONVERSATIONS = "api/conversations"

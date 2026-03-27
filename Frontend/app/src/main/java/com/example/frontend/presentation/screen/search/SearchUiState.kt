@@ -17,6 +17,9 @@ data class SearchUiState(
     val isLoading: Boolean = false,
     val results: SearchResult? = null,
     val error: String? = null,
+    val addingFriendIds: Set<String> = emptySet(),
+    val pendingSentFriendIds: Set<String> = emptySet(),
+    val pendingIncomingFriendIds: Set<String> = emptySet(),
     /** true sau khi user bấm Search ít nhất một lần */
     val hasSearched: Boolean = false
 )

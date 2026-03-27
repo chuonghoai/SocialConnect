@@ -59,10 +59,10 @@ fun Map<String, Any?>.toDomainPost(): Post {
         cdnUrl = cdnUrl,
         isLiked = isLiked,
         media = parsedMedia,
-        mediaIds = null,
-        mediaUrls = null,
-        images = null,
-        videos = null
+        mediaIds = emptyList(),
+        mediaUrls = emptyList(),
+        images = emptyList(),
+        videos = emptyList()
     )
 }
 
@@ -90,7 +90,7 @@ private fun Map<String, Any?>.extractMediaFromRoot(): List<PostMedia> {
     }
 
     return results.map { (url, kind) ->
-        PostMedia(cdnUrl = url, kind = kind)
+        PostMedia(cdnUrl = url, kind = kind ?: inferKind(url))
     }
 }
 
