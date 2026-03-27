@@ -104,6 +104,7 @@ fun AppNavGraph(
     LaunchedEffect(callViewModel) {
         callViewModel.uiEvent.collect { event ->
             if (event is CallUiEvent.IncomingCall) {
+                callViewModel.startRinging()
                 val encodedName = Uri.encode(event.name)
                 val encodedAvatar = Uri.encode(event.avatar)
                 navController.navigate(

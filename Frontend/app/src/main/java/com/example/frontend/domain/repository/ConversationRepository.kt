@@ -5,4 +5,5 @@ import com.example.frontend.domain.model.Conversation
 
 interface ConversationRepository {
     suspend fun getConversations(): ApiResult<List<Conversation>>
+    suspend fun searchConversations(keyword: String): ApiResult<List<Conversation>>
 }

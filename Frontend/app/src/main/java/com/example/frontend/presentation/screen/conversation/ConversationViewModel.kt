@@ -7,6 +7,7 @@ import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.network.WebSocketManager
 import com.example.frontend.domain.model.Conversation
 import com.example.frontend.domain.usecase.ConversationUseCase.GetConversationsUseCase
+import com.example.frontend.domain.usecase.ConversationUseCase.SearchConversationsUseCase
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,13 +26,22 @@ data class ConversationUiState(
 @HiltViewModel
 class ConversationViewModel @Inject constructor(
     private val getConversationsUseCase: GetConversationsUseCase,
+    private val searchConversationsUseCase: SearchConversationsUseCase,
     private val webSocketManager: WebSocketManager,
     private val gson: Gson
-
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ConversationUiState())
     val uiState: StateFlow<ConversationUiState> = _uiState.asStateFlow()
+
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+
+    private val _searchResults = MutableStateFlow<List<Conversation>>(emptyList())
+    val searchResults: StateFlow<List<Conversation>> = _searchResults.asStateFlow()
+
+    private val _isSearching = MutableStateFlow(false)
+    val isSearching: StateFlow<Boolean> = _isSearching.asStateFlow()
 
     init {
         loadConversations()
@@ -78,5 +88,32 @@ class ConversationViewModel @Inject constructor(
                 }
             }
         }
+    }
+
+    fun searchConversations(keyword: String) {
+        _searchQuery.value = keyword
+
+        if (keyword.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
+
+        _isSearching.value = true
+        viewModelScope.launch {
+            when(val result = searchConversationsUseCase(keyword)) {
+                is ApiResult.Success -> {
+                    _searchResults.value = result.data ?: emptyList()
+                }
+                is ApiResult.Error -> {
+                    _searchResults.value = emptyList()
+                }
+            }
+            _isSearching.value = false
+        }
+    }
+
+    fun clearSearch() {
+        _searchQuery.value = ""
+        _searchResults.value = emptyList()
     }
 }
