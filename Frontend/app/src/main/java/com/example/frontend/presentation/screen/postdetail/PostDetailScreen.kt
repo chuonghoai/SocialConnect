@@ -566,17 +566,20 @@ private fun resolveCommentMedia(comment: Comment): List<PostMedia> {
             val url = mediaItem.resolvedUrl().trim()
             if (url.isBlank()) null else mediaItem.copy(cdnUrl = url)
         }
+        .distinctBy { mediaItem -> mediaItem.resolvedUrl().trim() }
     if (fromServer.isNotEmpty()) return fromServer
 
-    val fallbackUrl = comment.mediaUrl?.trim().orEmpty()
-    if (fallbackUrl.isBlank()) return emptyList()
+    val fallbackUrls = listOf(comment.mediaUrl?.trim().orEmpty())
+        .filter { it.isNotBlank() }
+        .distinct()
+    if (fallbackUrls.isEmpty()) return emptyList()
 
-    return listOf(
+    return fallbackUrls.map { url ->
         PostMedia(
-            cdnUrl = fallbackUrl,
+            cdnUrl = url,
             kind = comment.mediaType
         )
-    )
+    }
 }
 
 @Composable

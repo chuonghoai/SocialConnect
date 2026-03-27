@@ -22,11 +22,18 @@ private fun CommentResponseDto.resolveCommentMedia(): List<PostMedia> {
     val explicitMedia = media.mapNotNull { mediaItem ->
         val url = mediaItem.cdnUrl.trim()
         if (url.isBlank()) null else PostMedia(cdnUrl = url, kind = mediaItem.kind)
-    }
+    }.distinctBy { mediaItem -> mediaItem.resolvedUrl().trim() }
     if (explicitMedia.isNotEmpty()) return explicitMedia
 
-    val fallbackUrl = mediaUrl?.trim().orEmpty()
-    if (fallbackUrl.isBlank()) return emptyList()
+    val fallbackUrls = buildList {
+        add(mediaUrl?.trim().orEmpty())
+        addAll(mediaUrls.map { it.trim() })
+    }
+        .filter { it.isNotBlank() }
+        .distinct()
+    if (fallbackUrls.isEmpty()) return emptyList()
 
-    return listOf(PostMedia(cdnUrl = fallbackUrl, kind = mediaType))
+    return fallbackUrls.map { url ->
+        PostMedia(cdnUrl = url, kind = mediaType)
+    }
 }
