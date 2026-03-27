@@ -37,4 +37,24 @@ class ConversationRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
         }
     }
+
+    override suspend fun searchConversations(keyword: String): ApiResult<List<Conversation>> {
+        return try {
+            val response = conversationApi.searchConversations(keyword)
+            ApiResult.Success(response)
+        } catch (e: HttpException) {
+            val code = e.code()
+            val message = if (code == 401 || code == 403) {
+                "Phiên đăng nhập hết hạn. Vui lòng đăng nhập lại."
+            } else {
+                "Lỗi máy chủ ($code). Vui lòng thử lại sau."
+            }
+            ApiResult.Error(code = code, message = message, throwable = e)
+        } catch (e: JsonParseException) {
+            ApiResult.Error(message = "Dữ liệu không đúng định dạng.", throwable = e)
+        } catch (e: Exception) {
+            Log.e("ConversationRepo", "getConversations error", e)
+            ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
+        }
+    }
 }
