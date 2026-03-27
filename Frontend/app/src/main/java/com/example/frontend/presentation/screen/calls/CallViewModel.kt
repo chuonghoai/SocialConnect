@@ -2,8 +2,14 @@ package com.example.frontend.presentation.screen.calls
 
 import android.content.Context
 import android.media.AudioManager
+import android.media.MediaPlayer
+import android.os.Build
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.frontend.R
 import com.example.frontend.core.network.CallsSocketHandler
 import com.example.frontend.core.network.WebSocketManager
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -28,17 +34,17 @@ class CallViewModel @Inject constructor(
     val webRtcClient: WebRtcClient,
     @ApplicationContext private val context: Context
 ) : ViewModel(), WebRtcClient.Listener {
-
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
+    private var mediaPlayer: MediaPlayer? = null
+    private var vibrator: Vibrator? = null
 
     private val _uiState = MutableStateFlow(CallUiState())
     val uiState: StateFlow<CallUiState> = _uiState.asStateFlow()
-
     private val _uiEvent = MutableSharedFlow<CallUiEvent>()
     val uiEvent: SharedFlow<CallUiEvent> = _uiEvent.asSharedFlow()
 
     init {
-        webRtcClient.listener = this // BẮT BUỘC: gán listener để nhận callback SDP/ICE
+        webRtcClient.listener = this
         observeSocketConnection()
         observeCallEvents()
         setupAudio()
@@ -111,6 +117,7 @@ class CallViewModel @Inject constructor(
 
         viewModelScope.launch {
             callsSocketHandler.callEnded.collect { senderId ->
+                stopRinging()
                 _uiState.value = _uiState.value.copy(status = "ended")
                 _uiEvent.emit(CallUiEvent.CallEnded(senderId))
                 webRtcClient.endCall()
@@ -145,11 +152,57 @@ class CallViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(status = "ringing")
     }
 
-    fun acceptCall(targetUserId: String) {
-        val isVideoCall = _uiState.value.isVideoCall
-        _uiState.value = _uiState.value.copy(status = "accepted")
+    fun startRinging() {
+        if (mediaPlayer != null) return
 
-        audioManager.isSpeakerphoneOn = isVideoCall
+        vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            val vibratorManager = context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager
+            vibratorManager.defaultVibrator
+        } else {
+            @Suppress("DEPRECATION")
+            context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+        }
+
+        val pattern = longArrayOf(0, 1000, 1000)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            vibrator?.vibrate(VibrationEffect.createWaveform(pattern, 0))
+        } else {
+            @Suppress("DEPRECATION")
+            vibrator?.vibrate(pattern, 0)
+        }
+
+        try {
+            audioManager.mode = AudioManager.MODE_RINGTONE
+            audioManager.isSpeakerphoneOn = true
+
+            mediaPlayer = MediaPlayer.create(context, R.raw.calls).apply {
+                isLooping = true
+                start()
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
+    fun stopRinging() {
+        mediaPlayer?.stop()
+        mediaPlayer?.release()
+        mediaPlayer = null
+
+        vibrator?.cancel()
+        vibrator = null
+    }
+
+    fun acceptCall(targetUserId: String) {
+        stopRinging()
+        val isVideoCall = _uiState.value.isVideoCall
+        val defaultSpeaker = _uiState.value.isSpeakerOn || isVideoCall
+        _uiState.value = _uiState.value.copy(
+            status = "accepted",
+            isSpeakerOn = defaultSpeaker
+        )
+
+        audioManager.isSpeakerphoneOn = defaultSpeaker
         
         webRtcClient.startLocalMedia(isVideoCall)
         _uiState.value = _uiState.value.copy(localVideoTrack = webRtcClient.localVideoTrack)
@@ -158,6 +211,7 @@ class CallViewModel @Inject constructor(
     }
 
     fun declineCall(targetUserId: String) {
+        stopRinging()
         _uiState.value = _uiState.value.copy(status = "rejected")
         callsSocketHandler.respondToCall(targetUserId, false)
         resetAudio()
