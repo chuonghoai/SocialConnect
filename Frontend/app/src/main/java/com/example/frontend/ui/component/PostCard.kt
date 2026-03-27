@@ -51,6 +51,7 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.animation.animateContentSize
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -1302,7 +1303,8 @@ fun FeedVideoPlayer(
     videoUrl: String?,
     shouldPlay: Boolean,
     mediaAspectRatio: Float,
-    onVideoClick: (() -> Unit)?
+    onVideoClick: (() -> Unit)?,
+    onLongPress: (() -> Unit)? = null
 ) {
     var isPrepared by remember(videoUrl) { mutableStateOf(false) }
     var hasEnded by remember(videoUrl) { mutableStateOf(false) }
@@ -1337,8 +1339,11 @@ fun FeedVideoPlayer(
 
     Box(
         modifier = baseModifier
-            .clickable(enabled = onVideoClick != null) {
-                onVideoClick?.invoke()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onTap = { onVideoClick?.invoke() },
+                    onLongPress = { onLongPress?.invoke() }
+                )
             }
     ) {
         AndroidView(
@@ -1391,14 +1396,6 @@ fun MediaViewerDialog(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
-                .pointerInput(Unit) {
-                    // THÊM NHẤN GIỮ ĐỂ HIỆN OPTION
-                    detectTapGestures(
-                        onLongPress = {
-                            showOptions = true
-                        }
-                    )
-                }
         ) {
             val pagerState = rememberPagerState(
                 initialPage = initialPage.coerceIn(0, mediaItems.lastIndex),
@@ -1415,44 +1412,28 @@ fun MediaViewerDialog(
                         videoUrl = item.cdnUrl,
                         shouldPlay = pagerState.currentPage == page,
                         mediaAspectRatio = 0f,
-                        onVideoClick = null
+                        onVideoClick = null,
+                        onLongPress = { showOptions = true }
                     )
                 } else {
-                    ZoomableMediaImage(imageUrl = item.cdnUrl)
+                    ZoomableMediaImage(imageUrl = item.cdnUrl, onLongPress = { showOptions = true })
                 }
             }
 
-            // Option in long press
+            // Options Overlay
             if (showOptions) {
-                AlertDialog(
-                    onDismissRequest = { showOptions = false },
-                    title = { Text("Tùy chọn") },
-                    text = {
-                        Column {
-                            TextButton(onClick = { /* Xử lý tải về */ showOptions = false }) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Download, contentDescription = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Tải xuống")
-                                }
-                            }
-                            TextButton(onClick = { /* Xử lý chia sẻ */ showOptions = false }) {
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(Icons.Default.Share, contentDescription = null)
-                                    Spacer(Modifier.width(8.dp))
-                                    Text("Chia sẻ")
-                                }
-                            }
-                        }
-                    },
-                    confirmButton = {
-                        TextButton(onClick = { showOptions = false }) {
-                            Text("Đóng")
-                        }
+                val currentMediaItem = mediaItems[pagerState.currentPage]
+                MediaOptionDialog(
+                    mediaUrl = currentMediaItem.cdnUrl,
+                    isVideo = currentMediaItem.kind == "VIDEO",
+                    onDismiss = { showOptions = false },
+                    onShareClick = {
+                        /* Logic gọi share link sau này nếu cần */
                     }
                 )
             }
 
+            // Top Bar
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1461,12 +1442,21 @@ fun MediaViewerDialog(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Close viewer",
-                        tint = Color.White
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close viewer",
+                            tint = Color.White
+                        )
+                    }
+                    IconButton(onClick = { showOptions = true }) {
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "Options",
+                            tint = Color.White
+                        )
+                    }
                 }
                 Text(
                     text = "${pagerState.currentPage + 1}/${mediaItems.size}",
@@ -1480,7 +1470,7 @@ fun MediaViewerDialog(
 }
 
 @Composable
-fun ZoomableMediaImage(imageUrl: String?) {
+fun ZoomableMediaImage(imageUrl: String?, onLongPress: () -> Unit = {}) {
     var scale by remember(imageUrl) { mutableStateOf(1f) }
     var offset by remember(imageUrl) { mutableStateOf(Offset.Zero) }
     var containerSize by remember(imageUrl) { mutableStateOf(IntSize.Zero) }
@@ -1498,7 +1488,8 @@ fun ZoomableMediaImage(imageUrl: String?) {
                         } else {
                             scale = 2f
                         }
-                    }
+                    },
+                    onLongPress = { onLongPress() }
                 )
             }
             .pointerInput(imageUrl) {
