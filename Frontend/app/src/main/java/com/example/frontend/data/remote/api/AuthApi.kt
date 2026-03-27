@@ -2,12 +2,16 @@ package com.example.frontend.data.remote.api
 
 import ChangePasswordRequest
 import UpdateProfileRequest
+import com.example.frontend.domain.model.AdminUserItem
 import com.example.frontend.domain.model.Token
 import com.example.frontend.domain.model.User
 import retrofit2.http.Body
+import retrofit2.http.DELETE
 import retrofit2.http.GET
+import retrofit2.http.PATCH
 import retrofit2.http.Path
 import retrofit2.http.POST
+import retrofit2.http.Query
 import retrofit2.Response
 import retrofit2.http.PUT
 
@@ -41,4 +45,19 @@ interface AuthApi {
 
     @POST(ApiRoutes.LOGOUT)
     suspend fun logout(): Map<String, String>
+
+    @PATCH(ApiRoutes.ADMIN_LOCK_USER)
+    suspend fun lockUser(@Path("userId") userId: String): Map<String, Any>
+
+    @PATCH(ApiRoutes.ADMIN_UNLOCK_USER)
+    suspend fun unlockUser(@Path("userId") userId: String): Map<String, Any>
+
+    @DELETE(ApiRoutes.ADMIN_DELETE_USER)
+    suspend fun deleteUser(@Path("userId") userId: String): Map<String, Any>
+
+    @GET(ApiRoutes.ADMIN_LIST_USERS)
+    suspend fun getAdminUsers(
+        @Query("limit") limit: Int = 100,
+        @Query("offset") offset: Int = 0
+    ): List<AdminUserItem>
 }

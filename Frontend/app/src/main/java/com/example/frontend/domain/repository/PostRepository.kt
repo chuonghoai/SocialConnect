@@ -7,13 +7,15 @@ import com.example.frontend.domain.model.Post
 interface PostRepository {
     suspend fun getNewsFeed(
         afterId: String? = null,
-        isRefresh: Boolean = false
+        isRefresh: Boolean = false,
+        includeHidden: Boolean = false
     ): ApiResult<List<Post>>
 
     suspend fun getUserPosts(
         userId: String,
         afterId: String? = null,
-        isRefresh: Boolean = false
+        isRefresh: Boolean = false,
+        includeHidden: Boolean = false
     ): ApiResult<List<Post>>
 
     suspend fun getSavedPosts(
@@ -36,6 +38,9 @@ interface PostRepository {
     suspend fun updatePost(postId: String, content: String? = null, visibility: String? = null): ApiResult<Unit>
 
     suspend fun deletePost(postId: String): ApiResult<Unit>
+    suspend fun hidePostByAdmin(postId: String): ApiResult<Boolean>
+    suspend fun showPostByAdmin(postId: String): ApiResult<Boolean>
+    suspend fun deletePostByAdmin(postId: String): ApiResult<Unit>
     suspend fun likeVideo(videoId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit>
 
     suspend fun saveVideo(videoId: String): ApiResult<Boolean>

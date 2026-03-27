@@ -29,13 +29,20 @@ class PostRepositoryImpl @Inject constructor(
         private const val TAG = "PostRepositoryImpl"
     }
 
-    override suspend fun getNewsFeed(afterId: String?, isRefresh: Boolean): ApiResult<List<Post>> {
+    override suspend fun getNewsFeed(
+        afterId: String?,
+        isRefresh: Boolean,
+        includeHidden: Boolean
+    ): ApiResult<List<Post>> {
         return try {
-            if (isRefresh && afterId == null) {
+            if (!includeHidden && isRefresh && afterId == null) {
                 postDao.clearAllPosts()
             }
 
-            val posts = postApi.getNewsFeed(lastPostId = afterId).map { it.toDomainPost() }
+            val posts = postApi.getNewsFeed(
+                lastPostId = afterId,
+                includeHidden = includeHidden
+            ).map { it.toDomainPost() }
             posts.forEach { post ->
                 Log.d(
                     TAG,
@@ -43,15 +50,17 @@ class PostRepositoryImpl @Inject constructor(
                 )
             }
 
-            if (afterId == null && !isRefresh) {
-                postDao.clearAllPosts()
+            if (!includeHidden) {
+                if (afterId == null && !isRefresh) {
+                    postDao.clearAllPosts()
+                }
+                postDao.insertPosts(posts.map { it.toEntity() })
             }
-            postDao.insertPosts(posts.map { it.toEntity() })
 
             ApiResult.Success(posts)
 
         } catch (e: IOException) {
-            if (!isRefresh && afterId == null) {
+            if (!includeHidden && !isRefresh && afterId == null) {
                 val localPosts = postDao.getAllPosts().map { it.toDomain() }
                 if (localPosts.isNotEmpty()) {
                     return ApiResult.Success(localPosts)
@@ -81,19 +90,26 @@ class PostRepositoryImpl @Inject constructor(
     override suspend fun getUserPosts(
         userId: String,
         afterId: String?,
-        isRefresh: Boolean
+        isRefresh: Boolean,
+        includeHidden: Boolean
     ): ApiResult<List<Post>> {
         return try {
-            if (isRefresh && afterId == null) postDao.clearUserPosts(userId)
+            if (!includeHidden && isRefresh && afterId == null) postDao.clearUserPosts(userId)
 
-            val posts = postApi.getUserPosts(userId, afterId).map { it.toDomainPost() }
+            val posts = postApi.getUserPosts(
+                userId = userId,
+                lastPostId = afterId,
+                includeHidden = includeHidden
+            ).map { it.toDomainPost() }
 
-            if (afterId == null && !isRefresh) postDao.clearUserPosts(userId)
-            postDao.insertPosts(posts.map { it.toEntity() })
+            if (!includeHidden) {
+                if (afterId == null && !isRefresh) postDao.clearUserPosts(userId)
+                postDao.insertPosts(posts.map { it.toEntity() })
+            }
             ApiResult.Success(posts)
 
         } catch (e: IOException) {
-            if (!isRefresh && afterId == null) {
+            if (!includeHidden && !isRefresh && afterId == null) {
                 val localPosts = postDao.getPostsByUserId(userId).map { it.toDomain() }
                 if (localPosts.isNotEmpty()) return ApiResult.Success(localPosts)
             }
@@ -393,6 +409,56 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Không thể xóa bài viết", throwable = e)
+        }
+    }
+
+    override suspend fun hidePostByAdmin(postId: String): ApiResult<Boolean> {
+        return try {
+            val response = postApi.hidePostByAdmin(postId)
+            val hidden = parseBoolean(response["hidden"], defaultValue = true)
+            ApiResult.Success(hidden)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Loi mang", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Loi may chu (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Khong the an bai viet", throwable = e)
+        }
+    }
+
+    override suspend fun showPostByAdmin(postId: String): ApiResult<Boolean> {
+        return try {
+            val response = postApi.showPostByAdmin(postId)
+            val hidden = parseBoolean(response["hidden"], defaultValue = false)
+            ApiResult.Success(hidden)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Loi mang", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Loi may chu (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Khong the hien bai viet", throwable = e)
+        }
+    }
+
+    override suspend fun deletePostByAdmin(postId: String): ApiResult<Unit> {
+        return try {
+            postApi.deletePostByAdmin(postId)
+            ApiResult.Success(Unit)
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Loi mang", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Loi may chu (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Khong the xoa bai viet", throwable = e)
+        }
+    }
+
+    private fun parseBoolean(rawValue: Any?, defaultValue: Boolean): Boolean {
+        return when (rawValue) {
+            is Boolean -> rawValue
+            is Number -> rawValue.toInt() != 0
+            is String -> rawValue.equals("true", ignoreCase = true) || rawValue == "1"
+            else -> defaultValue
         }
     }
 }

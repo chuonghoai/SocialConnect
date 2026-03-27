@@ -28,6 +28,13 @@ object ApiRoutes {
     const val GET_SIGNATURE = "api/media/signature"
     const val SAVE_MEDIA = "api/media"
     const val CREATE_POST = "api/posts"
+    const val ADMIN_LOCK_USER = "api/users/admin/{userId}/lock"
+    const val ADMIN_UNLOCK_USER = "api/users/admin/{userId}/unlock"
+    const val ADMIN_DELETE_USER = "api/users/admin/{userId}"
+    const val ADMIN_LIST_USERS = "api/users/admin/list"
+    const val ADMIN_HIDE_POST = "api/posts/admin/{postId}/hide"
+    const val ADMIN_SHOW_POST = "api/posts/admin/{postId}/show"
+    const val ADMIN_DELETE_POST = "api/posts/admin/{postId}"
     const val UPDATE_PROFILE = "/api/auth/me"
     const val CHANGE_PASSWORD = "/auth/change-password"
 

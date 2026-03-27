@@ -1,6 +1,7 @@
 package com.example.frontend.domain.repository
 
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.domain.model.AdminUserItem
 import com.example.frontend.domain.model.User
 
 interface AuthRepository {
@@ -15,4 +16,8 @@ interface AuthRepository {
     suspend fun resetPassword(email: String, newPassword: String): ApiResult<Unit>
     suspend fun updateProfile(displayName: String, dob: String, email: String, avatar: String?): ApiResult<User>
     suspend fun changePassword(oldPassword: String, newPassword: String): ApiResult<Unit>
+    suspend fun lockUser(userId: String): ApiResult<Unit>
+    suspend fun unlockUser(userId: String): ApiResult<Unit>
+    suspend fun deleteUser(userId: String): ApiResult<Unit>
+    suspend fun getAdminUsers(limit: Int = 100, offset: Int = 0): ApiResult<List<AdminUserItem>>
 }

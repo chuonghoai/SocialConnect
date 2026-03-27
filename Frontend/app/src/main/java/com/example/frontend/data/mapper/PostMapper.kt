@@ -39,6 +39,7 @@ fun Map<String, Any?>.toDomainPost(): Post {
     val commentCount = intValue("commentCount", "comments", "totalComments")
     val shareCount = intValue("shareCount", "shares", "totalShares")
     val isLiked = boolValue("isLiked", "liked")
+    val isHiddenByAdmin = boolValue("isHiddenByAdmin", "hiddenByAdmin", "is_hidden_by_admin")
 
     val parsedMedia = extractMediaFromRoot()
     val fallbackCdn = stringValue("cdnUrl", "cdn_url", "url", "imageUrl", "videoUrl")
@@ -58,6 +59,7 @@ fun Map<String, Any?>.toDomainPost(): Post {
         shareCount = shareCount,
         cdnUrl = cdnUrl,
         isLiked = isLiked,
+        isHiddenByAdmin = isHiddenByAdmin,
         media = parsedMedia,
         mediaIds = null,
         mediaUrls = null,

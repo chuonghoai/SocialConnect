@@ -10,6 +10,7 @@ import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.mapper.toDomain
 import com.example.frontend.data.remote.api.AuthApi
+import com.example.frontend.domain.model.AdminUserItem
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.repository.AuthRepository
 import com.google.gson.Gson
@@ -239,6 +240,74 @@ class AuthRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             ApiResult.Error(message = e.message ?: "Lỗi kết nối")
+        }
+    }
+
+    override suspend fun lockUser(userId: String): ApiResult<Unit> {
+        return try {
+            authApi.lockUser(userId)
+            ApiResult.Success(Unit)
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "Không thể khóa tài khoản (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
+        }
+    }
+
+    override suspend fun unlockUser(userId: String): ApiResult<Unit> {
+        return try {
+            authApi.unlockUser(userId)
+            ApiResult.Success(Unit)
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "Khong the mo khoa tai khoan (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Loi mang", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
+        }
+    }
+
+    override suspend fun deleteUser(userId: String): ApiResult<Unit> {
+        return try {
+            authApi.deleteUser(userId)
+            ApiResult.Success(Unit)
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "Không thể xóa tài khoản (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
+        }
+    }
+
+    override suspend fun getAdminUsers(limit: Int, offset: Int): ApiResult<List<AdminUserItem>> {
+        return try {
+            val users = authApi.getAdminUsers(limit = limit, offset = offset)
+            ApiResult.Success(users)
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "KhÃ´ng thá»ƒ táº£i danh sÃ¡ch user (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lá»—i máº¡ng", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Unexpected error: ${e.message}", throwable = e)
         }
     }
 

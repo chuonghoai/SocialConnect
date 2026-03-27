@@ -71,6 +71,7 @@ data class Post(
     val commentCount: Int = 0,
     val shareCount: Int = 0,
     val cdnUrl: String = "",
+    val isHiddenByAdmin: Boolean = false,
     @SerializedName(
         value = "media",
         alternate = ["medias", "attachments", "files", "mediaList"]

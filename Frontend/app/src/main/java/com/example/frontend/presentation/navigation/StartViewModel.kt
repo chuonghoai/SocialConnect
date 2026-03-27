@@ -33,7 +33,8 @@ class StartViewModel @Inject constructor(
 
             when (val meResult = getMeUseCase()) {
                 is ApiResult.Success -> {
-                    _startDestination.value = Routes.HOME
+                    val isAdmin = meResult.data.role.equals("ADMIN", ignoreCase = true)
+                    _startDestination.value = if (isAdmin) Routes.ADMIN else Routes.HOME
                 }
 
                 is ApiResult.Error -> {
