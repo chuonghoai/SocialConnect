@@ -450,7 +450,7 @@ private fun resolveCommentMedia(comment: Comment): List<PostMedia> {
     return fallbackUrls.map { url ->
         PostMedia(
             cdnUrl = url,
-            kind = comment.mediaType
+            kind = comment.mediaType ?: ""
         )
     }
 }

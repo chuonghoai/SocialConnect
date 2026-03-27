@@ -34,6 +34,6 @@ private fun CommentResponseDto.resolveCommentMedia(): List<PostMedia> {
     if (fallbackUrls.isEmpty()) return emptyList()
 
     return fallbackUrls.map { url ->
-        PostMedia(cdnUrl = url, kind = mediaType)
+        PostMedia(cdnUrl = url, kind = mediaType ?: "")
     }
 }
