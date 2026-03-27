@@ -94,14 +94,18 @@ fun AppNavGraph(
     val notifState by mainViewModel.notificationManager.notification.collectAsState()
 
     LaunchedEffect(Unit) {
-        notificationBadgeViewModel.refreshUnreadCount()
+        while (true) {
+            notificationBadgeViewModel.refreshUnreadCount()
+            delay(15000) // Tự động cập nhật số thông báo mỗi 15 giây
+        }
     }
 
     LaunchedEffect(currentBaseRoute) {
         if (currentBaseRoute == Routes.NOTIFICATION) {
             notificationRefreshKey++
-            notificationBadgeViewModel.refreshUnreadCount()
         }
+        // Gọi lại để tự cập nhật mỗi khi chuyển màn hình
+        notificationBadgeViewModel.refreshUnreadCount()
     }
 
     LaunchedEffect(Unit) {
@@ -396,6 +400,20 @@ fun AppNavGraph(
                                     val postId = target.substringAfterLast("/").trim()
                                     if (postId.isNotBlank()) {
                                         navController.navigate("${Routes.POST_DETAIL_BASE}/${Uri.encode(postId)}")
+                                    }
+                                }
+
+                                target.startsWith("/users/") -> {
+                                    val userId = target.substringAfterLast("/").trim()
+                                    if (userId.isNotBlank()) {
+                                        if (userId == currentUser?.id) {
+                                            navController.navigate(Routes.PROFILE) {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        } else {
+                                            navController.navigate("${Routes.OTHER_PROFILE_BASE}/${Uri.encode(userId)}")
+                                        }
                                     }
                                 }
                             }
