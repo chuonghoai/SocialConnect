@@ -11,16 +11,20 @@ import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.remote.api.AuthApi
 import com.example.frontend.data.remote.api.ConversationApi
 import com.example.frontend.data.remote.api.MediaApi
+import com.example.frontend.data.remote.api.NotificationApi
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.api.SearchApi
+import com.example.frontend.data.remote.api.UserApi
 import com.example.frontend.data.repository.AuthRepositoryImpl
 import com.example.frontend.data.repository.FriendRepositoryImpl
 import com.example.frontend.data.repository.MediaRepositoryImpl
+import com.example.frontend.data.repository.NotiRepositoryImpl
 import com.example.frontend.data.repository.PostRepositoryImpl
 import com.example.frontend.data.repository.SearchRepositoryImpl
 import com.example.frontend.domain.repository.AuthRepository
 import com.example.frontend.domain.repository.FriendRepository
 import com.example.frontend.domain.repository.MediaRepository
+import com.example.frontend.domain.repository.NotiRepository
 import com.example.frontend.domain.repository.PostRepository
 import com.example.frontend.domain.repository.SearchRepository
 import android.content.Context
@@ -181,9 +185,30 @@ object NetworkModule {
 
     @Provides
     @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi {
+        return retrofit.create(UserApi::class.java)
+    }
+
+    @Provides
+    @Singleton
     fun provideFriendRepository(
-        conversationApi: ConversationApi
+        conversationApi: ConversationApi,
+        userApi: UserApi
     ): FriendRepository {
-        return FriendRepositoryImpl(conversationApi)
+        return FriendRepositoryImpl(conversationApi, userApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNotificationApi(retrofit: Retrofit): NotificationApi {
+        return retrofit.create(NotificationApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNotiRepository(
+        notificationApi: NotificationApi
+    ): NotiRepository {
+        return NotiRepositoryImpl(notificationApi)
     }
 }

@@ -60,8 +60,8 @@ fun Post.toEntity(): PostEntity {
 
     val storageKind = when {
         safeMedia.isEmpty() -> kind
-        safeMedia.all { it.kind.orEmpty().uppercase().contains("VIDEO") } -> "VIDEO"
-        safeMedia.all { it.kind.orEmpty().uppercase().contains("IMAGE") } -> "IMAGE"
+        safeMedia.all { it.kind.uppercase().contains("VIDEO") } -> "VIDEO"
+        safeMedia.all { it.kind.uppercase().contains("IMAGE") } -> "IMAGE"
         else -> kind
     }
 

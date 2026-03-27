@@ -50,6 +50,7 @@ import kotlinx.coroutines.flow.map
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailScreen(
+    postId: String? = null,
     onBack: () -> Unit,
     viewModel: PostDetailViewModel = hiltViewModel()
 ) {
@@ -63,8 +64,8 @@ fun PostDetailScreen(
         viewModel.onMediaSelected(uris)
     }
 
-    LaunchedEffect(Unit) {
-        viewModel.loadPostDetail()
+    LaunchedEffect(postId) {
+        viewModel.loadPostDetail(postId)
     }
 
     LaunchedEffect(listState) {

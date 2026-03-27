@@ -50,8 +50,11 @@ import androidx.navigation.compose.navigation
 import com.example.frontend.presentation.screen.create_post.CreatePostScreen
 import com.example.frontend.presentation.screen.create_post.CreatePostViewModel
 import com.example.frontend.presentation.screen.edit_post.EditPostScreen
+import com.example.frontend.presentation.screen.friendrequest.FriendRequestsScreen
+import com.example.frontend.presentation.screen.friend.MyFriendScreen
 import com.example.frontend.presentation.screen.home.HomeUiState
 import com.example.frontend.presentation.screen.home.HomeViewModel
+import com.example.frontend.presentation.screen.notification.NotificationBadgeViewModel
 import com.example.frontend.presentation.screen.profile.EditProfileScreen
 import com.example.frontend.presentation.screen.setting.ChangePasswordScreen
 import com.example.frontend.presentation.screen.calls.CallScreen
@@ -70,12 +73,15 @@ fun AppNavGraph(
     callViewModel: CallViewModel = hiltViewModel()
 ) {
     val navController = rememberNavController()
+    val notificationBadgeViewModel: NotificationBadgeViewModel = hiltViewModel()
 
     val currentUser by sessionViewModel.currentUser.collectAsState()
+    val unreadNotificationCount by notificationBadgeViewModel.unreadCount.collectAsState()
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val currentBaseRoute = currentRoute?.substringBefore("/")
+    var notificationRefreshKey by remember { mutableIntStateOf(0) }
 
     val bottomBarRoutes = setOf(
         Routes.HOME,
@@ -87,6 +93,21 @@ fun AppNavGraph(
     val showBottomBar = currentBaseRoute in bottomBarRoutes
 
     val notifState by mainViewModel.notificationManager.notification.collectAsState()
+
+    LaunchedEffect(Unit) {
+        while (true) {
+            notificationBadgeViewModel.refreshUnreadCount()
+            delay(15000) // Tự động cập nhật số thông báo mỗi 15 giây
+        }
+    }
+
+    LaunchedEffect(currentBaseRoute) {
+        if (currentBaseRoute == Routes.NOTIFICATION) {
+            notificationRefreshKey++
+        }
+        // Gọi lại để tự cập nhật mỗi khi chuyển màn hình
+        notificationBadgeViewModel.refreshUnreadCount()
+    }
 
     LaunchedEffect(Unit) {
         authSessionViewModel.sessionExpiredEvents.collectLatest {
@@ -105,6 +126,7 @@ fun AppNavGraph(
     LaunchedEffect(callViewModel) {
         callViewModel.uiEvent.collect { event ->
             if (event is CallUiEvent.IncomingCall) {
+                callViewModel.startRinging()
                 val encodedName = Uri.encode(event.name)
                 val encodedAvatar = Uri.encode(event.avatar)
                 navController.navigate(
@@ -121,7 +143,10 @@ fun AppNavGraph(
                 if (showBottomBar) {
                     BottomBar(
                         navController = navController,
-                        items = bottomNavItems(currentUser?.avatarUrl)
+                        items = bottomNavItems(
+                            userAvatarUrl = currentUser?.avatarUrl,
+                            notificationUnreadCount = unreadNotificationCount
+                        )
                     )
                 }
             }
@@ -246,6 +271,9 @@ fun AppNavGraph(
                         },
                         onNavigateToSetting = {
                             navController.navigate(Routes.SETTING)
+                        },
+                        onNavigateToFriends = {
+                            navController.navigate(Routes.MY_FRIENDS)
                         }
                     )
                 }
@@ -262,8 +290,8 @@ fun AppNavGraph(
                         onEditPostClick = { postId ->
                             navController.navigate("${Routes.EDIT_POST_BASE}/$postId")
                         },
-                        onPostClick = { _ ->
-                            navController.navigate(Routes.POST_DETAIL)
+                        onPostClick = { post ->
+                            navController.navigate("${Routes.POST_DETAIL_BASE}/${Uri.encode(post.id)}")
                         },
                         onVideoClick = {
                             navController.navigate(Routes.VIDEO) {
@@ -286,8 +314,10 @@ fun AppNavGraph(
                     )
                 }
 
-                composable(Routes.POST_DETAIL) {
+                composable(Routes.POST_DETAIL) { backStackEntry ->
+                    val postId = backStackEntry.arguments?.getString("postId")?.let(Uri::decode)
                     PostDetailScreen(
+                        postId = postId,
                         onBack = { navController.popBackStack() }
                     )
                 }
@@ -358,7 +388,47 @@ fun AppNavGraph(
                 }
 
                 composable(Routes.NOTIFICATION) {
-                    NotificationScreen()
+                    NotificationScreen(
+                        refreshKey = notificationRefreshKey.toLong(),
+                        onItemsUpdated = { notificationBadgeViewModel.refreshUnreadCount() },
+                        onNotificationClick = { notification ->
+                            val target = notification.url.orEmpty()
+                            when {
+                                target.startsWith("/friends/requests") -> {
+                                    navController.navigate(Routes.FRIEND_REQUESTS) {
+                                        launchSingleTop = true
+                                    }
+                                }
+
+                                target.startsWith("/posts/") -> {
+                                    val postId = target.substringAfterLast("/").trim()
+                                    if (postId.isNotBlank()) {
+                                        navController.navigate("${Routes.POST_DETAIL_BASE}/${Uri.encode(postId)}")
+                                    }
+                                }
+
+                                target.startsWith("/users/") -> {
+                                    val userId = target.substringAfterLast("/").trim()
+                                    if (userId.isNotBlank()) {
+                                        if (userId == currentUser?.id) {
+                                            navController.navigate(Routes.PROFILE) {
+                                                launchSingleTop = true
+                                                restoreState = true
+                                            }
+                                        } else {
+                                            navController.navigate("${Routes.OTHER_PROFILE_BASE}/${Uri.encode(userId)}")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
+                }
+
+                composable(Routes.FRIEND_REQUESTS) {
+                    FriendRequestsScreen(
+                        onBack = { navController.popBackStack() }
+                    )
                 }
 
                 composable(Routes.SETTING) {
@@ -439,6 +509,23 @@ fun AppNavGraph(
                             val encodedName = Uri.encode(conversationName)
                             val encodedAvatar = Uri.encode(conversationAvatar ?: "")
                             navController.navigate("${Routes.CALL_BASE}/$partnerId?isVideoCall=true&isIncoming=false&fullname=$encodedName&avatarUrl=$encodedAvatar")
+                        }
+                    )
+                }
+
+                composable(Routes.MY_FRIENDS) {
+                    MyFriendScreen(
+                        onBack = { navController.popBackStack() },
+                        onAvatarClick = { clickedUserId ->
+                            if (clickedUserId == currentUser?.id) {
+                                navController.navigate(Routes.PROFILE) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else if (clickedUserId.isNotBlank()) {
+                                val encodedUserId = Uri.encode(clickedUserId)
+                                navController.navigate("${Routes.OTHER_PROFILE_BASE}/$encodedUserId")
+                            }
                         }
                     )
                 }

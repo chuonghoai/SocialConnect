@@ -3,12 +3,15 @@ package com.example.frontend.presentation.navigation.bottomnav
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.border
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -62,7 +65,13 @@ fun BottomBar(
                         restoreState = true
                     }
                 },
-                icon = { BottomBarIcon(icon = item.icon, selected = selected) },
+                icon = {
+                    BottomBarIcon(
+                        icon = item.icon,
+                        selected = selected,
+                        badgeCount = item.badgeCount
+                    )
+                },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -75,50 +84,66 @@ fun BottomBar(
 }
 
 @Composable
-private fun BottomBarIcon(icon: BottomNavIcon, selected: Boolean) {
-    when (icon) {
-        is BottomNavIcon.Drawable -> {
-            Icon(
-                painter = painterResource(icon.resId),
-                contentDescription = null,
-                modifier = Modifier.size(24.dp),
-                tint = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                }
-            )
-        }
-
-        is BottomNavIcon.Avatar -> {
-            val url = icon.avatarUrl
-            if (url.isNullOrBlank()) {
+private fun BottomBarIcon(icon: BottomNavIcon, selected: Boolean, badgeCount: Int) {
+    val iconContent: @Composable () -> Unit = {
+        when (icon) {
+            is BottomNavIcon.Drawable -> {
                 Icon(
-                    painter = painterResource(icon.fallbackResId),
+                    painter = painterResource(icon.resId),
                     contentDescription = null,
-                    modifier = Modifier.size(24.dp)
-                )
-            } else {
-                AsyncImage(
-                    model = url,
-                    contentDescription = "Profile avatar",
-                    modifier = Modifier
-                        .size(24.dp)
-                        .clip(CircleShape)
-                        .border(
-                            width = if (selected) 1.5.dp else 0.dp,
-                            color = if (selected) {
-                                MaterialTheme.colorScheme.primary
-                            } else {
-                                MaterialTheme.colorScheme.surface
-                            },
-                            shape = CircleShape
-                        ),
-                    placeholder = painterResource(icon.fallbackResId),
-                    error = painterResource(icon.fallbackResId)
+                    modifier = Modifier.size(24.dp),
+                    tint = if (selected) {
+                        MaterialTheme.colorScheme.primary
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    }
                 )
             }
+
+            is BottomNavIcon.Avatar -> {
+                val url = icon.avatarUrl
+                if (url.isNullOrBlank()) {
+                    Icon(
+                        painter = painterResource(icon.fallbackResId),
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp)
+                    )
+                } else {
+                    AsyncImage(
+                        model = url,
+                        contentDescription = "Profile avatar",
+                        modifier = Modifier
+                            .size(24.dp)
+                            .clip(CircleShape)
+                            .border(
+                                width = if (selected) 1.5.dp else 0.dp,
+                                color = if (selected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.surface
+                                },
+                                shape = CircleShape
+                            ),
+                        placeholder = painterResource(icon.fallbackResId),
+                        error = painterResource(icon.fallbackResId)
+                    )
+                }
+            }
         }
+    }
+
+    if (badgeCount > 0) {
+        BadgedBox(
+            badge = {
+                Badge {
+                    Text(if (badgeCount > 99) "99+" else badgeCount.toString())
+                }
+            }
+        ) {
+            iconContent()
+        }
+    } else {
+        iconContent()
     }
 }
 
