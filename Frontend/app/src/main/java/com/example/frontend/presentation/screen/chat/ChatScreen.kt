@@ -32,6 +32,8 @@ import androidx.compose.material.icons.automirrored.filled.Send
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -63,6 +65,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
+import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.ui.component.MediaViewerDialog
 
 @Composable
 fun ChatScreen(
@@ -79,6 +83,16 @@ fun ChatScreen(
     var messageText by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
     val context = LocalContext.current
+
+    var viewerMediaList by remember { mutableStateOf<List<PostMedia>?>(null) }
+    var viewerInitialPage by remember { mutableIntStateOf(0) }
+    if (viewerMediaList != null) {
+        MediaViewerDialog(
+            mediaItems = viewerMediaList!!,
+            initialPage = viewerInitialPage,
+            onDismiss = { viewerMediaList = null }
+        )
+    }
 
     val launcher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(),
@@ -178,7 +192,11 @@ fun ChatScreen(
                                 message = msg,
                                 isMine = isMine,
                                 incomingAvatarUrl = conversationAvatarUrl,
-                                statusText = statusText
+                                statusText = statusText,
+                                onMediaClick = { selectedMedia ->
+                                    viewerMediaList = listOf(selectedMedia)
+                                    viewerInitialPage = 0
+                                }
                             )
                         }
                     }
@@ -477,7 +495,8 @@ private fun MessageBubble(
     message: MessageItem,
     isMine: Boolean,
     incomingAvatarUrl: String?,
-    statusText: String? = null
+    statusText: String? = null,
+    onMediaClick: (PostMedia) -> Unit
 ) {
     val isUploading = message.id.startsWith("temp_")
 
@@ -514,14 +533,22 @@ private fun MessageBubble(
                     AudioMessageBubble(message, isMine, isUploading)
                 } else {
                     message.media.forEach { media ->
+                        val postMedia = PostMedia(
+                            cdnUrl = media.secureUrl,
+                            kind = if (media.type == "VIDEO") "VIDEO" else "IMAGE"
+                        )
+
                         if (media.type == "VIDEO") {
-                            VideoMessageBubble(media.secureUrl, isUploading)
-                        } else {
+                            Box(modifier = Modifier.clickable { onMediaClick(postMedia) }) {
+                                VideoMessageBubble(media.secureUrl, isUploading)
+                            }
+                        } else if (media.type == "IMAGE") {
                             Box(
                                 modifier = Modifier
                                     .padding(bottom = 4.dp)
                                     .clip(RoundedCornerShape(8.dp))
                                     .background(Color.LightGray)
+                                    .clickable { onMediaClick(postMedia) }
                             ) {
                                 AsyncImage(
                                     model = media.secureUrl,

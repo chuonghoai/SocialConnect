@@ -50,6 +50,8 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.animation.animateContentSize
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Share
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -710,15 +712,14 @@ private fun FullScreenMediaViewer(
             ) { page ->
                 val item = mediaItems[page]
                 if (item.kind.equals("VIDEO", ignoreCase = true)) {
-                    FullscreenVideo(url = item.cdnUrl)
-                } else {
-                    AsyncImage(
-                        model = item.cdnUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Fit,
-                        error = painterResource(R.drawable.icon_image)
+                    FeedVideoPlayer(
+                        videoUrl = item.cdnUrl,
+                        shouldPlay = pagerState.currentPage == page,
+                        mediaAspectRatio = 0f,
+                        onVideoClick = null
                     )
+                } else {
+                    ZoomableMediaImage(imageUrl = item.cdnUrl)
                 }
             }
 
@@ -1131,12 +1132,16 @@ private fun MediaGridPreview(
             ) {
                 MediaTile(
                     item = previewItems[0],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     onClick = { onItemClick(0) }
                 )
                 MediaTile(
                     item = previewItems[1],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     onClick = { onItemClick(1) }
                 )
             }
@@ -1149,25 +1154,33 @@ private fun MediaGridPreview(
             ) {
                 MediaTile(
                     item = previewItems[0],
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     onClick = { onItemClick(0) }
                 )
 
                 Column(
-                    modifier = Modifier.weight(1f).fillMaxHeight(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(spacing)
 
 
                 ) {
                     MediaTile(
                         item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                         onClick = { onItemClick(1) }
                     )
 
                     MediaTile(
                         item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxWidth(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxWidth(),
                         onClick = { onItemClick(2) }
                     )
                 }
@@ -1180,33 +1193,45 @@ private fun MediaGridPreview(
                 verticalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing)
                 ) {
                     MediaTile(
                         item = previewItems[0],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(0) }
                     )
                     MediaTile(
                         item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(1) }
                     )
                 }
 
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing)
                 ) {
                     MediaTile(
                         item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(2) }
                     )
                     MediaTile(
                         item = previewItems[3],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(3) }
                     )
 
@@ -1221,33 +1246,45 @@ private fun MediaGridPreview(
                 verticalArrangement = Arrangement.spacedBy(spacing)
             ) {
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing)
                 ) {
                     MediaTile(
                         item = previewItems[0],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(0) }
                     )
                     MediaTile(
                         item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(1) }
                     )
                 }
 
                 Row(
-                    modifier = Modifier.weight(1f).fillMaxWidth(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(spacing)
                 ) {
                     MediaTile(
                         item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(2) }
                     )
                     MediaTile(
                         item = previewItems[3],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
                         onClick = { onItemClick(3) },
                         overlayText = if (hiddenCount > 0) "+$hiddenCount" else null
                     )
@@ -1261,7 +1298,7 @@ private fun MediaGridPreview(
 }
 
 @Composable
-private fun FeedVideoPlayer(
+fun FeedVideoPlayer(
     videoUrl: String?,
     shouldPlay: Boolean,
     mediaAspectRatio: Float,
@@ -1290,10 +1327,16 @@ private fun FeedVideoPlayer(
         }
     }
 
-    Box(
-        modifier = Modifier
+    val baseModifier = if (mediaAspectRatio > 0f) {
+        Modifier
             .fillMaxWidth()
             .aspectRatio(mediaAspectRatio)
+    } else {
+        Modifier.fillMaxSize()
+    }
+
+    Box(
+        modifier = baseModifier
             .clickable(enabled = onVideoClick != null) {
                 onVideoClick?.invoke()
             }
@@ -1333,11 +1376,13 @@ private fun FeedVideoPlayer(
 }
 
 @Composable
-private fun MediaViewerDialog(
+fun MediaViewerDialog(
     mediaItems: List<PostMedia>,
     initialPage: Int,
     onDismiss: () -> Unit
 ) {
+    var showOptions by remember { mutableStateOf(false) }
+
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -1346,6 +1391,14 @@ private fun MediaViewerDialog(
             modifier = Modifier
                 .fillMaxSize()
                 .background(Color.Black)
+                .pointerInput(Unit) {
+                    // THÊM NHẤN GIỮ ĐỂ HIỆN OPTION
+                    detectTapGestures(
+                        onLongPress = {
+                            showOptions = true
+                        }
+                    )
+                }
         ) {
             val pagerState = rememberPagerState(
                 initialPage = initialPage.coerceIn(0, mediaItems.lastIndex),
@@ -1361,12 +1414,43 @@ private fun MediaViewerDialog(
                     FeedVideoPlayer(
                         videoUrl = item.cdnUrl,
                         shouldPlay = pagerState.currentPage == page,
-                        mediaAspectRatio = 16f / 9f,
+                        mediaAspectRatio = 0f,
                         onVideoClick = null
                     )
                 } else {
                     ZoomableMediaImage(imageUrl = item.cdnUrl)
                 }
+            }
+
+            // Option in long press
+            if (showOptions) {
+                AlertDialog(
+                    onDismissRequest = { showOptions = false },
+                    title = { Text("Tùy chọn") },
+                    text = {
+                        Column {
+                            TextButton(onClick = { /* Xử lý tải về */ showOptions = false }) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Download, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Tải xuống")
+                                }
+                            }
+                            TextButton(onClick = { /* Xử lý chia sẻ */ showOptions = false }) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(Icons.Default.Share, contentDescription = null)
+                                    Spacer(Modifier.width(8.dp))
+                                    Text("Chia sẻ")
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { showOptions = false }) {
+                            Text("Đóng")
+                        }
+                    }
+                )
             }
 
             Row(
@@ -1396,7 +1480,7 @@ private fun MediaViewerDialog(
 }
 
 @Composable
-private fun ZoomableMediaImage(imageUrl: String?) {
+fun ZoomableMediaImage(imageUrl: String?) {
     var scale by remember(imageUrl) { mutableStateOf(1f) }
     var offset by remember(imageUrl) { mutableStateOf(Offset.Zero) }
     var containerSize by remember(imageUrl) { mutableStateOf(IntSize.Zero) }
@@ -1439,7 +1523,8 @@ private fun ZoomableMediaImage(imageUrl: String?) {
                             if (lastDistance > 0f) {
                                 val zoomChange = distance / lastDistance
                                 val newScale = (scale * zoomChange).coerceIn(1f, 4f)
-                                val pan = if (lastCentroid != null) centroid - lastCentroid!! else Offset.Zero
+                                val pan =
+                                    if (lastCentroid != null) centroid - lastCentroid!! else Offset.Zero
 
                                 scale = newScale
                                 offset = if (newScale > 1f) {
