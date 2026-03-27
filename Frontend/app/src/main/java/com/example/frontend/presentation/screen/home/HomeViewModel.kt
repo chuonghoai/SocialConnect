@@ -221,13 +221,6 @@ class HomeViewModel @Inject constructor(
     fun sharePost(payload: SharePostSubmitData) {
         val postId = payload.postId
         viewModelScope.launch {
-            if (payload.shareText.isNotBlank()) {
-                notificationManager.showMessage(
-                    message = "Caption khi chia sẻ chưa được BE hỗ trợ, hiện chỉ chia sẻ bài gốc.",
-                    type = NotificationType.WARNING
-                )
-            }
-
             if (payload.selectedFriendIds.isNotEmpty()) {
                 notificationManager.showMessage(
                     message = "BE chưa hỗ trợ gửi riêng cho bạn bè đã chọn, hiện chỉ chia sẻ bài viết lên bảng feed.",
@@ -235,7 +228,20 @@ class HomeViewModel @Inject constructor(
                 )
             }
 
-            when (val result = sharePostUseCase(postId)) {
+            val visibility = when (payload.privacy.lowercase()) {
+                "only_me" -> "PRIVATE"
+                "friends", "ban_be", "banbe" -> "FRIENDS"
+                "public", "cong_khai", "congkhai" -> "PUBLIC"
+                else -> payload.privacy
+            }
+
+            when (
+                val result = sharePostUseCase(
+                    postId = postId,
+                    content = payload.shareText.trim().ifBlank { null },
+                    visibility = visibility
+                )
+            ) {
                 is ApiResult.Success -> {
                     val latestState = _uiState.value as? HomeUiState.Success ?: return@launch
                     val updatedPosts = latestState.posts.map { post ->

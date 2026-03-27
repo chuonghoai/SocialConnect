@@ -1,5 +1,6 @@
 package com.example.frontend.data.mapper
 
+import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
 
@@ -44,6 +45,7 @@ fun Map<String, Any?>.toDomainPost(): Post {
     val parsedMedia = extractMediaFromRoot()
     val fallbackCdn = stringValue("cdnUrl", "cdn_url", "url", "imageUrl", "videoUrl")
     val cdnUrl = parsedMedia.firstOrNull()?.cdnUrl ?: fallbackCdn
+    val parsedOriginalPost = mapValue("originalPost").toOriginalPostOrNull()
 
     return Post(
         id = id,
@@ -61,10 +63,50 @@ fun Map<String, Any?>.toDomainPost(): Post {
         cdnUrl = cdnUrl,
         isLiked = isLiked,
         media = parsedMedia,
+        originalPost = parsedOriginalPost,
         mediaIds = null,
         mediaUrls = null,
         images = null,
         videos = null
+    )
+}
+
+private fun Map<String, Any?>.toOriginalPostOrNull(): OriginalPost? {
+    if (isEmpty()) return null
+
+    val id = stringValue("_id", "id")
+    if (id.isBlank()) return null
+
+    val userObj = mapValue("user", "author", "owner")
+    val userId = stringValue("userId", "user_id")
+        .ifBlank { userObj.stringValue("_id", "id", "userId") }
+    val displayName = stringValue("displayName", "username", "fullName", "name")
+        .ifBlank { userObj.stringValue("displayName", "username", "fullName", "name") }
+    val userAvatar = stringValue("userAvatar", "avatarUrl", "avatar", "profileImage")
+        .ifBlank {
+            userObj.stringValue("userAvatar", "avatarUrl", "avatar", "profileImage", "photoUrl")
+        }
+
+    val content = stringValue("content", "caption", "text", "description")
+    val createdAt = stringValue("createdAt", "created_at", "timestamp", "date")
+    val media = extractMediaFromRoot()
+    val fallbackCdn = stringValue("cdnUrl", "cdn_url", "url", "imageUrl", "videoUrl")
+    val cdnUrl = media.firstOrNull()?.cdnUrl ?: fallbackCdn
+    val firstKind = media.firstOrNull()?.kind
+    val kind = stringValue("kind", "mediaType", "resource_type").ifBlank {
+        firstKind ?: inferKind(cdnUrl)
+    }
+
+    return OriginalPost(
+        id = id,
+        userId = userId,
+        displayName = displayName,
+        userAvatar = userAvatar,
+        content = content,
+        kind = kind,
+        cdnUrl = cdnUrl,
+        createdAt = createdAt,
+        media = media
     )
 }
 

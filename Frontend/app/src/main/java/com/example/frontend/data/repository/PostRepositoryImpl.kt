@@ -9,6 +9,7 @@ import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import com.example.frontend.data.remote.dto.SharePostRequest
 import com.example.frontend.data.remote.dto.UpdatePostRequest
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
@@ -242,9 +243,19 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun sharePost(postId: String): ApiResult<String> {
+    override suspend fun sharePost(
+        postId: String,
+        content: String?,
+        visibility: String?
+    ): ApiResult<String> {
         return try {
-            val response = postApi.sharePost(postId)
+            val response = postApi.sharePost(
+                postId = postId,
+                request = SharePostRequest(
+                    content = content,
+                    visibility = visibility
+                )
+            )
             ApiResult.Success(response["postId"].orEmpty())
         } catch (e: IOException) {
             ApiResult.Error(message = "Lỗi mạng", throwable = e)
