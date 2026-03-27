@@ -360,11 +360,22 @@ class PostRepositoryImpl @Inject constructor(
         }
     }
 
-    override suspend fun updatePost(postId: String, content: String?, visibility: String?): ApiResult<Unit> {
+    override suspend fun updatePost(
+        postId: String,
+        content: String?,
+        visibility: String?,
+        mediaPublicIds: List<String>?,
+        mediaUrls: List<String>?
+    ): ApiResult<Unit> {
         return try {
             val response = postApi.updatePost(
                 postId = postId,
-                request = UpdatePostRequest(content = content, visibility = visibility)
+                request = UpdatePostRequest(
+                    content = content,
+                    visibility = visibility,
+                    mediaPublicIds = mediaPublicIds,
+                    mediaUrls = mediaUrls
+                )
             )
 
             if (response.isSuccessful) {
