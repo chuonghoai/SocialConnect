@@ -223,8 +223,7 @@ fun HomeScreen(
                                         // viewModel.sharePost(post.id)
                                     },
                                     onAvatarClick = onAvatarClick,
-                                    onVideoClick = onVideoClick
-                                    },
+                                    onVideoClick = onVideoClick,
                                     onEditPostRequest = {
                                         onEditPostClick(post.id)
                                     },

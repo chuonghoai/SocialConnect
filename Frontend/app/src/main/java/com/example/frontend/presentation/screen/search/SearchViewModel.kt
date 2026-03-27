@@ -2,7 +2,9 @@ package com.example.frontend.presentation.screen.search
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import android.util.Log
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.domain.usecase.FriendUseCase.AddFriendUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.AddSearchHistoryUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.ClearSearchHistoryUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.DeleteSearchHistoryUseCase
@@ -19,6 +21,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val searchUseCase: SearchUseCase,
+    private val addFriendUseCase: AddFriendUseCase,
     private val getSearchHistoryUseCase: GetSearchHistoryUseCase,
     private val addSearchHistoryUseCase: AddSearchHistoryUseCase,
     private val deleteSearchHistoryUseCase: DeleteSearchHistoryUseCase,
@@ -27,6 +30,10 @@ class SearchViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(SearchUiState())
     val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
+
+    private companion object {
+        const val TAG = "SearchViewModel"
+    }
 
     init {
         loadHistory()
@@ -102,6 +109,54 @@ class SearchViewModel @Inject constructor(
         }
     }
 
+    fun addFriend(friendId: String) {
+        if (friendId.isBlank()) return
+
+        val current = _uiState.value
+        if (current.addingFriendIds.contains(friendId)) return
+
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(addingFriendIds = state.addingFriendIds + friendId)
+            }
+
+            when (val result = addFriendUseCase(friendId)) {
+                is ApiResult.Success -> {
+                    _uiState.update { state ->
+                        state.copy(
+                            addingFriendIds = state.addingFriendIds - friendId,
+                            pendingSentFriendIds = state.pendingSentFriendIds + friendId,
+                            pendingIncomingFriendIds = state.pendingIncomingFriendIds - friendId
+                        )
+                    }
+                }
+
+                is ApiResult.Error -> {
+                    Log.w(TAG, "addFriend failed: ${result.message}")
+                    _uiState.update { state ->
+                        val msg = result.message.lowercase()
+                        val hasIncoming = msg.contains("incoming friend request already exists")
+                        val hasSent = msg.contains("friend request already exists") && !hasIncoming
+
+                        state.copy(
+                            addingFriendIds = state.addingFriendIds - friendId,
+                            pendingIncomingFriendIds = if (hasIncoming) {
+                                state.pendingIncomingFriendIds + friendId
+                            } else {
+                                state.pendingIncomingFriendIds
+                            },
+                            pendingSentFriendIds = if (hasSent) {
+                                state.pendingSentFriendIds + friendId
+                            } else {
+                                state.pendingSentFriendIds
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     // ──────────────────────────── Search ────────────────────────────
 
     /**
@@ -120,7 +175,13 @@ class SearchViewModel @Inject constructor(
 
             when (val result = searchUseCase(keyword, _uiState.value.scope.value)) {
                 is ApiResult.Success -> _uiState.update {
-                    it.copy(isLoading = false, results = result.data)
+                    val friendIds = result.data.users.filter { user -> user.isFriend }.map { user -> user.id }.toSet()
+                    it.copy(
+                        isLoading = false,
+                        results = result.data,
+                        pendingSentFriendIds = it.pendingSentFriendIds - friendIds,
+                        pendingIncomingFriendIds = it.pendingIncomingFriendIds - friendIds
+                    )
                 }
                 is ApiResult.Error -> _uiState.update {
                     it.copy(isLoading = false, error = result.message)

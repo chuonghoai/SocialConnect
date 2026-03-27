@@ -43,6 +43,9 @@ interface PostApi {
         @Query("limit") limit: Int = 10
     ): List<Map<String, Any?>>
 
+    @GET(ApiRoutes.GET_POST_BY_ID)
+    suspend fun getPostById(@Path("id") postId: String): Map<String, Any?>
+
     @POST(ApiRoutes.LIKE_POST)
     suspend fun likePost(@Path("postId") postId: String)
 

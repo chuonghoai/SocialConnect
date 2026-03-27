@@ -166,7 +166,13 @@ fun SearchScreen(
                                     if (filteredUsers.isNotEmpty()) {
                                         item { SearchSectionHeader("Người dùng (${filteredUsers.size})") }
                                         items(filteredUsers, key = { it.id }) { user ->
-                                            UserSearchItem(user)
+                                            UserSearchItem(
+                                                user = user,
+                                                isFriendActionLoading = uiState.addingFriendIds.contains(user.id),
+                                                hasPendingSentRequest = uiState.pendingSentFriendIds.contains(user.id),
+                                                hasPendingIncomingRequest = uiState.pendingIncomingFriendIds.contains(user.id),
+                                                onFriendClick = { viewModel.addFriend(user.id) }
+                                            )
                                         }
                                     }
                                     if (filteredPosts.isNotEmpty()) {
@@ -310,7 +316,25 @@ private fun SearchSectionHeader(title: String) {
 }
 
 @Composable
-fun UserSearchItem(user: SearchUserItem) {
+fun UserSearchItem(
+    user: SearchUserItem,
+    isFriendActionLoading: Boolean = false,
+    hasPendingSentRequest: Boolean = false,
+    hasPendingIncomingRequest: Boolean = false,
+    onFriendClick: () -> Unit = {}
+) {
+    val buttonText = when {
+        user.isFriend -> "Bạn bè"
+        hasPendingIncomingRequest -> "Đã nhận lời mời"
+        hasPendingSentRequest -> "Đã gửi lời mời"
+        isFriendActionLoading -> "Đang gửi..."
+        else -> "Kết bạn"
+    }
+    val buttonEnabled = !user.isFriend &&
+        !isFriendActionLoading &&
+        !hasPendingSentRequest &&
+        !hasPendingIncomingRequest
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -342,17 +366,18 @@ fun UserSearchItem(user: SearchUserItem) {
             )
         }
         Button(
-            onClick = { /* TODO: add/remove friend */ },
+            onClick = onFriendClick,
+            enabled = buttonEnabled,
             colors = ButtonDefaults.buttonColors(
-                containerColor = if (user.isFriend) MaterialTheme.colorScheme.surfaceVariant else OrangePrimary,
-                contentColor = if (user.isFriend) MaterialTheme.colorScheme.onSurface else Color.White
+                containerColor = if (buttonEnabled) OrangePrimary else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = if (buttonEnabled) Color.White else MaterialTheme.colorScheme.onSurface
             ),
             shape = RoundedCornerShape(8.dp),
             contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
             modifier = Modifier.height(36.dp)
         ) {
             Text(
-                text = if (user.isFriend) "Bạn bè" else "Kết bạn",
+                text = buttonText,
                 fontSize = 13.sp,
                 fontWeight = FontWeight.SemiBold
             )

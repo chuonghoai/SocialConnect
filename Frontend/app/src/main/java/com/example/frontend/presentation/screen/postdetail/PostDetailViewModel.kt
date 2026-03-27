@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.util.AppNotificationManager
+import com.example.frontend.data.mapper.toDomainPost
 import com.example.frontend.data.mapper.toDomain
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.dto.CreateCommentRequest
@@ -39,22 +40,39 @@ class PostDetailViewModel @Inject constructor(
     private var currentCommentPage: Int = 0
 
     // ── Load post + comments ───────────────────────────────────────────────────
-    fun loadPostDetail() {
-        val post = postDetailStore.selectedPost ?: return
-        currentCommentPage = 0
-        _uiState.update {
-            it.copy(
-                post = post,
-                likeCount = post.likeCount,
-                commentCount = post.commentCount,
-                isLoadingComments = true,
-                isLoadingMoreComments = false,
-                hasMoreComments = true,
-                commentsError = false,
-                comments = emptyList()
-            )
+    fun loadPostDetail(postId: String? = null) {
+        viewModelScope.launch {
+            val selected = postDetailStore.selectedPost
+            val targetPost = when {
+                selected != null && (postId.isNullOrBlank() || selected.id == postId) -> selected
+                !postId.isNullOrBlank() -> {
+                    try {
+                        postApi.getPostById(postId).toDomainPost()
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+
+                else -> null
+            }
+
+            if (targetPost == null) return@launch
+
+            currentCommentPage = 0
+            _uiState.update {
+                it.copy(
+                    post = targetPost,
+                    likeCount = targetPost.likeCount,
+                    commentCount = targetPost.commentCount,
+                    isLoadingComments = true,
+                    isLoadingMoreComments = false,
+                    hasMoreComments = true,
+                    commentsError = false,
+                    comments = emptyList()
+                )
+            }
+            loadCommentsPage(reset = true)
         }
-        loadCommentsPage(reset = true)
     }
 
     fun retryLoadComments() {
