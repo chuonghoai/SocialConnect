@@ -60,6 +60,7 @@ import com.example.frontend.presentation.screen.setting.ChangePasswordScreen
 import com.example.frontend.presentation.screen.calls.CallScreen
 import com.example.frontend.presentation.screen.calls.CallUiEvent
 import com.example.frontend.presentation.screen.calls.CallViewModel
+import com.example.frontend.ui.component.toMediaItems
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 
@@ -362,15 +363,17 @@ fun AppNavGraph(
                     EditPostScreen(
                         currentUser = currentUser,
                         initialContent = editingPost?.content.orEmpty(),
+                        initialMedia = editingPost?.toMediaItems().orEmpty(),
                         initialVisibility = editingPost?.visibility ?: "Công khai",
                         onBackClick = { navController.popBackStack() },
-                        onComplete = { content, visibility ->
-                            if (content != editingPost?.content) {
-                                homeViewModel.editPost(postId, content)
-                            }
-                            if (visibility != editingPost?.visibility) {
-                                homeViewModel.changePostVisibility(postId, visibility)
-                            }
+                        onComplete = { content, visibility, keptExistingMedia, newMediaUris ->
+                            homeViewModel.editPost(
+                                postId = postId,
+                                newContent = content,
+                                newVisibility = visibility,
+                                keptExistingMedia = keptExistingMedia,
+                                newMediaUris = newMediaUris
+                            )
                             navController.popBackStack()
                         }
                     )
@@ -597,3 +600,4 @@ fun AppNavGraph(
         )
     }
 }
+

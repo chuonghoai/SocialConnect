@@ -1,7 +1,7 @@
 ﻿package com.example.frontend.data.remote.api
 
 object ApiRoutes {
-    const val ME = "api/auth/me"
+    const val ME = "api/users/me"
     const val USER_PROFILE = "api/users/{userId}"
     const val LOGIN = "api/auth/login"
     const val LOGOUT = "api/auth/logout"
@@ -29,8 +29,8 @@ object ApiRoutes {
     const val SAVE_MEDIA = "api/media"
     const val CREATE_POST = "api/posts"
     const val GET_POST_BY_ID = "api/posts/{id}"
-    const val UPDATE_PROFILE = "/api/auth/me"
-    const val CHANGE_PASSWORD = "/auth/change-password"
+    const val UPDATE_PROFILE = "api/users/me"
+    const val CHANGE_PASSWORD = "api/users/me/change-password"
     const val GET_NOTIFICATIONS_ME = "api/notifications/me"
     const val MARK_NOTIFICATION_READ = "api/notifications/{notificationId}/read"
     const val GET_MY_FRIENDS = "api/users/me/friends"
@@ -39,9 +39,6 @@ object ApiRoutes {
     const val ACCEPT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/accept"
     const val REJECT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/reject"
     const val GET_USER_FRIENDS = "api/users/{userId}/friends"
-
-
-
 
     // Conversation
     const val CONVERSATIONS = "api/conversations"

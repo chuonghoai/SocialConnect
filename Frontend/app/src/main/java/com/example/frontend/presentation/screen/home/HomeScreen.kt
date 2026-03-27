@@ -80,7 +80,11 @@ fun HomeScreen(
         listOf(ShareDropdownOption(id = "feed", label = "Bảng feed"))
     }
     val privacyOptions = remember {
-        listOf(ShareDropdownOption(id = "only_me", label = "Chỉ mình tôi"))
+        listOf(
+            ShareDropdownOption(id = "public", label = "Công khai"),
+            ShareDropdownOption(id = "friends", label = "Bạn bè"),
+            ShareDropdownOption(id = "private", label = "Chỉ mình tôi")
+        )
     }
 
     val shouldLoadMore by remember {

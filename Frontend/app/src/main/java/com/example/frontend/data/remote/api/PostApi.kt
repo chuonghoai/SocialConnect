@@ -3,6 +3,7 @@
 import com.example.frontend.data.remote.dto.CommentResponseDto
 import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import com.example.frontend.data.remote.dto.SharePostRequest
 import com.example.frontend.data.remote.dto.UpdatePostRequest
 import com.example.frontend.domain.model.Post
 import retrofit2.http.Query
@@ -22,7 +23,10 @@ interface PostApi {
     ) : List<Map<String, Any?>>
 
     @POST(ApiRoutes.SHARE_POST)
-    suspend fun sharePost(@Path("postId") postId: String): Map<String, String>
+    suspend fun sharePost(
+        @Path("postId") postId: String,
+        @Body request: SharePostRequest
+    ): Map<String, String>
 
     @GET(ApiRoutes.GET_VIDEO)
     suspend fun getVideo(
