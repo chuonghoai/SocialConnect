@@ -120,8 +120,6 @@ fun PostCard(
     val mediaItems = post.toMediaItems()
     val clipboardManager = LocalClipboardManager.current
 
-    val postMedia = resolveMedia(post.kind, post.cdnUrl, post.media)
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -238,14 +236,6 @@ fun PostCard(
                             )
                         }
                         DropdownMenuItem(
-                            text = { Text(saveMenuLabel) },
-                            enabled = onSaveClick != null,
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                onSaveClick?.invoke()
-                            }
-                        )
-                        DropdownMenuItem(
                             text = { Text("Chia sẻ bài viết") },
                             enabled = onShareClick != null,
                             onClick = {
@@ -258,18 +248,6 @@ fun PostCard(
                             onClick = {
                                 isMoreMenuExpanded = false
                                 clipboardManager.setText(AnnotatedString("https://socialconnect.app/posts/${post.id}"))
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Ẩn bài viết") },
-                            onClick = {
-                                isMoreMenuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Báo cáo bài viết") },
-                            onClick = {
-                                isMoreMenuExpanded = false
                             }
                         )
                     }
@@ -297,18 +275,6 @@ fun PostCard(
                     )
                 }
 
-                if (postMedia.isNotEmpty()) {
-                    PostMediaGallery(
-                        mediaItems = postMedia,
-                        isLiked = post.isLiked,
-                        likeCount = post.likeCount,
-                        commentCount = post.commentCount,
-                        shareCount = post.shareCount,
-                        onLikeClick = onLikeClick,
-                        onCommentClick = onCommentClick,
-                        onShareClick = onShareClick
-                    )
-                }
                 if (mediaItems.isNotEmpty()) {
                     PostMediaPreview(
                         mediaItems = mediaItems,
@@ -385,7 +351,6 @@ fun PostCard(
 
 @Composable
 private fun SharedPostPreviewCard(originalPost: OriginalPost) {
-    val originalMedia = resolveMedia(originalPost.kind, originalPost.cdnUrl, originalPost.media)
     val mediaItems = originalPost.toMediaItems()
 
     Card(
@@ -432,9 +397,6 @@ private fun SharedPostPreviewCard(originalPost: OriginalPost) {
                 Spacer(Modifier.height(8.dp))
             }
 
-            if (originalMedia.isNotEmpty()) {
-                PostMediaGallery(mediaItems = originalMedia)
-            }
             if (mediaItems.isNotEmpty()) {
                 PostMediaPreview(mediaItems = mediaItems)
             }
@@ -904,6 +866,9 @@ private fun List<PostMedia>.toPostMediaItems(): List<PostMedia> {
 }
 
 private fun OriginalPost.toMediaItems(): List<PostMedia> {
+    val mediaFromArray = media.orEmpty().toPostMediaItems()
+    if (mediaFromArray.isNotEmpty()) return mediaFromArray
+
     val urls = parseMediaUrls(cdnUrl)
     if (urls.isEmpty()) return emptyList()
 

@@ -145,7 +145,11 @@ class HomeViewModel @Inject constructor(
         val updatedPosts = currentState.posts.map { post ->
             if (post.id == postId) {
                 val newIsLiked = !post.isLiked
-                val newLikeCount = if (newIsLiked) post.likeCount + 1 else post.likeCount - 1
+                val newLikeCount = if (newIsLiked) {
+                    post.likeCount + 1
+                } else {
+                    (post.likeCount - 1).coerceAtLeast(0)
+                }
 
                 targetIsLiked = newIsLiked
                 targetLikeCount = newLikeCount

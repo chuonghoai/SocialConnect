@@ -9,7 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.usecase.AuthUseCase.UpdateProfileUseCase
-import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
+import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUrlUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -17,14 +17,13 @@ import javax.inject.Inject
 @HiltViewModel
 class EditProfileViewModel @Inject constructor(
     private val updateProfileUseCase: UpdateProfileUseCase,
-    private val uploadMediaUseCase: UploadMediaUseCase
+    private val uploadMediaUrlUseCase: UploadMediaUrlUseCase
 ) : ViewModel() {
 
     var displayName by mutableStateOf("")
     var dob by mutableStateOf("")
     var email by mutableStateOf("")
 
-    // Lưu tạm Uri của ảnh người dùng vừa chọn từ thư viện
     var selectedAvatarUri by mutableStateOf<Uri?>(null)
     private var currentAvatarUrl: String? = null
 
@@ -37,7 +36,7 @@ class EditProfileViewModel @Inject constructor(
         if (user != null && !isInitialized) {
             displayName = user.displayName
             email = user.email
-            dob = "01/01/2000" // Mock tạm
+            dob = "01/01/2000" // temporary mock
             currentAvatarUrl = user.avatarUrl
             isInitialized = true
         }
@@ -50,21 +49,19 @@ class EditProfileViewModel @Inject constructor(
 
             var finalAvatarToSubmit = currentAvatarUrl
 
-            // 1. Nếu có chọn ảnh mới -> Gọi upload ảnh trước
             if (selectedAvatarUri != null) {
-                when (val uploadRes = uploadMediaUseCase(selectedAvatarUri!!)) {
+                when (val uploadRes = uploadMediaUrlUseCase(selectedAvatarUri!!)) {
                     is ApiResult.Success -> {
-                        finalAvatarToSubmit = uploadRes.data // Gắn url/id mới
+                        finalAvatarToSubmit = uploadRes.data
                     }
                     is ApiResult.Error -> {
-                        error = "Lỗi tải ảnh lên: ${uploadRes.message}"
+                        error = "Loi tai anh len: ${uploadRes.message}"
                         isLoading = false
                         return@launch
                     }
                 }
             }
 
-            // 2. Gọi API cập nhật thông tin
             when (val result = updateProfileUseCase(displayName, dob, email, finalAvatarToSubmit)) {
                 is ApiResult.Success -> onSuccess()
                 is ApiResult.Error -> error = result.message
