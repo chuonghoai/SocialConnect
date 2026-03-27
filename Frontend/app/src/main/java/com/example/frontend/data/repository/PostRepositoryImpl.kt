@@ -295,13 +295,15 @@ class PostRepositoryImpl @Inject constructor(
         videoId: String,
         content: String,
         parentCommentId: String?,
-        mediaId: String?
+        mediaId: String?,
+        mediaIds: List<String>?
     ): ApiResult<Unit> {
         return try {
             val requestBody = CreateCommentRequest(
                 content = content,
                 parentCommentId = parentCommentId,
-                mediaId = mediaId
+                mediaId = mediaId,
+                mediaIds = mediaIds
             )
             val response = postApi.createVideoComment(videoId, requestBody)
             if (response.isSuccessful) {

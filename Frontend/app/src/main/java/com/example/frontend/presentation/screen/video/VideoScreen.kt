@@ -23,6 +23,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
@@ -71,6 +72,8 @@ import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
+import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.ui.component.PostMediaPreview
 import kotlinx.coroutines.delay
 import kotlin.OptIn
 
@@ -85,9 +88,9 @@ fun VideoScreen(
     val commentsSheetState by viewModel.commentsSheetState.collectAsState()
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri: Uri? ->
-        viewModel.onMediaSelected(uri)
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
+    ) { uris: List<Uri> ->
+        viewModel.onMediaSelected(uris)
     }
 
     LaunchedEffect(Unit) {
@@ -168,9 +171,14 @@ fun VideoScreen(
                 currentUserAvatarUrl = currentUserAvatarUrl,
                 onInputChange = viewModel::onCommentInputChange,
                 onSend = viewModel::submitVideoComment,
-                onAttachClick = { imagePickerLauncher.launch("image/*") },
+                onAttachClick = {
+                    imagePickerLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                    )
+                },
                 onReplyClick = viewModel::onReplyToComment,
                 onCancelReply = viewModel::cancelReply,
+                onRemoveSelectedMedia = viewModel::removeSelectedMedia,
                 onClearSelectedMedia = viewModel::clearSelectedMedia
             )
         }
@@ -425,6 +433,25 @@ private fun buildCommentTree(comments: List<Comment>): List<CommentUiItem> {
     return result
 }
 
+private fun resolveCommentMedia(comment: Comment): List<PostMedia> {
+    val fromServer = comment.media
+        .mapNotNull { mediaItem ->
+            val url = mediaItem.resolvedUrl().trim()
+            if (url.isBlank()) null else mediaItem.copy(cdnUrl = url)
+        }
+    if (fromServer.isNotEmpty()) return fromServer
+
+    val fallbackUrl = comment.mediaUrl?.trim().orEmpty()
+    if (fallbackUrl.isBlank()) return emptyList()
+
+    return listOf(
+        PostMedia(
+            cdnUrl = fallbackUrl,
+            kind = comment.mediaType
+        )
+    )
+}
+
 @Composable
 private fun VideoCommentsSheet(
     state: VideoCommentsSheetState,
@@ -434,6 +461,7 @@ private fun VideoCommentsSheet(
     onAttachClick: () -> Unit,
     onReplyClick: (Comment) -> Unit,
     onCancelReply: () -> Unit,
+    onRemoveSelectedMedia: (Uri) -> Unit,
     onClearSelectedMedia: () -> Unit
 ) {
     val commentItems = remember(state.comments) { buildCommentTree(state.comments) }
@@ -481,6 +509,9 @@ private fun VideoCommentsSheet(
                     items(commentItems, key = { it.comment.id }) { item ->
                         val comment = item.comment
                         val startPad = 8.dp + (item.level * 16).dp
+                        val commentMedia = remember(comment.media, comment.mediaUrl, comment.mediaType) {
+                            resolveCommentMedia(comment)
+                        }
 
                         Column(modifier = Modifier.padding(start = startPad)) {
                             Row(verticalAlignment = Alignment.Top) {
@@ -506,17 +537,9 @@ private fun VideoCommentsSheet(
                                             fontSize = 14.sp
                                         )
                                     }
-                                    if (!comment.mediaUrl.isNullOrBlank()) {
+                                    if (commentMedia.isNotEmpty()) {
                                         Spacer(Modifier.height(6.dp))
-                                        AsyncImage(
-                                            model = comment.mediaUrl,
-                                            contentDescription = null,
-                                            modifier = Modifier
-                                                .size(120.dp)
-                                                .clip(RoundedCornerShape(10.dp)),
-                                            contentScale = ContentScale.Crop,
-                                            error = painterResource(R.drawable.icon_image)
-                                        )
+                                        PostMediaPreview(mediaItems = commentMedia)
                                     }
                                     TextButton(
                                         onClick = { onReplyClick(comment) },
@@ -556,26 +579,47 @@ private fun VideoCommentsSheet(
             }
         }
 
-        if (state.selectedMediaUri != null) {
+        if (state.selectedMediaUris.isNotEmpty()) {
             Spacer(Modifier.height(8.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                AsyncImage(
-                    model = state.selectedMediaUri,
-                    contentDescription = null,
-                    modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)),
-                    contentScale = ContentScale.Crop,
-                    error = painterResource(R.drawable.icon_image)
-                )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .weight(1f)
+                        .heightIn(max = 110.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(state.selectedMediaUris) { uri ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            AsyncImage(
+                                model = uri,
+                                contentDescription = null,
+                                modifier = Modifier.size(44.dp).clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop,
+                                error = painterResource(R.drawable.icon_image)
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(
+                                text = "Tep da chon",
+                                color = Color.DarkGray,
+                                modifier = Modifier.weight(1f),
+                                fontSize = 12.sp
+                            )
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Remove media",
+                                tint = Color.DarkGray,
+                                modifier = Modifier.size(18.dp).clickable { onRemoveSelectedMedia(uri) }
+                            )
+                        }
+                    }
+                }
                 Spacer(Modifier.width(8.dp))
-                Text(
-                    text = "Da chon 1 tep anh",
-                    color = Color.DarkGray,
-                    modifier = Modifier.weight(1f),
-                    fontSize = 12.sp
-                )
                 Icon(
                     imageVector = Icons.Default.Close,
-                    contentDescription = "Clear media",
+                    contentDescription = "Clear all media",
                     tint = Color.DarkGray,
                     modifier = Modifier.size(18.dp).clickable(onClick = onClearSelectedMedia)
                 )
@@ -624,7 +668,7 @@ private fun VideoCommentsSheet(
             Spacer(Modifier.width(4.dp))
             TextButton(
                 onClick = onSend,
-                enabled = (state.commentInput.isNotBlank() || state.selectedMediaUri != null) && !state.isSubmitting
+                enabled = (state.commentInput.isNotBlank() || state.selectedMediaUris.isNotEmpty()) && !state.isSubmitting
             ) {
                 if (state.isSubmitting) {
                     CircularProgressIndicator(

@@ -211,14 +211,6 @@ fun PostCard(
                             )
                         } else {
                             DropdownMenuItem(
-                                text = { Text(saveMenuLabel) },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    onSaveClick?.invoke()
-                                },
-                                enabled = onSaveClick != null
-                            )
-                            DropdownMenuItem(
                                 text = { Text("Ẩn bài viết") },
                                 onClick = {
                                     isMoreMenuExpanded = false
@@ -813,7 +805,7 @@ private fun FullscreenVideo(url: String?) {
     }
 }
 
-private fun Post.toMediaItems(): List<PostMedia> {
+fun Post.toMediaItems(): List<PostMedia> {
     val mediaFromArray = media.orEmpty().toPostMediaItems()
     if (mediaFromArray.isNotEmpty()) return mediaFromArray
 
@@ -996,7 +988,7 @@ private fun SaveInteractionItem(
 }
 
 @Composable
-private fun PostMediaPreview(
+fun PostMediaPreview(
     mediaItems: List<PostMedia>,
     onVideoClick: (() -> Unit)? = null
 ) {

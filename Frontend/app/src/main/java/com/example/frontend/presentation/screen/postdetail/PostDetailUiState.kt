@@ -13,7 +13,7 @@ data class PostDetailUiState(
     val commentsError: Boolean = false,
     val commentInput: String = "",
     val isSendingComment: Boolean = false,
-    val selectedMediaUri: Uri? = null,
+    val selectedMediaUris: List<Uri> = emptyList(),
     val replyingToComment: Comment? = null,
     val isLiked: Boolean = false,
     val likeCount: Int = 0,

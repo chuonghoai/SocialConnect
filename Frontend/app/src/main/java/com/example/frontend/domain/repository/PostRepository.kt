@@ -45,6 +45,7 @@ interface PostRepository {
         videoId: String,
         content: String,
         parentCommentId: String? = null,
-        mediaId: String? = null
+        mediaId: String? = null,
+        mediaIds: List<String>? = null
     ): ApiResult<Unit>
 }
