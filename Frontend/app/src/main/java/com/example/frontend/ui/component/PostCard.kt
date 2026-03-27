@@ -58,6 +58,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -1380,6 +1381,7 @@ fun FeedVideoPlayer(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MediaViewerDialog(
     mediaItems: List<PostMedia>,
@@ -1387,6 +1389,8 @@ fun MediaViewerDialog(
     onDismiss: () -> Unit
 ) {
     var showOptions by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState()
+    val coroutineScope = rememberCoroutineScope()
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -1423,12 +1427,17 @@ fun MediaViewerDialog(
             // Options Overlay
             if (showOptions) {
                 val currentMediaItem = mediaItems[pagerState.currentPage]
-                MediaOptionDialog(
+                MediaOptionBottomSheet(
                     mediaUrl = currentMediaItem.cdnUrl,
                     isVideo = currentMediaItem.kind == "VIDEO",
-                    onDismiss = { showOptions = false },
+                    sheetState = sheetState,
+                    coroutineScope = coroutineScope,
+                    onDismissRequest = {
+                        // Tắt modal khi người dùng bấm ra ngoài hoặc vuốt xuống
+                        showOptions = false
+                    },
                     onShareClick = {
-                        /* Logic gọi share link sau này nếu cần */
+                        // Xử lý share
                     }
                 )
             }
