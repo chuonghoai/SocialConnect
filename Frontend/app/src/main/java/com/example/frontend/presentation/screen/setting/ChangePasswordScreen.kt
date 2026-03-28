@@ -1,11 +1,29 @@
 package com.example.frontend.presentation.screen.setting
 
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -17,11 +35,9 @@ import com.example.frontend.ui.theme.OrangePrimary
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChangePasswordScreen(
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    viewModel: ChangePasswordViewModel = hiltViewModel()
 ) {
-    var newPassword by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
-
     Scaffold(
         topBar = {
             TopAppBar(
@@ -31,7 +47,7 @@ fun ChangePasswordScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
                     }
                 },
-                windowInsets = WindowInsets(0) // Tránh double padding
+                windowInsets = WindowInsets(0)
             )
         }
     ) { padding ->
@@ -42,8 +58,8 @@ fun ChangePasswordScreen(
                 .padding(16.dp)
         ) {
             OutlinedTextField(
-                value = newPassword,
-                onValueChange = { newPassword = it },
+                value = viewModel.newPassword,
+                onValueChange = { viewModel.newPassword = it },
                 label = { Text("Mật khẩu mới") },
                 modifier = Modifier.fillMaxWidth(),
                 visualTransformation = PasswordVisualTransformation(),
@@ -57,8 +73,8 @@ fun ChangePasswordScreen(
             Spacer(modifier = Modifier.height(16.dp))
 
             OutlinedTextField(
-                value = confirmPassword,
-                onValueChange = { confirmPassword = it },
+                value = viewModel.confirmPassword,
+                onValueChange = { viewModel.confirmPassword = it },
                 label = { Text("Nhập lại mật khẩu mới") },
                 modifier = Modifier.fillMaxWidth(),
                 visualTransformation = PasswordVisualTransformation(),
@@ -69,19 +85,30 @@ fun ChangePasswordScreen(
                 )
             )
 
+            if (viewModel.error != null) {
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = viewModel.error.orEmpty(),
+                    color = MaterialTheme.colorScheme.error
+                )
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = {
-                    onBackClick()
-                },
+                onClick = { viewModel.submit(onSuccess = onBackClick) },
+                enabled = !viewModel.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
                 shape = RoundedCornerShape(25.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
             ) {
-                Text("Lưu thay đổi", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                if (viewModel.isLoading) {
+                    CircularProgressIndicator(color = Color.White)
+                } else {
+                    Text("Lưu thay đổi", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = Color.White)
+                }
             }
         }
     }

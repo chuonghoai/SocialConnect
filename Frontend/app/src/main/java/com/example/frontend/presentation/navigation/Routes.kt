@@ -29,7 +29,11 @@ object Routes {
     const val CREATE_POST = "create_post"
     const val EDIT_POST_BASE = "edit_post"
     const val EDIT_POST = "$EDIT_POST_BASE/{postId}"
-    const val POST_DETAIL = "post_detail"
+    const val POST_DETAIL_BASE = "post_detail"
+    const val POST_DETAIL = "$POST_DETAIL_BASE/{postId}"
+    const val FRIEND_REQUESTS = "friend_requests"
     const val CALL_BASE = "call"
     const val CALL = "$CALL_BASE/{targetUserId}?isVideoCall={isVideoCall}&isIncoming={isIncoming}&fullname={fullname}&avatarUrl={avatarUrl}"
+    const val MY_FRIENDS = "my_friends"
+    
 }

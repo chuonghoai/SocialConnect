@@ -21,13 +21,27 @@ class MediaRepositoryImpl @Inject constructor(
 ) : MediaRepository {
 
     override suspend fun uploadMedia(uri: Uri): ApiResult<String> {
+        return when (val uploadResult = uploadAndPersistMedia(uri)) {
+            is ApiResult.Success -> ApiResult.Success(uploadResult.data.id)
+            is ApiResult.Error -> uploadResult
+        }
+    }
+
+    override suspend fun uploadMediaUrl(uri: Uri): ApiResult<String> {
+        return when (val uploadResult = uploadAndPersistMedia(uri)) {
+            is ApiResult.Success -> ApiResult.Success(uploadResult.data.secureUrl)
+            is ApiResult.Error -> uploadResult
+        }
+    }
+
+    private suspend fun uploadAndPersistMedia(uri: Uri): ApiResult<UploadedMediaInfo> {
         return try {
             val sigRes = mediaApi.getSignature().data
 
             val inputStream = context.contentResolver.openInputStream(uri)
-            val bytes = inputStream?.readBytes() ?: return ApiResult.Error(message = "Không thể đọc file từ thiết bị")
+            val bytes = inputStream?.readBytes()
+                ?: return ApiResult.Error(message = "Cannot read file from device")
 
-            // Xác định MIME Type chính xác hơn
             val mimeType = if (uri.scheme == "content") {
                 context.contentResolver.getType(uri)
             } else {
@@ -35,7 +49,6 @@ class MediaRepositoryImpl @Inject constructor(
                 if (extension.isNotEmpty()) {
                     MimeTypeMap.getSingleton().getMimeTypeFromExtension(extension.lowercase())
                 } else {
-                    // Xử lý thủ công cho file từ cache có đuôi .m4a
                     if (uri.path?.endsWith(".m4a") == true) "audio/mp4" else null
                 }
             } ?: "application/octet-stream"
@@ -49,11 +62,10 @@ class MediaRepositoryImpl @Inject constructor(
             val filePart = MultipartBody.Part.createFormData("file", fileName, requestFile)
             fun createPart(value: String) = value.toRequestBody("text/plain".toMediaTypeOrNull())
 
-            // Tự động xác định resource_type dựa trên mimeType
             val resourceType = when {
                 mimeType.startsWith("image/") -> "image"
                 mimeType.startsWith("video/") -> "video"
-                mimeType.startsWith("audio/") -> "video" // Cloudinary xử lý audio trong 'video' resource type
+                mimeType.startsWith("audio/") -> "video"
                 mimeType.contains("mp4") || mimeType.contains("mpeg") -> "video"
                 else -> "auto"
             }
@@ -84,15 +96,24 @@ class MediaRepositoryImpl @Inject constructor(
             )
             val saveRes = mediaApi.saveMedia(saveReq)
 
-            ApiResult.Success(saveRes.data.id)
-
+            ApiResult.Success(
+                UploadedMediaInfo(
+                    id = saveRes.data.id,
+                    secureUrl = cloudRes.secure_url
+                )
+            )
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string()
-            Log.e("Cloudinary", "Lỗi Cloudinary 400: $errorBody")
-            ApiResult.Error(message = "Lỗi Cloudinary 400: $errorBody", throwable = e)
+            Log.e("Cloudinary", "Cloudinary error: $errorBody")
+            ApiResult.Error(message = "Cloudinary error: $errorBody", throwable = e)
         } catch (e: Exception) {
-            Log.e("Cloudinary", "Lỗi Upload: ${e.message}")
-            ApiResult.Error(message = "Lỗi Upload: ${e.message}", throwable = e)
+            Log.e("Cloudinary", "Upload error: ${e.message}")
+            ApiResult.Error(message = "Upload error: ${e.message}", throwable = e)
         }
     }
 }
+
+private data class UploadedMediaInfo(
+    val id: String,
+    val secureUrl: String
+)

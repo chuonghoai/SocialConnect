@@ -3,6 +3,7 @@
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -49,6 +50,7 @@ fun ProfileScreen(
     onLoggedOut: () -> Unit,
     onBackClick: () -> Unit = {},
     onNavigateToSetting: () -> Unit = {},
+    onNavigateToFriends: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -65,7 +67,11 @@ fun ProfileScreen(
         listOf(ShareDropdownOption(id = "feed", label = "Bảng feed"))
     }
     val privacyOptions = remember {
-        listOf(ShareDropdownOption(id = "only_me", label = "Chỉ mình tôi"))
+        listOf(
+            ShareDropdownOption(id = "public", label = "Công khai"),
+            ShareDropdownOption(id = "friends", label = "Bạn bè"),
+            ShareDropdownOption(id = "private", label = "Chỉ mình tôi")
+        )
     }
 
     val showScrollToTop by remember {
@@ -112,7 +118,10 @@ fun ProfileScreen(
                     contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     item {
-                        ProfileInfoSection(user = currentUser)
+                        ProfileInfoSection(
+                            user = currentUser,
+                            onNavigateToFriends = onNavigateToFriends
+                        )
                         ProfileTabs(
                             selectedTabIndex = selectedTabIndex,
                             onTabSelected = viewModel::onTabSelected
@@ -294,7 +303,10 @@ private fun ProfileTopBar(onBackClick: () -> Unit, onMoreClick: () -> Unit) {
 }
 
 @Composable
-private fun ProfileInfoSection(user: User?) {
+private fun ProfileInfoSection(
+    user: User?,
+    onNavigateToFriends: () -> Unit = {}
+) {
     val skeletonColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)
 
     Column(
@@ -342,7 +354,11 @@ private fun ProfileInfoSection(user: User?) {
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 StatItem(count = user.postCount.toString(), label = "Bài đăng")
-                StatItem(count = user.friendCount.toString(), label = "Bạn bè")
+                StatItem(
+                    count = user.friendCount.toString(),
+                    label = "Bạn bè",
+                    onClick = onNavigateToFriends
+                )
             }
             Spacer(Modifier.height(16.dp))
 
@@ -395,8 +411,15 @@ private fun ProfileInfoSection(user: User?) {
 }
 
 @Composable
-private fun StatItem(count: String, label: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+private fun StatItem(count: String, label: String, onClick: (() -> Unit)? = null) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = if (onClick != null) {
+            Modifier.clickable { onClick() }
+        } else {
+            Modifier
+        }
+    ) {
         Text(text = count, fontWeight = FontWeight.Bold, fontSize = 20.sp)
         Text(text = label, color = Color.Gray, fontSize = 13.sp)
     }

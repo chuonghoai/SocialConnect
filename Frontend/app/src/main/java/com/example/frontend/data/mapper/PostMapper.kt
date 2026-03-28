@@ -1,5 +1,6 @@
 package com.example.frontend.data.mapper
 
+import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
 
@@ -34,6 +35,7 @@ fun Map<String, Any?>.toDomainPost(): Post {
     val content = stringValue("content", "caption", "text", "description")
     val type = stringValue("type", "postType").ifBlank { "POST" }
     val kind = stringValue("kind", "mediaType", "resource_type")
+    val visibility = normalizeVisibility(stringValue("visibility", "privacy"))
     val createdAt = stringValue("createdAt", "created_at", "timestamp", "date")
     val likeCount = intValue("likeCount", "likes", "totalLikes")
     val commentCount = intValue("commentCount", "comments", "totalComments")
@@ -44,6 +46,7 @@ fun Map<String, Any?>.toDomainPost(): Post {
     val parsedMedia = extractMediaFromRoot()
     val fallbackCdn = stringValue("cdnUrl", "cdn_url", "url", "imageUrl", "videoUrl")
     val cdnUrl = parsedMedia.firstOrNull()?.cdnUrl ?: fallbackCdn
+    val parsedOriginalPost = mapValue("originalPost").toOriginalPostOrNull()
 
     return Post(
         id = id,
@@ -51,6 +54,7 @@ fun Map<String, Any?>.toDomainPost(): Post {
         displayName = displayName,
         userAvatar = userAvatar,
         content = content,
+        visibility = visibility,
         type = type,
         kind = kind,
         createdAt = createdAt,
@@ -61,15 +65,55 @@ fun Map<String, Any?>.toDomainPost(): Post {
         isLiked = isLiked,
         isHiddenByAdmin = isHiddenByAdmin,
         media = parsedMedia,
-        mediaIds = null,
-        mediaUrls = null,
-        images = null,
-        videos = null
+        originalPost = parsedOriginalPost,
+        mediaIds = emptyList(),
+        mediaUrls = emptyList(),
+        images = emptyList(),
+        videos = emptyList()
+    )
+}
+
+private fun Map<String, Any?>.toOriginalPostOrNull(): OriginalPost? {
+    if (isEmpty()) return null
+
+    val id = stringValue("_id", "id")
+    if (id.isBlank()) return null
+
+    val userObj = mapValue("user", "author", "owner")
+    val userId = stringValue("userId", "user_id")
+        .ifBlank { userObj.stringValue("_id", "id", "userId") }
+    val displayName = stringValue("displayName", "username", "fullName", "name")
+        .ifBlank { userObj.stringValue("displayName", "username", "fullName", "name") }
+    val userAvatar = stringValue("userAvatar", "avatarUrl", "avatar", "profileImage")
+        .ifBlank {
+            userObj.stringValue("userAvatar", "avatarUrl", "avatar", "profileImage", "photoUrl")
+        }
+
+    val content = stringValue("content", "caption", "text", "description")
+    val createdAt = stringValue("createdAt", "created_at", "timestamp", "date")
+    val media = extractMediaFromRoot()
+    val fallbackCdn = stringValue("cdnUrl", "cdn_url", "url", "imageUrl", "videoUrl")
+    val cdnUrl = media.firstOrNull()?.cdnUrl ?: fallbackCdn
+    val firstKind = media.firstOrNull()?.kind
+    val kind = stringValue("kind", "mediaType", "resource_type").ifBlank {
+        firstKind ?: inferKind(cdnUrl)
+    }
+
+    return OriginalPost(
+        id = id,
+        userId = userId,
+        displayName = displayName,
+        userAvatar = userAvatar,
+        content = content,
+        kind = kind,
+        cdnUrl = cdnUrl,
+        createdAt = createdAt,
+        media = media
     )
 }
 
 private fun Map<String, Any?>.extractMediaFromRoot(): List<PostMedia> {
-    val results = linkedMapOf<String, String?>()
+    val results = linkedMapOf<String, ParsedMediaMeta>()
 
     // 1) Scan likely media containers first.
     for ((key, value) in this) {
@@ -82,41 +126,42 @@ private fun Map<String, Any?>.extractMediaFromRoot(): List<PostMedia> {
             normalizedKey.contains("image") -> "IMAGE"
             else -> null
         }
-        collectMediaCandidates(value, defaultKind, results)
+        collectMediaCandidates(value, defaultKind, null, results)
     }
 
     // 2) Fallback for simple top-level URL keys.
     for (key in MEDIA_URL_KEYS) {
         val value = this.entries.firstOrNull { it.key.equals(key, ignoreCase = true) }?.value
-        collectMediaCandidates(value, null, results)
+        collectMediaCandidates(value, null, null, results)
     }
 
-    return results.map { (url, kind) ->
-        PostMedia(cdnUrl = url, kind = kind)
+    return results.map { (url, meta) ->
+        PostMedia(
+            cdnUrl = url,
+            kind = meta.kind ?: inferKind(url),
+            publicId = meta.publicId
+        )
     }
 }
 
 private fun collectMediaCandidates(
     node: Any?,
     inheritedKind: String?,
-    results: MutableMap<String, String?>
+    inheritedPublicId: String?,
+    results: MutableMap<String, ParsedMediaMeta>
 ) {
     when (node) {
         null -> return
 
         is String -> {
             val urls = parseUrls(node)
-            urls.forEach { url ->
-                if (!results.containsKey(url)) {
-                    results[url] = inheritedKind ?: inferKind(url)
-                }
-            }
+            urls.forEach { url -> upsertMediaResult(results, url, inheritedKind, inheritedPublicId) }
         }
 
         is Number, is Boolean -> return
 
         is List<*> -> {
-            node.forEach { collectMediaCandidates(it, inheritedKind, results) }
+            node.forEach { collectMediaCandidates(it, inheritedKind, inheritedPublicId, results) }
         }
 
         is Map<*, *> -> {
@@ -125,11 +170,14 @@ private fun collectMediaCandidates(
             val localKind = map.stringValue("kind", "type", "mediaType", "resource_type")
                 .ifBlank { inheritedKind.orEmpty() }
                 .ifBlank { null }
+            val localPublicId = map.stringValue("publicId", "public_id", "mediaPublicId")
+                .ifBlank { inheritedPublicId.orEmpty() }
+                .ifBlank { null }
 
             // Direct URL-like fields inside this object.
             for (key in MEDIA_URL_KEYS) {
                 val direct = map.entries.firstOrNull { it.key.equals(key, ignoreCase = true) }?.value
-                collectMediaCandidates(direct, localKind ?: inheritedKind, results)
+                collectMediaCandidates(direct, localKind ?: inheritedKind, localPublicId, results)
             }
 
             // Continue scanning nested media-ish branches.
@@ -137,7 +185,7 @@ private fun collectMediaCandidates(
                 val normalizedKey = k.lowercase()
                 if (MEDIA_CONTAINER_EXCLUDES.any { normalizedKey.contains(it) }) return@forEach
                 if (MEDIA_CONTAINER_HINTS.any { normalizedKey.contains(it) } || MEDIA_URL_KEYS.contains(normalizedKey)) {
-                    collectMediaCandidates(v, localKind ?: inheritedKind, results)
+                    collectMediaCandidates(v, localKind ?: inheritedKind, localPublicId, results)
                 }
             }
         }
@@ -145,13 +193,29 @@ private fun collectMediaCandidates(
         else -> {
             val text = node.toString()
             val urls = parseUrls(text)
-            urls.forEach { url ->
-                if (!results.containsKey(url)) {
-                    results[url] = inheritedKind ?: inferKind(url)
-                }
-            }
+            urls.forEach { url -> upsertMediaResult(results, url, inheritedKind, inheritedPublicId) }
         }
     }
+}
+
+private data class ParsedMediaMeta(
+    val kind: String?,
+    val publicId: String?
+)
+
+private fun upsertMediaResult(
+    results: MutableMap<String, ParsedMediaMeta>,
+    url: String,
+    incomingKind: String?,
+    incomingPublicId: String?
+) {
+    val current = results[url]
+    val mergedKind = current?.kind
+        ?: incomingKind
+        ?: inferKind(url)
+    val mergedPublicId = current?.publicId
+        ?: incomingPublicId?.takeIf { it.isNotBlank() }
+    results[url] = ParsedMediaMeta(kind = mergedKind, publicId = mergedPublicId)
 }
 
 private fun parseUrls(raw: String): List<String> {
@@ -177,6 +241,16 @@ private fun inferKind(url: String): String {
         "VIDEO"
     } else {
         "IMAGE"
+    }
+}
+
+private fun normalizeVisibility(raw: String): String {
+    val normalized = raw.trim().lowercase()
+    return when {
+        normalized.isBlank() -> "Công khai"
+        normalized.contains("friend") || normalized.contains("ban be") || normalized.contains("bạn bè") -> "Bạn bè"
+        normalized.contains("private") || normalized.contains("rieng tu") || normalized.contains("riêng tư") -> "Riêng tư"
+        else -> "Công khai"
     }
 }
 

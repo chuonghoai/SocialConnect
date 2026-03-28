@@ -219,27 +219,54 @@ class AuthRepositoryImpl @Inject constructor(
         avatar: String?
     ): ApiResult<User> {
         return try {
-            val response = authApi.updateProfile(UpdateProfileRequest(displayName, dob, email, avatar))
+            val response = authApi.updateProfile(
+                UpdateProfileRequest(
+                    displayName = displayName.trim().ifEmpty { null },
+                    avatarUrl = avatar
+                )
+            )
             if (response.isSuccessful && response.body() != null) {
                 ApiResult.Success(response.body()!!)
             } else {
-                ApiResult.Error(message = "Lỗi cập nhật hồ sơ")
+                val backendMessage = response.errorBody()?.string()?.trim().orEmpty()
+                ApiResult.Error(
+                    code = response.code(),
+                    message = backendMessage.ifBlank { "Loi cap nhat ho so (${response.code()})" }
+                )
             }
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "Loi cap nhat ho so (${e.code()})",
+                throwable = e
+            )
         } catch (e: Exception) {
-            ApiResult.Error(message = e.message ?: "Lỗi kết nối")
+            ApiResult.Error(message = e.message ?: "Loi ket noi")
         }
     }
 
-    override suspend fun changePassword(oldPassword: String, newPassword: String): ApiResult<Unit> {
+    override suspend fun changePassword(newPassword: String, confirmPassword: String): ApiResult<Unit> {
         return try {
-            val response = authApi.changePassword(ChangePasswordRequest(oldPassword, newPassword))
+            val response = authApi.changePassword(
+                ChangePasswordRequest(
+                    newPassword = newPassword,
+                    confirmPassword = confirmPassword
+                )
+            )
             if (response.isSuccessful) {
                 ApiResult.Success(Unit)
             } else {
-                ApiResult.Error(message = "Lỗi đổi mật khẩu")
+                val backendMessage = response.errorBody()?.string()?.trim().orEmpty()
+                ApiResult.Error(message = backendMessage.ifBlank { "Loi doi mat khau" })
             }
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = extractHttpErrorMessage(e) ?: "Loi doi mat khau (${e.code()})",
+                throwable = e
+            )
         } catch (e: Exception) {
-            ApiResult.Error(message = e.message ?: "Lỗi kết nối")
+            ApiResult.Error(message = e.message ?: "Loi ket noi")
         }
     }
 
@@ -356,3 +383,5 @@ class AuthRepositoryImpl @Inject constructor(
         }
     }
 }
+
+

@@ -10,5 +10,6 @@ data class Comment(
     val likeCount: Int,
     val parentCommentId: String? = null,
     val mediaUrl: String? = null,
-    val mediaType: String? = null
+    val mediaType: String? = null,
+    val media: List<PostMedia> = emptyList()
 )

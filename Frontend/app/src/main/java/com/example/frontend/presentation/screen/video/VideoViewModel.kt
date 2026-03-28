@@ -223,20 +223,28 @@ class VideoViewModel @Inject constructor(
         _commentsSheetState.value = _commentsSheetState.value.copy(replyingToComment = null)
     }
 
-    fun onMediaSelected(uri: Uri?) {
-        _commentsSheetState.value = _commentsSheetState.value.copy(selectedMediaUri = uri)
+    fun onMediaSelected(uris: List<Uri>) {
+        _commentsSheetState.value = _commentsSheetState.value.copy(
+            selectedMediaUris = (_commentsSheetState.value.selectedMediaUris + uris).distinct()
+        )
+    }
+
+    fun removeSelectedMedia(uri: Uri) {
+        _commentsSheetState.value = _commentsSheetState.value.copy(
+            selectedMediaUris = _commentsSheetState.value.selectedMediaUris - uri
+        )
     }
 
     fun clearSelectedMedia() {
-        _commentsSheetState.value = _commentsSheetState.value.copy(selectedMediaUri = null)
+        _commentsSheetState.value = _commentsSheetState.value.copy(selectedMediaUris = emptyList())
     }
 
     fun submitVideoComment() {
         val sheetState = _commentsSheetState.value
         val videoId = sheetState.videoId ?: return
         val trimmedContent = sheetState.commentInput.trim()
-        val selectedMediaUri = sheetState.selectedMediaUri
-        if ((trimmedContent.isEmpty() && selectedMediaUri == null) || sheetState.isSubmitting) return
+        val selectedMediaUris = sheetState.selectedMediaUris
+        if ((trimmedContent.isEmpty() && selectedMediaUris.isEmpty()) || sheetState.isSubmitting) return
 
         val currentState = _uiState.value as? VideoUiState.Success ?: return
         val targetVideo = currentState.posts.find { it.id == videoId } ?: return
@@ -249,17 +257,19 @@ class VideoViewModel @Inject constructor(
         _commentsSheetState.value = sheetState.copy(isSubmitting = true, errorMessage = null)
 
         viewModelScope.launch {
-            var mediaId: String? = null
-            if (selectedMediaUri != null) {
-                when (val mediaUploadResult = uploadMediaUseCase(selectedMediaUri)) {
-                    is ApiResult.Success -> mediaId = mediaUploadResult.data
-                    is ApiResult.Error -> {
-                        rollbackCommentCount(videoId, oldCommentCount)
-                        _commentsSheetState.value = _commentsSheetState.value.copy(
-                            isSubmitting = false,
-                            errorMessage = mediaUploadResult.message
-                        )
-                        return@launch
+            val mediaIds = mutableListOf<String>()
+            if (selectedMediaUris.isNotEmpty()) {
+                for (uri in selectedMediaUris) {
+                    when (val mediaUploadResult = uploadMediaUseCase(uri)) {
+                        is ApiResult.Success -> mediaIds.add(mediaUploadResult.data)
+                        is ApiResult.Error -> {
+                            rollbackCommentCount(videoId, oldCommentCount)
+                            _commentsSheetState.value = _commentsSheetState.value.copy(
+                                isSubmitting = false,
+                                errorMessage = mediaUploadResult.message
+                            )
+                            return@launch
+                        }
                     }
                 }
             }
@@ -269,7 +279,8 @@ class VideoViewModel @Inject constructor(
                     videoId = videoId,
                     content = trimmedContent,
                     parentCommentId = sheetState.replyingToComment?.id,
-                    mediaId = mediaId
+                    mediaId = mediaIds.firstOrNull(),
+                    mediaIds = mediaIds.ifEmpty { null }
                 )
             ) {
                 is ApiResult.Success -> {
@@ -277,7 +288,7 @@ class VideoViewModel @Inject constructor(
                         isSubmitting = false,
                         commentInput = "",
                         replyingToComment = null,
-                        selectedMediaUri = null,
+                        selectedMediaUris = emptyList(),
                         errorMessage = null
                     )
                     loadVideoComments(videoId)
@@ -332,7 +343,7 @@ data class VideoCommentsSheetState(
     val isLoading: Boolean = false,
     val commentInput: String = "",
     val replyingToComment: Comment? = null,
-    val selectedMediaUri: Uri? = null,
+    val selectedMediaUris: List<Uri> = emptyList(),
     val isSubmitting: Boolean = false,
     val errorMessage: String? = null
 )

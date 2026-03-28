@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.util.AppNotificationManager
+import com.example.frontend.data.mapper.toDomainPost
 import com.example.frontend.data.mapper.toDomain
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.dto.CreateCommentRequest
@@ -39,22 +40,39 @@ class PostDetailViewModel @Inject constructor(
     private var currentCommentPage: Int = 0
 
     // ── Load post + comments ───────────────────────────────────────────────────
-    fun loadPostDetail() {
-        val post = postDetailStore.selectedPost ?: return
-        currentCommentPage = 0
-        _uiState.update {
-            it.copy(
-                post = post,
-                likeCount = post.likeCount,
-                commentCount = post.commentCount,
-                isLoadingComments = true,
-                isLoadingMoreComments = false,
-                hasMoreComments = true,
-                commentsError = false,
-                comments = emptyList()
-            )
+    fun loadPostDetail(postId: String? = null) {
+        viewModelScope.launch {
+            val selected = postDetailStore.selectedPost
+            val targetPost = when {
+                selected != null && (postId.isNullOrBlank() || selected.id == postId) -> selected
+                !postId.isNullOrBlank() -> {
+                    try {
+                        postApi.getPostById(postId).toDomainPost()
+                    } catch (_: Exception) {
+                        null
+                    }
+                }
+
+                else -> null
+            }
+
+            if (targetPost == null) return@launch
+
+            currentCommentPage = 0
+            _uiState.update {
+                it.copy(
+                    post = targetPost,
+                    likeCount = targetPost.likeCount,
+                    commentCount = targetPost.commentCount,
+                    isLoadingComments = true,
+                    isLoadingMoreComments = false,
+                    hasMoreComments = true,
+                    commentsError = false,
+                    comments = emptyList()
+                )
+            }
+            loadCommentsPage(reset = true)
         }
-        loadCommentsPage(reset = true)
     }
 
     fun retryLoadComments() {
@@ -137,12 +155,18 @@ class PostDetailViewModel @Inject constructor(
         _uiState.update { it.copy(commentInput = text) }
     }
 
-    fun onMediaSelected(uri: Uri?) {
-        _uiState.update { it.copy(selectedMediaUri = uri) }
+    fun onMediaSelected(uris: List<Uri>) {
+        _uiState.update {
+            it.copy(selectedMediaUris = (it.selectedMediaUris + uris).distinct())
+        }
     }
 
-    fun removeSelectedMedia() {
-        _uiState.update { it.copy(selectedMediaUri = null) }
+    fun removeSelectedMedia(uri: Uri) {
+        _uiState.update { it.copy(selectedMediaUris = it.selectedMediaUris - uri) }
+    }
+
+    fun clearSelectedMedia() {
+        _uiState.update { it.copy(selectedMediaUris = emptyList()) }
     }
 
     fun onReplyToComment(comment: Comment) {
@@ -157,29 +181,28 @@ class PostDetailViewModel @Inject constructor(
         val state = _uiState.value
         val postId = state.post?.id ?: return
         val text = state.commentInput.trim()
-        val selectedMediaUri = state.selectedMediaUri
+        val selectedMediaUris = state.selectedMediaUris
 
         if (state.isSendingComment) return
-        if (text.isBlank() && selectedMediaUri == null) return
+        if (text.isBlank() && selectedMediaUris.isEmpty()) return
 
         viewModelScope.launch {
             _uiState.update { it.copy(isSendingComment = true) }
 
-            var mediaId: String? = null
+            val mediaIds = mutableListOf<String>()
 
-            if (selectedMediaUri != null) {
-                when (val uploadResult = uploadMediaUseCase(selectedMediaUri)) {
-                    is ApiResult.Success -> {
-                        mediaId = uploadResult.data
-                    }
-
-                    is ApiResult.Error -> {
-                        _uiState.update { it.copy(isSendingComment = false) }
-                        notificationManager.showMessage(
-                            uploadResult.message,
-                            NotificationType.ERROR
-                        )
-                        return@launch
+            if (selectedMediaUris.isNotEmpty()) {
+                for (uri in selectedMediaUris) {
+                    when (val uploadResult = uploadMediaUseCase(uri)) {
+                        is ApiResult.Success -> mediaIds.add(uploadResult.data)
+                        is ApiResult.Error -> {
+                            _uiState.update { it.copy(isSendingComment = false) }
+                            notificationManager.showMessage(
+                                uploadResult.message,
+                                NotificationType.ERROR
+                            )
+                            return@launch
+                        }
                     }
                 }
             }
@@ -190,7 +213,8 @@ class PostDetailViewModel @Inject constructor(
                     request = CreateCommentRequest(
                         content = text,
                         parentCommentId = state.replyingToComment?.id,
-                        mediaId = mediaId
+                        mediaId = mediaIds.firstOrNull(),
+                        mediaIds = mediaIds.ifEmpty { null }
                     )
                 )
 
@@ -202,7 +226,7 @@ class PostDetailViewModel @Inject constructor(
                     it.copy(
                         isSendingComment = false,
                         commentInput = "",
-                        selectedMediaUri = null,
+                        selectedMediaUris = emptyList(),
                         replyingToComment = null,
                         commentCount = it.commentCount + 1
                     )

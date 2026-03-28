@@ -9,6 +9,8 @@ class UpdatePostUseCase @Inject constructor(
     suspend operator fun invoke(
         postId: String,
         content: String? = null,
-        visibility: String? = null
-    ) = repo.updatePost(postId, content, visibility)
+        visibility: String? = null,
+        mediaPublicIds: List<String>? = null,
+        mediaUrls: List<String>? = null
+    ) = repo.updatePost(postId, content, visibility, mediaPublicIds, mediaUrls)
 }

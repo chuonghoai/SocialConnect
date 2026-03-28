@@ -15,10 +15,11 @@ sealed class BottomNavIcon {
 data class BottomNavItem(
     val route: String,
     val label: String,
-    val icon: BottomNavIcon
+    val icon: BottomNavIcon,
+    val badgeCount: Int = 0
 )
 
-fun bottomNavItems(userAvatarUrl: String?): List<BottomNavItem> = listOf(
+fun bottomNavItems(userAvatarUrl: String?, notificationUnreadCount: Int = 0): List<BottomNavItem> = listOf(
     BottomNavItem(
         route = Routes.HOME,
         label = "Home",
@@ -37,7 +38,8 @@ fun bottomNavItems(userAvatarUrl: String?): List<BottomNavItem> = listOf(
     BottomNavItem(
         route = Routes.NOTIFICATION,
         label = "Notification",
-        icon = BottomNavIcon.Drawable(R.drawable.icon_notification)
+        icon = BottomNavIcon.Drawable(R.drawable.icon_notification),
+        badgeCount = notificationUnreadCount
     ),
     BottomNavItem(
         route = Routes.PROFILE,
