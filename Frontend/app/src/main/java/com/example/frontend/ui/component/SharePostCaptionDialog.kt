@@ -341,9 +341,7 @@ private fun ShareSelectorPill(
             modifier = Modifier
                 .clip(RoundedCornerShape(14.dp))
                 .clickable(enabled = enabled) {
-                    if (options.size > 1) {
-                        expanded = true
-                    }
+                    expanded = true
                 }
         ) {
             Row(

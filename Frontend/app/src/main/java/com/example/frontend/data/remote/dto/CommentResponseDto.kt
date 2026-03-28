@@ -1,5 +1,10 @@
 package com.example.frontend.data.remote.dto
 
+data class CommentMediaDto(
+    val cdnUrl: String = "",
+    val kind: String = ""
+)
+
 data class CommentResponseDto(
     val id: String,
     val postId: String,
@@ -11,5 +16,7 @@ data class CommentResponseDto(
     val likeCount: Int = 0,
     val parentCommentId: String? = null,
     val mediaUrl: String? = null,
-    val mediaType: String? = null
+    val mediaType: String? = null,
+    val media: List<CommentMediaDto> = emptyList(),
+    val mediaUrls: List<String> = emptyList()
 )

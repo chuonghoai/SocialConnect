@@ -1,12 +1,14 @@
 package com.example.frontend.presentation.screen.postdetail
 
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
@@ -18,7 +20,6 @@ import androidx.compose.material.icons.filled.AttachFile
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
-import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -37,8 +38,10 @@ import coil.compose.AsyncImage
 import com.example.frontend.R
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
-import com.example.frontend.ui.component.PostMediaContent
+import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.ui.component.PostMediaPreview
 import com.example.frontend.ui.component.formatTimeAgo
+import com.example.frontend.ui.component.toMediaItems
 import com.example.frontend.ui.theme.OrangePrimary
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
@@ -53,11 +56,12 @@ fun PostDetailScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
+    val commentItems = remember(uiState.comments) { buildCommentTree(uiState.comments) }
 
     val mediaPicker = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        viewModel.onMediaSelected(uri)
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
+    ) { uris ->
+        viewModel.onMediaSelected(uris)
     }
 
     LaunchedEffect(postId) {
@@ -79,8 +83,6 @@ fun PostDetailScreen(
                 viewModel.loadMoreComments()
             }
     }
-
-    val commentItems = remember(uiState.comments) { buildCommentTree(uiState.comments) }
 
     Scaffold(
         topBar = {
@@ -111,11 +113,16 @@ fun PostDetailScreen(
                 avatarUrl = "",
                 input = uiState.commentInput,
                 onInputChange = { viewModel.onCommentInputChange(it) },
-                selectedMediaUri = uiState.selectedMediaUri,
+                selectedMediaUris = uiState.selectedMediaUris,
                 replyingToComment = uiState.replyingToComment,
                 isSending = uiState.isSendingComment,
-                onPickMedia = { mediaPicker.launch("image/* video/*") },
-                onRemoveMedia = { viewModel.removeSelectedMedia() },
+                onPickMedia = {
+                    mediaPicker.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                    )
+                },
+                onRemoveMedia = { uri -> viewModel.removeSelectedMedia(uri) },
+                onClearSelectedMedia = { viewModel.clearSelectedMedia() },
                 onCancelReply = { viewModel.cancelReply() },
                 onSend = { viewModel.submitComment() }
             )
@@ -178,14 +185,15 @@ fun PostDetailScreen(
 
             // ── Danh sách comment ──────────────────────────────────────────
             items(commentItems, key = { it.comment.id }) { item ->
+                val comment = item.comment
                 CommentItem(
-                    comment = item.comment,
+                    comment = comment,
                     level = item.level,
-                    onReply = { viewModel.onReplyToComment(item.comment) }
+                    onReply = { viewModel.onReplyToComment(comment) }
                 )
                 HorizontalDivider(
                     modifier = Modifier.padding(
-                        start = (68 + (item.level * 34)).dp,
+                        start = 68.dp + (item.level * 18).dp,
                         end = 16.dp
                     ),
                     color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
@@ -276,6 +284,42 @@ fun PostDetailScreen(
 // ─────────────────────────────────────────────────────────────────────────────
 // Post chi tiết (header + content + actions)
 // ─────────────────────────────────────────────────────────────────────────────
+private data class CommentUiItem(
+    val comment: Comment,
+    val level: Int
+)
+
+private fun buildCommentTree(comments: List<Comment>): List<CommentUiItem> {
+    if (comments.isEmpty()) return emptyList()
+
+    val byParent = comments.groupBy { it.parentCommentId }
+    val roots = byParent[null].orEmpty().sortedByDescending { it.createdAt }
+    val result = mutableListOf<CommentUiItem>()
+    val seenIds = mutableSetOf<String>()
+
+    fun dfs(node: Comment, level: Int) {
+        if (!seenIds.add(node.id)) return
+        result.add(CommentUiItem(node, level))
+        val children = byParent[node.id].orEmpty().sortedBy { it.createdAt }
+        children.forEach { child -> dfs(child, level + 1) }
+    }
+
+    roots.forEach { root -> dfs(root, 0) }
+
+    comments.forEach { orphan ->
+        if (!seenIds.contains(orphan.id)) {
+            result.add(
+                CommentUiItem(
+                    comment = orphan,
+                    level = if (orphan.parentCommentId == null) 0 else 1
+                )
+            )
+        }
+    }
+
+    return result
+}
+
 @Composable
 private fun PostDetailHeader(
     post: Post,
@@ -284,6 +328,8 @@ private fun PostDetailHeader(
     commentCount: Int,
     onLikeClick: () -> Unit
 ) {
+    val mediaItems = post.toMediaItems()
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -328,7 +374,7 @@ private fun PostDetailHeader(
         )
 
         // Media (ảnh / video)
-        if (post.cdnUrl.isNotEmpty()) {
+        if (mediaItems.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Box(
                 modifier = Modifier
@@ -341,16 +387,7 @@ private fun PostDetailHeader(
                     )
                     .background(Color.Black)
             ) {
-                if (post.kind == "IMAGE") {
-                    AsyncImage(
-                        model = post.cdnUrl,
-                        contentDescription = null,
-                        modifier = Modifier.fillMaxWidth(),
-                        contentScale = ContentScale.FillWidth
-                    )
-                } else if (post.kind == "VIDEO") {
-                    PostMediaContent(kind = post.kind, cdnUrl = post.cdnUrl);
-                }
+                PostMediaPreview(mediaItems = mediaItems)
             }
         }
 
@@ -422,14 +459,17 @@ private fun CommentItem(
 ) {
     var isLiked by remember { mutableStateOf(false) }
     var likeCount by remember { mutableIntStateOf(comment.likeCount) }
+    val commentMedia = remember(comment.media, comment.mediaUrl, comment.mediaType) {
+        resolveCommentMedia(comment)
+    }
 
-    val startPad = 16.dp + (level * 34).dp
+    val startPadding = 16.dp + (level * 18).dp
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .padding(
-                start = startPad,
+                start = startPadding,
                 end = 16.dp,
                 top = 8.dp,
                 bottom = 8.dp
@@ -473,40 +513,9 @@ private fun CommentItem(
                 lineHeight = 20.sp,
                 color = MaterialTheme.colorScheme.onSurface
             )
-            if (!comment.mediaUrl.isNullOrBlank()) {
+            if (commentMedia.isNotEmpty()) {
                 Spacer(Modifier.height(8.dp))
-                if (comment.mediaType?.contains("video", ignoreCase = true) == true) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(
-                            imageVector = Icons.Default.AttachFile,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(
-                            text = "Đã đính kèm video",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                } else {
-                    AsyncImage(
-                        model = comment.mediaUrl,
-                        contentDescription = null,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(max = 260.dp)
-                            .clip(RoundedCornerShape(10.dp))
-                            .border(
-                                0.5.dp,
-                                MaterialTheme.colorScheme.outlineVariant,
-                                RoundedCornerShape(10.dp)
-                            ),
-                        contentScale = ContentScale.Crop,
-                        error = painterResource(R.drawable.icon_image)
-                    )
-                }
+                PostMediaPreview(mediaItems = commentMedia)
             }
             Spacer(Modifier.height(6.dp))
             // Like + Reply
@@ -552,16 +561,39 @@ private fun CommentItem(
 // ─────────────────────────────────────────────────────────────────────────────
 // Bottom bar nhập comment
 // ─────────────────────────────────────────────────────────────────────────────
+private fun resolveCommentMedia(comment: Comment): List<PostMedia> {
+    val fromServer = comment.media
+        .mapNotNull { mediaItem ->
+            val url = mediaItem.resolvedUrl().trim()
+            if (url.isBlank()) null else mediaItem.copy(cdnUrl = url)
+        }
+        .distinctBy { mediaItem -> mediaItem.resolvedUrl().trim() }
+    if (fromServer.isNotEmpty()) return fromServer
+
+    val fallbackUrls = listOf(comment.mediaUrl?.trim().orEmpty())
+        .filter { it.isNotBlank() }
+        .distinct()
+    if (fallbackUrls.isEmpty()) return emptyList()
+
+    return fallbackUrls.map { url ->
+        PostMedia(
+            cdnUrl = url,
+            kind = comment.mediaType ?: ""
+        )
+    }
+}
+
 @Composable
 private fun CommentInputBar(
     avatarUrl: String,
     input: String,
-    selectedMediaUri: android.net.Uri?,
+    selectedMediaUris: List<android.net.Uri>,
     replyingToComment: Comment?,
     isSending: Boolean,
     onInputChange: (String) -> Unit,
     onPickMedia: () -> Unit,
-    onRemoveMedia: () -> Unit,
+    onRemoveMedia: (android.net.Uri) -> Unit,
+    onClearSelectedMedia: () -> Unit,
     onCancelReply: () -> Unit,
     onSend: () -> Unit
 ) {
@@ -597,36 +629,49 @@ private fun CommentInputBar(
                 Spacer(Modifier.height(6.dp))
             }
 
-            if (selectedMediaUri != null) {
+            if (selectedMediaUris.isNotEmpty()) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Row(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                            .padding(horizontal = 10.dp, vertical = 6.dp),
-                        verticalAlignment = Alignment.CenterVertically
+                    LazyRow(
+                        modifier = Modifier.weight(1f),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Image,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(16.dp)
-                        )
-                        Spacer(Modifier.width(6.dp))
-                        Text(
-                            text = "Đã chọn 1 tệp",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                        items(selectedMediaUris) { uri ->
+                            Box(
+                                modifier = Modifier
+                                    .size(52.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                            ) {
+                                AsyncImage(
+                                    model = uri,
+                                    contentDescription = null,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop,
+                                    error = painterResource(R.drawable.icon_image)
+                                )
+                                IconButton(
+                                    onClick = { onRemoveMedia(uri) },
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .size(18.dp)
+                                        .background(Color.Black.copy(alpha = 0.55f), CircleShape)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Close,
+                                        contentDescription = "Xoa tep",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(12.dp)
+                                    )
+                                }
+                            }
+                        }
                     }
-                    IconButton(onClick = onRemoveMedia, modifier = Modifier.size(24.dp)) {
+                    IconButton(onClick = onClearSelectedMedia, modifier = Modifier.size(24.dp)) {
                         Icon(
                             imageVector = Icons.Default.Close,
-                            contentDescription = "Xóa tệp",
+                            contentDescription = "Xoa tat ca tep",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
@@ -686,7 +731,7 @@ private fun CommentInputBar(
                 // Send button
                 IconButton(
                     onClick = onSend,
-                    enabled = !isSending && (input.isNotBlank() || selectedMediaUri != null)
+                    enabled = !isSending && (input.isNotBlank() || selectedMediaUris.isNotEmpty())
                 ) {
                     if (isSending) {
                         CircularProgressIndicator(
@@ -698,7 +743,7 @@ private fun CommentInputBar(
                         Icon(
                             imageVector = Icons.Default.Send,
                             contentDescription = "Gửi",
-                            tint = if (input.isNotBlank() || selectedMediaUri != null) OrangePrimary
+                            tint = if (input.isNotBlank() || selectedMediaUris.isNotEmpty()) OrangePrimary
                             else MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.size(24.dp)
                         )
@@ -707,34 +752,4 @@ private fun CommentInputBar(
             }
         }
     }
-}
-
-
-private data class CommentUiItem(
-    val comment: Comment,
-    val level: Int
-)
-
-private fun buildCommentTree(comments: List<Comment>): List<CommentUiItem> {
-    if (comments.isEmpty()) return emptyList()
-
-    val byParent = comments.groupBy { it.parentCommentId }
-    val roots = byParent[null].orEmpty()
-    val result = mutableListOf<CommentUiItem>()
-
-    fun dfs(node: Comment, level: Int) {
-        result.add(CommentUiItem(node, level))
-        val children = byParent[node.id].orEmpty().sortedBy { it.createdAt }
-        children.forEach { child -> dfs(child, level + 1) }
-    }
-
-    roots.forEach { root -> dfs(root, 0) }
-
-    val rootIds = roots.map { it.id }.toSet()
-    val orphans = comments.filter { it.parentCommentId != null && it.parentCommentId !in rootIds && it !in roots }
-    orphans.sortedBy { it.createdAt }.forEach { orphan ->
-        if (result.none { it.comment.id == orphan.id }) result.add(CommentUiItem(orphan, 0))
-    }
-
-    return result
 }

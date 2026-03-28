@@ -3,6 +3,8 @@
 import com.google.gson.annotations.SerializedName
 
 data class PostMedia(
+    @SerializedName(value = "publicId", alternate = ["public_id", "id", "mediaPublicId"])
+    val publicId: String? = null,
     @SerializedName(
         value = "cdnUrl",
         alternate = [

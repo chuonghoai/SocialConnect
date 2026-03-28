@@ -1,5 +1,6 @@
 ﻿package com.example.frontend.presentation.screen.home
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
@@ -7,7 +8,9 @@ import com.example.frontend.core.util.AppNotificationManager
 import com.example.frontend.core.util.PostUploadManager
 import com.example.frontend.data.store.PostDetailStore
 import com.example.frontend.domain.model.Post
+import com.example.frontend.domain.model.PostMedia
 import com.example.frontend.domain.usecase.FriendUseCase.GetShareFriendsUseCase
+import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
@@ -34,6 +37,7 @@ class HomeViewModel @Inject constructor(
     private val likePostUseCase: LikePostUseCase,
     private val savePostUseCase: SavePostUseCase,
     private val sharePostUseCase: SharePostUseCase,
+    private val uploadMediaUseCase: UploadMediaUseCase,
     private val updatePostUseCase: UpdatePostUseCase,
     private val deletePostUseCase: DeletePostUseCase,
     private val getShareFriendsUseCase: GetShareFriendsUseCase,
@@ -145,7 +149,11 @@ class HomeViewModel @Inject constructor(
         val updatedPosts = currentState.posts.map { post ->
             if (post.id == postId) {
                 val newIsLiked = !post.isLiked
-                val newLikeCount = if (newIsLiked) post.likeCount + 1 else post.likeCount - 1
+                val newLikeCount = if (newIsLiked) {
+                    post.likeCount + 1
+                } else {
+                    (post.likeCount - 1).coerceAtLeast(0)
+                }
 
                 targetIsLiked = newIsLiked
                 targetLikeCount = newLikeCount
@@ -213,13 +221,6 @@ class HomeViewModel @Inject constructor(
     fun sharePost(payload: SharePostSubmitData) {
         val postId = payload.postId
         viewModelScope.launch {
-            if (payload.shareText.isNotBlank()) {
-                notificationManager.showMessage(
-                    message = "Caption khi chia sẻ chưa được BE hỗ trợ, hiện chỉ chia sẻ bài gốc.",
-                    type = NotificationType.WARNING
-                )
-            }
-
             if (payload.selectedFriendIds.isNotEmpty()) {
                 notificationManager.showMessage(
                     message = "BE chưa hỗ trợ gửi riêng cho bạn bè đã chọn, hiện chỉ chia sẻ bài viết lên bảng feed.",
@@ -227,7 +228,20 @@ class HomeViewModel @Inject constructor(
                 )
             }
 
-            when (val result = sharePostUseCase(postId)) {
+            val visibility = when (payload.privacy.lowercase()) {
+                "only_me" -> "PRIVATE"
+                "friends", "ban_be", "banbe" -> "FRIENDS"
+                "public", "cong_khai", "congkhai" -> "PUBLIC"
+                else -> payload.privacy
+            }
+
+            when (
+                val result = sharePostUseCase(
+                    postId = postId,
+                    content = payload.shareText.trim().ifBlank { null },
+                    visibility = visibility
+                )
+            ) {
                 is ApiResult.Success -> {
                     val latestState = _uiState.value as? HomeUiState.Success ?: return@launch
                     val updatedPosts = latestState.posts.map { post ->
@@ -251,39 +265,68 @@ class HomeViewModel @Inject constructor(
         }
     }
 
-    fun editPost(postId: String, newContent: String) {
+    fun editPost(
+        postId: String,
+        newContent: String,
+        newVisibility: String,
+        keptExistingMedia: List<PostMedia>,
+        newMediaUris: List<Uri>
+    ) {
         val content = newContent.trim()
-        if (content.isBlank()) return
+        val keptMediaPublicIds = keptExistingMedia
+            .mapNotNull { it.publicId?.trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+        val keptMediaUrls = keptExistingMedia
+            .map { it.resolvedUrl().trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
 
-        val currentState = _uiState.value as? HomeUiState.Success ?: return
-        val oldPosts = currentState.posts
-        val updatedPosts = oldPosts.map { post ->
-            if (post.id == postId) post.copy(content = content) else post
+        if (content.isBlank() && keptMediaUrls.isEmpty() && newMediaUris.isEmpty()) {
+            notificationManager.showMessage(
+                "Bài viết phải có nội dung hoặc ít nhất một ảnh/video",
+                NotificationType.WARNING
+            )
+            return
         }
-        _uiState.value = currentState.copy(posts = updatedPosts)
 
         viewModelScope.launch {
-            when (val result = updatePostUseCase(postId = postId, content = content)) {
+            val uploadedMediaIds = mutableListOf<String>()
+            for (uri in newMediaUris) {
+                when (val uploadResult = uploadMediaUseCase(uri)) {
+                    is ApiResult.Success -> uploadedMediaIds.add(uploadResult.data)
+
+                    is ApiResult.Error -> {
+                        notificationManager.showMessage(
+                            uploadResult.message.ifBlank { "Không thể upload ảnh/video mới" },
+                            NotificationType.ERROR
+                        )
+                        return@launch
+                    }
+                }
+            }
+
+            val finalMediaPublicIds = (keptMediaPublicIds + uploadedMediaIds).distinct()
+
+            when (
+                val result = updatePostUseCase(
+                    postId = postId,
+                    content = content,
+                    visibility = newVisibility,
+                    mediaPublicIds = finalMediaPublicIds,
+                    mediaUrls = keptMediaUrls
+                )
+            ) {
                 is ApiResult.Success -> {
                     notificationManager.showMessage("Đã cập nhật bài viết", NotificationType.SUCCESS)
+                    load(isRefresh = true)
                 }
 
                 is ApiResult.Error -> {
-                    if (result.code == 404) {
-                        notificationManager.showMessage(
-                            "Backend chưa hỗ trợ sửa bài viết. Tạm thời đã cập nhật trên feed.",
-                            NotificationType.SUCCESS
-                        )
-                    } else {
-                        val latestState = _uiState.value as? HomeUiState.Success
-                        if (latestState != null) {
-                            _uiState.value = latestState.copy(posts = oldPosts)
-                        }
-                        notificationManager.showMessage(
-                            result.message.ifBlank { "Không thể sửa bài viết" },
-                            NotificationType.ERROR
-                        )
-                    }
+                    notificationManager.showMessage(
+                        result.message.ifBlank { "Không thể sửa bài viết" },
+                        NotificationType.ERROR
+                    )
                 }
             }
         }
@@ -338,11 +381,7 @@ class HomeViewModel @Inject constructor(
                 }
 
                 is ApiResult.Error -> {
-                    val message = if (result.code == 404) {
-                        "Backend chưa hỗ trợ đổi quyền bài viết."
-                    } else {
-                        result.message.ifBlank { "Không thể đổi quyền bài viết" }
-                    }
+                    val message = result.message.ifBlank { "Không thể đổi quyền bài viết" }
                     notificationManager.showMessage(message, NotificationType.ERROR)
                 }
             }
@@ -362,21 +401,14 @@ class HomeViewModel @Inject constructor(
                 }
 
                 is ApiResult.Error -> {
-                    if (result.code == 404) {
-                        notificationManager.showMessage(
-                            "Backend chưa hỗ trợ xóa bài viết. Tạm thời đã ẩn trên feed.",
-                            NotificationType.SUCCESS
-                        )
-                    } else {
-                        val latestState = _uiState.value as? HomeUiState.Success
-                        if (latestState != null) {
-                            _uiState.value = latestState.copy(posts = oldPosts)
-                        }
-                        notificationManager.showMessage(
-                            result.message.ifBlank { "Không thể xóa bài viết" },
-                            NotificationType.ERROR
-                        )
+                    val latestState = _uiState.value as? HomeUiState.Success
+                    if (latestState != null) {
+                        _uiState.value = latestState.copy(posts = oldPosts)
                     }
+                    notificationManager.showMessage(
+                        result.message.ifBlank { "Không thể xóa bài viết" },
+                        NotificationType.ERROR
+                    )
                 }
             }
         }

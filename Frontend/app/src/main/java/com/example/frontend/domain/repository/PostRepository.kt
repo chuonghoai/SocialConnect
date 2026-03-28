@@ -29,11 +29,21 @@ interface PostRepository {
     suspend fun likePost(postId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit>
 
     suspend fun savePost(postId: String): ApiResult<Boolean>
-    suspend fun sharePost(postId: String): ApiResult<String>
+    suspend fun sharePost(
+        postId: String,
+        content: String? = null,
+        visibility: String? = null
+    ): ApiResult<String>
 
     suspend fun createPost(content: String, visibility: String, mediaId: List<String>?): ApiResult<String>
 
-    suspend fun updatePost(postId: String, content: String? = null, visibility: String? = null): ApiResult<Unit>
+    suspend fun updatePost(
+        postId: String,
+        content: String? = null,
+        visibility: String? = null,
+        mediaPublicIds: List<String>? = null,
+        mediaUrls: List<String>? = null
+    ): ApiResult<Unit>
 
     suspend fun deletePost(postId: String): ApiResult<Unit>
     suspend fun likeVideo(videoId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit>
@@ -45,6 +55,7 @@ interface PostRepository {
         videoId: String,
         content: String,
         parentCommentId: String? = null,
-        mediaId: String? = null
+        mediaId: String? = null,
+        mediaIds: List<String>? = null
     ): ApiResult<Unit>
 }
