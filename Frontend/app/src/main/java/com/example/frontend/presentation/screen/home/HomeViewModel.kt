@@ -9,6 +9,7 @@ import com.example.frontend.core.util.PostUploadManager
 import com.example.frontend.data.store.PostDetailStore
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.domain.model.PostVisibility
 import com.example.frontend.domain.usecase.FriendUseCase.GetShareFriendsUseCase
 import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
@@ -374,13 +375,27 @@ class HomeViewModel @Inject constructor(
     }
 
     fun changePostVisibility(postId: String, visibility: String) {
+        val normalizedVisibility = PostVisibility.normalize(visibility)
+        val currentState = _uiState.value as? HomeUiState.Success
+        val oldPosts = currentState?.posts.orEmpty()
+        if (currentState != null) {
+            val optimistic = oldPosts.map { post ->
+                if (post.id == postId) post.copy(visibility = normalizedVisibility) else post
+            }
+            _uiState.value = currentState.copy(posts = optimistic)
+        }
+
         viewModelScope.launch {
-            when (val result = updatePostUseCase(postId = postId, visibility = visibility)) {
+            when (val result = updatePostUseCase(postId = postId, visibility = normalizedVisibility)) {
                 is ApiResult.Success -> {
                     notificationManager.showMessage("Đã đổi quyền bài viết", NotificationType.SUCCESS)
                 }
 
                 is ApiResult.Error -> {
+                    val latestState = _uiState.value as? HomeUiState.Success
+                    if (latestState != null && currentState != null) {
+                        _uiState.value = latestState.copy(posts = oldPosts)
+                    }
                     val message = result.message.ifBlank { "Không thể đổi quyền bài viết" }
                     notificationManager.showMessage(message, NotificationType.ERROR)
                 }

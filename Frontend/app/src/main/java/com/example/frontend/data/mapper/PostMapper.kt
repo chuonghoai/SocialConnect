@@ -3,6 +3,7 @@ package com.example.frontend.data.mapper
 import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.domain.model.PostVisibility
 
 private val MEDIA_URL_KEYS = setOf(
     "cdnurl", "cdn_url", "url", "secure_url", "secureurl", "link", "path",
@@ -245,13 +246,7 @@ private fun inferKind(url: String): String {
 }
 
 private fun normalizeVisibility(raw: String): String {
-    val normalized = raw.trim().lowercase()
-    return when {
-        normalized.isBlank() -> "Công khai"
-        normalized.contains("friend") || normalized.contains("ban be") || normalized.contains("bạn bè") -> "Bạn bè"
-        normalized.contains("private") || normalized.contains("rieng tu") || normalized.contains("riêng tư") -> "Riêng tư"
-        else -> "Công khai"
-    }
+    return PostVisibility.normalize(raw)
 }
 
 private fun Map<String, Any?>.stringValue(vararg keys: String): String {

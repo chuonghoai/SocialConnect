@@ -62,6 +62,7 @@ import com.example.frontend.presentation.screen.setting.ChangePasswordScreen
 import com.example.frontend.presentation.screen.calls.CallScreen
 import com.example.frontend.presentation.screen.calls.CallUiEvent
 import com.example.frontend.presentation.screen.calls.CallViewModel
+import com.example.frontend.domain.model.PostVisibility
 import com.example.frontend.ui.component.toMediaItems
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -403,7 +404,7 @@ fun AppNavGraph(
                         currentUser = currentUser,
                         initialContent = editingPost?.content.orEmpty(),
                         initialMedia = editingPost?.toMediaItems().orEmpty(),
-                        initialVisibility = editingPost?.visibility ?: "Công khai",
+                        initialVisibility = editingPost?.visibility ?: PostVisibility.PUBLIC,
                         onBackClick = { navController.popBackStack() },
                         onComplete = { content, visibility, keptExistingMedia, newMediaUris ->
                             homeViewModel.editPost(
