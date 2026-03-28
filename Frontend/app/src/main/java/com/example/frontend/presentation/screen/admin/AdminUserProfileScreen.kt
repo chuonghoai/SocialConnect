@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -17,6 +18,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
@@ -24,10 +26,14 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -38,6 +44,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -82,168 +89,189 @@ fun AdminUserProfileScreen(
         if (shouldLoadMore) viewModel.loadMorePosts()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        AdminUserProfileTopBar(onBackClick = onBackClick)
-
-        state.error?.let {
-            AdminBannerText(
-                text = it,
-                background = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
-                textColor = MaterialTheme.colorScheme.error
-            )
-        }
-
-        state.message?.let {
-            AdminBannerText(
-                text = it,
-                background = Color(0xFF1B8F3A).copy(alpha = 0.14f),
-                textColor = Color(0xFF1B8F3A)
-            )
-        }
-
-        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
-            if (state.isLoading && state.user == null) {
-                CircularProgressIndicator(
-                    color = OrangePrimary,
-                    modifier = Modifier.align(Alignment.Center)
+    // Sử dụng Scaffold để bao bọc và xử lý Double Padding chuẩn nhất
+    Scaffold(
+        containerColor = Color(0xFFF8F9FA),
+        topBar = { AdminUserProfileTopBar(onBackClick = onBackClick) }
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+        ) {
+            state.error?.let {
+                AdminBannerText(
+                    text = it,
+                    background = Color(0xFFFFEBEE),
+                    textColor = Color(0xFFD32F2F)
                 )
-            } else if (state.user == null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .align(Alignment.Center),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Text(
-                        text = state.error ?: "Khong the tai trang ca nhan",
-                        color = MaterialTheme.colorScheme.error,
-                        textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp)
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Button(onClick = { viewModel.load(isRefresh = true) }) {
-                        Text("Thu lai")
-                    }
-                }
-            } else {
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    item {
-                        AdminUserInfoSection(
-                            user = state.user,
-                            isLocked = state.isLocked,
-                            isActionLoading = state.isActionLoading,
-                            onToggleLock = viewModel::toggleUserLock,
-                            onDeleteUser = { viewModel.deleteUser(onDeleted) }
-                        )
-                        Divider(
-                            thickness = 8.dp,
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-                        )
-                    }
+            }
 
-                    if (state.isPostsLoading) {
+            state.message?.let {
+                AdminBannerText(
+                    text = it,
+                    background = Color(0xFFE8F5E9),
+                    textColor = Color(0xFF2E7D32)
+                )
+            }
+
+            Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                if (state.isLoading && state.user == null) {
+                    CircularProgressIndicator(
+                        color = OrangePrimary,
+                        modifier = Modifier.align(Alignment.Center)
+                    )
+                } else if (state.user == null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .align(Alignment.Center),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Text(
+                            text = state.error ?: "Không thể tải trang cá nhân",
+                            color = Color(0xFFD32F2F),
+                            textAlign = TextAlign.Center,
+                            fontWeight = FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 24.dp)
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(
+                            onClick = { viewModel.load(isRefresh = true) },
+                            colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Thử lại", fontWeight = FontWeight.Bold)
+                        }
+                    }
+                } else {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
                         item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(color = OrangePrimary)
+                            AdminUserInfoSection(
+                                user = state.user,
+                                isLocked = state.isLocked,
+                                isActionLoading = state.isActionLoading,
+                                onToggleLock = viewModel::toggleUserLock,
+                                onDeleteUser = { viewModel.deleteUser(onDeleted) }
+                            )
+                            Divider(
+                                thickness = 8.dp,
+                                color = Color(0xFFEEEEEE)
+                            )
+                        }
+
+                        if (state.isPostsLoading) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(color = OrangePrimary)
+                                }
+                            }
+                        } else if (state.posts.isEmpty()) {
+                            item {
+                                Text(
+                                    text = "Người dùng này chưa có bài viết nào",
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(32.dp),
+                                    textAlign = TextAlign.Center,
+                                    fontWeight = FontWeight.Medium,
+                                    color = Color.Gray
+                                )
+                            }
+                        } else {
+                            items(state.posts) { post ->
+                                Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                                    PostCard(
+                                        post = post,
+                                        adminMode = true,
+                                        isHiddenByAdmin = state.hiddenPostIds.contains(post.id),
+                                        onHidePost = { viewModel.togglePostVisibility(post.id) },
+                                        onDeletePost = { viewModel.removePost(post.id) },
+                                        onCommentClick = { onPostClick(post) }
+                                    )
+                                }
                             }
                         }
-                    } else if (state.posts.isEmpty()) {
-                        item {
-                            Text(
-                                text = "Nguoi dung nay chua co bai viet nao",
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(32.dp),
-                                textAlign = TextAlign.Center,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    } else {
-                        items(state.posts) { post ->
-                            PostCard(
-                                post = post,
-                                adminMode = true,
-                                isHiddenByAdmin = state.hiddenPostIds.contains(post.id),
-                                onHidePost = { viewModel.togglePostVisibility(post.id) },
-                                onDeletePost = { viewModel.removePost(post.id) },
-                                onCommentClick = { onPostClick(post) }
-                            )
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
-                    }
 
-                    if (state.isLoadingMore) {
-                        item {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(16.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(32.dp),
-                                    color = OrangePrimary
+                        if (state.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(32.dp),
+                                        color = OrangePrimary
+                                    )
+                                }
+                            }
+                        }
+
+                        if (!state.postError.isNullOrBlank()) {
+                            item {
+                                Text(
+                                    text = state.postError ?: "",
+                                    color = Color(0xFFD32F2F),
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                                    textAlign = TextAlign.Center,
+                                    fontWeight = FontWeight.Medium
                                 )
                             }
                         }
                     }
-
-                    if (!state.postError.isNullOrBlank()) {
-                        item {
-                            Text(
-                                text = state.postError ?: "",
-                                color = MaterialTheme.colorScheme.error,
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                textAlign = TextAlign.Center
-                            )
-                        }
-                    }
                 }
-            }
 
-            ScrollToTopButton(
-                visible = showScrollToTop,
-                onClick = { coroutineScope.launch { listState.animateScrollToItem(0) } },
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(16.dp)
-            )
+                ScrollToTopButton(
+                    visible = showScrollToTop,
+                    onClick = { coroutineScope.launch { listState.animateScrollToItem(0) } },
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                )
+            }
         }
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun AdminUserProfileTopBar(onBackClick: () -> Unit) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(56.dp)
-            .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        IconButton(onClick = onBackClick) {
-            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-        }
-        Text(
-            text = "Chi tiet user",
-            style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
-        )
-    }
-    Divider(thickness = 0.5.dp)
+    TopAppBar(
+        windowInsets = WindowInsets(0.dp), // CHẶN DOUBLE PADDING TOP
+        title = {
+            Text(
+                text = "Chi tiết user",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.ExtraBold,
+                color = Color(0xFF1E1E1E)
+            )
+        },
+        navigationIcon = {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                    contentDescription = "Back",
+                    tint = Color(0xFF1E1E1E)
+                )
+            }
+        },
+        colors = TopAppBarDefaults.topAppBarColors(
+            containerColor = Color.White
+        ),
+        modifier = Modifier.shadow(1.dp) // Thêm tí viền đổ bóng nhẹ để tách biệt với nền xám
+    )
 }
 
 @Composable
@@ -255,12 +283,12 @@ private fun AdminBannerText(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clip(androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(8.dp))
             .background(background)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Text(text = text, color = textColor, style = MaterialTheme.typography.bodySmall)
+        Text(text = text, color = textColor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -277,6 +305,7 @@ private fun AdminUserInfoSection(
     Column(
         modifier = Modifier
             .fillMaxWidth()
+            .background(Color.White)
             .padding(vertical = 24.dp, horizontal = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -284,25 +313,26 @@ private fun AdminUserInfoSection(
             model = user.avatarUrl,
             contentDescription = "Avatar",
             modifier = Modifier
-                .size(90.dp)
+                .size(100.dp)
                 .clip(CircleShape)
-                .border(2.dp, OrangePrimary, CircleShape),
+                .border(3.dp, OrangePrimary, CircleShape),
             contentScale = ContentScale.Crop,
             error = painterResource(R.drawable.icon_user)
         )
-        Spacer(Modifier.height(12.dp))
+        Spacer(Modifier.height(16.dp))
 
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
                 text = user.displayName,
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.ExtraBold),
+                color = Color(0xFF1E1E1E)
             )
-            Spacer(Modifier.width(4.dp))
+            Spacer(Modifier.width(6.dp))
             Icon(
                 Icons.Default.CheckCircle,
                 contentDescription = null,
                 tint = OrangePrimary,
-                modifier = Modifier.size(16.dp)
+                modifier = Modifier.size(18.dp)
             )
         }
 
@@ -311,55 +341,62 @@ private fun AdminUserInfoSection(
             style = MaterialTheme.typography.bodyMedium,
             color = Color.Gray
         )
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
         Row(
-            modifier = Modifier.fillMaxWidth(0.6f),
+            modifier = Modifier.fillMaxWidth(0.7f),
             horizontalArrangement = Arrangement.SpaceEvenly
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = user.postCount.toString(), fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Text(text = "Bai dang", color = Color.Gray, fontSize = 13.sp)
+                Text(text = user.postCount.toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Color(0xFF1E1E1E))
+                Text(text = "Bài đăng", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = user.friendCount.toString(), fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                Text(text = "Ban be", color = Color.Gray, fontSize = 13.sp)
+                Text(text = user.friendCount.toString(), fontWeight = FontWeight.ExtraBold, fontSize = 22.sp, color = Color(0xFF1E1E1E))
+                Text(text = "Bạn bè", color = Color.Gray, fontSize = 14.sp, fontWeight = FontWeight.Medium)
             }
         }
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(20.dp))
 
         if (!user.caption.isNullOrBlank()) {
             Text(
                 text = user.caption,
                 textAlign = TextAlign.Center,
-                fontSize = 13.sp
+                fontSize = 14.sp,
+                color = Color.DarkGray,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(24.dp))
         }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Button(
                 onClick = onToggleLock,
                 enabled = !isActionLoading,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary, contentColor = Color.White)
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(10.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isLocked) Color(0xFF2E7D32) else OrangePrimary,
+                    contentColor = Color.White
+                )
             ) {
-                Text(if (isLocked) "Mo khoa user" else "Khoa user")
+                Text(if (isLocked) "Mở khóa user" else "Khóa user", fontWeight = FontWeight.Bold)
             }
 
             Button(
                 onClick = onDeleteUser,
                 enabled = !isActionLoading,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.weight(1f).height(48.dp),
+                shape = RoundedCornerShape(10.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error,
+                    containerColor = Color(0xFFE53935),
                     contentColor = Color.White
                 )
             ) {
-                Text("Xoa user")
+                Text("Xóa user", fontWeight = FontWeight.Bold)
             }
         }
     }

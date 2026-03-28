@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.outlined.PeopleAlt
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -32,7 +34,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarDefaults
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.OutlinedTextField
@@ -40,6 +41,7 @@ import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -52,6 +54,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import com.example.frontend.R
@@ -59,6 +62,8 @@ import com.example.frontend.domain.model.AdminUserItem
 import com.example.frontend.domain.model.Post
 import com.example.frontend.ui.component.PostCard
 import com.example.frontend.ui.theme.OrangePrimary
+
+val BackgroundLightGray = Color(0xFFF8F9FA)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -70,27 +75,34 @@ fun AdminScreen(
     val state by viewModel.uiState.collectAsState()
 
     Scaffold(
-        containerColor = MaterialTheme.colorScheme.background,
+        containerColor = BackgroundLightGray,
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0.dp), // KHẮC PHỤC DOUBLE PADDING HEADER
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Color.White,
+                    titleContentColor = Color.Black,
+                    actionIconContentColor = Color.DarkGray
+                ),
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         AsyncImage(
                             model = state.currentAdminAvatarUrl,
                             contentDescription = "Admin Avatar",
                             modifier = Modifier
-                                .size(34.dp)
+                                .size(36.dp)
                                 .clip(CircleShape)
-                                .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                                .border(1.dp, OrangePrimary, CircleShape),
                             contentScale = ContentScale.Crop,
                             error = painterResource(R.drawable.icon_user),
                             placeholder = painterResource(R.drawable.icon_user)
                         )
-                        Spacer(modifier = Modifier.width(10.dp))
+                        Spacer(modifier = Modifier.width(12.dp))
                         Text(
                             text = "Admin Dashboard",
                             style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
+                            fontWeight = FontWeight.ExtraBold,
+                            color = Color(0xFF1E1E1E)
                         )
                     }
                 },
@@ -98,13 +110,15 @@ fun AdminScreen(
                     IconButton(onClick = { viewModel.refreshCurrentTab() }) {
                         Icon(
                             imageVector = Icons.Outlined.Refresh,
-                            contentDescription = "Refresh"
+                            contentDescription = "Refresh",
+                            tint = OrangePrimary
                         )
                     }
                     IconButton(onClick = { viewModel.logout(onLoggedOut) }) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Outlined.Logout,
-                            contentDescription = "Logout"
+                            contentDescription = "Logout",
+                            tint = Color(0xFFE53935)
                         )
                     }
                 }
@@ -112,9 +126,9 @@ fun AdminScreen(
         },
         bottomBar = {
             NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 8.dp,
-                windowInsets = NavigationBarDefaults.windowInsets
+                windowInsets = WindowInsets(0.dp), // KHẮC PHỤC DOUBLE PADDING BOTTOM BAR
+                containerColor = Color.White,
+                tonalElevation = 8.dp
             ) {
                 NavigationBarItem(
                     selected = state.selectedTabIndex == 0,
@@ -125,13 +139,13 @@ fun AdminScreen(
                             contentDescription = "Users"
                         )
                     },
-                    label = { Text("Users") },
+                    label = { Text("Người dùng", fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        selectedIconColor = OrangePrimary,
+                        selectedTextColor = OrangePrimary,
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray,
+                        indicatorColor = OrangePrimary.copy(alpha = 0.15f)
                     )
                 )
                 NavigationBarItem(
@@ -143,13 +157,13 @@ fun AdminScreen(
                             contentDescription = "Posts"
                         )
                     },
-                    label = { Text("Posts") },
+                    label = { Text("Bài viết", fontWeight = FontWeight.SemiBold) },
                     colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = MaterialTheme.colorScheme.primary,
-                        selectedTextColor = MaterialTheme.colorScheme.primary,
-                        unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
+                        selectedIconColor = OrangePrimary,
+                        selectedTextColor = OrangePrimary,
+                        unselectedIconColor = Color.Gray,
+                        unselectedTextColor = Color.Gray,
+                        indicatorColor = OrangePrimary.copy(alpha = 0.15f)
                     )
                 )
             }
@@ -159,21 +173,21 @@ fun AdminScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
+                .background(BackgroundLightGray)
         ) {
             state.error?.let {
                 BannerText(
                     text = it,
-                    background = MaterialTheme.colorScheme.error.copy(alpha = 0.15f),
-                    textColor = MaterialTheme.colorScheme.error
+                    background = Color(0xFFFFEBEE),
+                    textColor = Color(0xFFD32F2F)
                 )
             }
 
             state.message?.let {
                 BannerText(
                     text = it,
-                    background = Color(0xFF1B8F3A).copy(alpha = 0.14f),
-                    textColor = Color(0xFF1B8F3A)
+                    background = Color(0xFFE8F5E9),
+                    textColor = Color(0xFF2E7D32)
                 )
             }
 
@@ -213,12 +227,12 @@ private fun BannerText(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 4.dp)
-            .clip(RoundedCornerShape(10.dp))
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(8.dp))
             .background(background)
-            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
     ) {
-        Text(text = text, color = textColor, style = MaterialTheme.typography.bodySmall)
+        Text(text = text, color = textColor, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
     }
 }
 
@@ -239,13 +253,13 @@ private fun UsersTabContent(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(horizontal = 12.dp)
+            .padding(horizontal = 16.dp)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(top = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                .padding(top = 12.dp, bottom = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             OutlinedTextField(
@@ -253,27 +267,32 @@ private fun UsersTabContent(
                 onValueChange = onKeywordChange,
                 modifier = Modifier.weight(1f),
                 singleLine = true,
-                label = { Text("Tim user theo ten/email") },
-                shape = RoundedCornerShape(14.dp),
+                placeholder = { Text("Tìm user theo tên/email...", color = Color.Gray) },
+                shape = RoundedCornerShape(12.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = OrangePrimary,
-                    unfocusedBorderColor = MaterialTheme.colorScheme.outlineVariant,
-                    focusedContainerColor = MaterialTheme.colorScheme.surface,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surface
+                    unfocusedBorderColor = Color(0xFFE0E0E0),
+                    focusedContainerColor = Color.White,
+                    unfocusedContainerColor = Color.White
                 )
             )
-            Button(onClick = onSearch) {
-                Text("Tim")
+            Button(
+                onClick = onSearch,
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.height(52.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
+            ) {
+                Text("Tìm", fontWeight = FontWeight.Bold, fontSize = 16.sp)
             }
         }
 
-        Spacer(modifier = Modifier.height(10.dp))
+        Spacer(modifier = Modifier.height(8.dp))
 
         if (isLoading) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 32.dp),
+                    .padding(top = 40.dp),
                 contentAlignment = Alignment.Center
             ) {
                 CircularProgressIndicator(color = OrangePrimary)
@@ -285,13 +304,14 @@ private fun UsersTabContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 24.dp),
+                    .padding(top = 40.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Chua co user de hien thi",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center
+                    text = "Chưa có user để hiển thị",
+                    color = Color.Gray,
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Medium
                 )
             }
             return
@@ -299,7 +319,7 @@ private fun UsersTabContent(
 
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             items(users, key = { it.id }) { user ->
                 UserAdminCard(
@@ -312,7 +332,7 @@ private fun UsersTabContent(
                     onViewProfile = { onViewProfile(user.id, lockedUserIds.contains(user.id)) }
                 )
             }
-            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
@@ -332,15 +352,11 @@ private fun UserAdminCard(
             .fillMaxWidth()
             .clickable { onViewProfile() },
         shape = RoundedCornerShape(16.dp),
-        colors = androidx.compose.material3.CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surface
-        ),
-        border = androidx.compose.foundation.BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
-        )
+        colors = CardDefaults.cardColors(containerColor = Color.White),
+        elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+        border = if (isLocked) androidx.compose.foundation.BorderStroke(1.dp, Color(0xFFFFCDD2)) else null
     ) {
-        Column(modifier = Modifier.padding(12.dp)) {
+        Column(modifier = Modifier.padding(16.dp)) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -349,60 +365,73 @@ private fun UserAdminCard(
                     model = user.avatarUrl,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(46.dp)
+                        .size(54.dp)
                         .clip(CircleShape)
-                        .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
+                        .border(1.dp, Color(0xFFEEEEEE), CircleShape),
                     contentScale = ContentScale.Crop,
                     error = painterResource(R.drawable.icon_user),
                     placeholder = painterResource(R.drawable.icon_user)
                 )
-                Spacer(modifier = Modifier.width(12.dp))
+                Spacer(modifier = Modifier.width(16.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = user.displayName.ifBlank { user.username },
                         style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.SemiBold
+                        fontWeight = FontWeight.Bold,
+                        color = Color(0xFF1E1E1E)
                     )
                     Text(
                         text = "@${user.username}",
                         style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        color = Color.Gray
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = user.email,
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        style = MaterialTheme.typography.labelMedium,
+                        color = Color.DarkGray
                     )
                 }
                 if (isLocked) {
                     Text(
-                        text = "LOCKED",
-                        color = MaterialTheme.colorScheme.error,
+                        text = "ĐÃ KHÓA",
+                        color = Color(0xFFD32F2F),
                         style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                        fontWeight = FontWeight.ExtraBold,
+                        modifier = Modifier
+                            .background(Color(0xFFFFEBEE), RoundedCornerShape(8.dp))
+                            .padding(horizontal = 8.dp, vertical = 4.dp)
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 Button(
                     onClick = {
                         if (isLocked) onUnlockUser() else onLockUser()
                     },
-                    enabled = !isActionLoading
+                    enabled = !isActionLoading,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isLocked) Color(0xFF2E7D32) else OrangePrimary,
+                        contentColor = Color.White
+                    )
                 ) {
-                    Text(if (isLocked) "Mo khoa user" else "Khoa user")
+                    Text(if (isLocked) "Mở khóa" else "Khóa user", fontWeight = FontWeight.SemiBold)
                 }
                 Button(
                     onClick = onDeleteUser,
                     enabled = !isActionLoading,
+                    modifier = Modifier.weight(1f),
+                    shape = RoundedCornerShape(10.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.error,
+                        containerColor = Color(0xFFE53935),
                         contentColor = Color.White
                     )
                 ) {
-                    Text("Xoa user")
+                    Text("Xóa user", fontWeight = FontWeight.SemiBold)
                 }
             }
         }
@@ -419,14 +448,15 @@ private fun PostsTabContent(
 ) {
     Column(modifier = Modifier.fillMaxSize()) {
         Text(
-            text = "Danh sach bai viet hien thi theo giao dien feed client",
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
+            text = "Danh sách bài viết hiển thị theo giao diện feed",
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            color = Color.Gray
         )
         HorizontalDivider(
-            color = MaterialTheme.colorScheme.outlineVariant,
-            thickness = 0.5.dp
+            color = Color(0xFFEEEEEE),
+            thickness = 1.dp
         )
 
         if (isLoading) {
@@ -445,12 +475,13 @@ private fun PostsTabContent(
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(top = 32.dp),
+                    .padding(top = 40.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Chua co bai viet nao de hien thi",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Chưa có bài viết nào để hiển thị",
+                    color = Color.Gray,
+                    fontWeight = FontWeight.Medium
                 )
             }
             return
@@ -458,15 +489,17 @@ private fun PostsTabContent(
 
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(posts, key = { it.id }) { post ->
-                PostCard(
-                    post = post,
-                    adminMode = true,
-                    isHiddenByAdmin = hiddenPostIds.contains(post.id),
-                    onHidePost = { onTogglePostVisibility(post.id) },
-                    onDeletePost = { onDeletePost(post.id) }
-                )
+                Box(modifier = Modifier.padding(bottom = 8.dp)) {
+                    PostCard(
+                        post = post,
+                        adminMode = true,
+                        isHiddenByAdmin = hiddenPostIds.contains(post.id),
+                        onHidePost = { onTogglePostVisibility(post.id) },
+                        onDeletePost = { onDeletePost(post.id) }
+                    )
+                }
             }
-            item { Spacer(modifier = Modifier.height(12.dp)) }
+            item { Spacer(modifier = Modifier.height(16.dp)) }
         }
     }
 }
