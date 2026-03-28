@@ -76,6 +76,7 @@ fun ChatProfileScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                windowInsets = WindowInsets(0.dp),
                 title = { Text("Tùy chọn", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
