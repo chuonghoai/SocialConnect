@@ -54,6 +54,7 @@ import com.example.frontend.presentation.screen.create_post.CreatePostViewModel
 import com.example.frontend.presentation.screen.edit_post.EditPostScreen
 import com.example.frontend.presentation.screen.friendrequest.FriendRequestsScreen
 import com.example.frontend.presentation.screen.friend.MyFriendScreen
+import com.example.frontend.presentation.screen.friend.OtherFriendScreen
 import com.example.frontend.presentation.screen.home.HomeUiState
 import com.example.frontend.presentation.screen.home.HomeViewModel
 import com.example.frontend.presentation.screen.notification.NotificationBadgeViewModel
@@ -312,6 +313,9 @@ fun AppNavGraph(
                         },
                         onNavigateToFriends = {
                             navController.navigate(Routes.MY_FRIENDS)
+                        },
+                        onEditPostClick = { postId ->
+                            navController.navigate("${Routes.EDIT_POST_BASE}/$postId")
                         }
                     )
                 }
@@ -420,7 +424,14 @@ fun AppNavGraph(
                 }
 
                 composable(Routes.SEARCH) {
-                    SearchScreen()
+                    SearchScreen(
+                        onUserClick = { userId ->
+                            if (userId.isNotBlank()) {
+                                val encodedUserId = Uri.encode(userId)
+                                navController.navigate(Routes.OTHER_PROFILE.replace("{userId}", encodedUserId))
+                            }
+                        }
+                    )
                 }
 
                 composable(
@@ -528,7 +539,37 @@ fun AppNavGraph(
                         backStackEntry.arguments?.getString("userId")?.let(Uri::decode).orEmpty()
                     OtherProfileScreen(
                         userId = targetUserId,
-                        onBackClick = { navController.popBackStack() }
+                        onBackClick = { navController.popBackStack() },
+                        onNavigateToFriends = { clickedUserId ->
+                            if (clickedUserId.isNotBlank()) {
+                                val encoded = Uri.encode(clickedUserId)
+                                navController.navigate("${Routes.OTHER_FRIENDS_BASE}/$encoded")
+                            }
+                        }
+                    )
+                }
+
+                composable(
+                    route = Routes.OTHER_FRIENDS,
+                    arguments = listOf(
+                        navArgument("userId") { type = NavType.StringType }
+                    )
+                ) { backStackEntry ->
+                    val targetUserId = backStackEntry.arguments?.getString("userId")?.let(Uri::decode).orEmpty()
+                    OtherFriendScreen(
+                        onBack = { navController.popBackStack() },
+                        onAvatarClick = { clickedId ->
+                            if (clickedId == null) return@OtherFriendScreen
+                            if (clickedId.isNotBlank()) {
+                                val encoded = Uri.encode(clickedId)
+                                navController.navigate("${Routes.OTHER_PROFILE_BASE}/$encoded")
+                            }
+                        },
+                        onNavigateToChat = { conversationId, partnerId, conversationName, conversationAvatar ->
+                            val encodedName = Uri.encode(conversationName)
+                            val encodedAvatar = Uri.encode(conversationAvatar ?: "")
+                            navController.navigate("${Routes.CHAT_BASE}/$conversationId?partnerId=$partnerId&name=$encodedName&avatar=$encodedAvatar")
+                        }
                     )
                 }
 

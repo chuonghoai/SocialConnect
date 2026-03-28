@@ -254,4 +254,52 @@ class FriendRepositoryImpl @Inject constructor(
             )
         }
     }
+
+    override suspend fun getUserFriends(userId: String): ApiResult<List<FriendRecipient>> {
+        if (userId.isBlank()) {
+            return ApiResult.Error(message = "Thiếu userId")
+        }
+
+        return try {
+            val response = userApi.getUserFriends(userId)
+            if (response.isSuccessful) {
+                val friends = response.body()?.friends.orEmpty().map { dto ->
+                    val displayName = dto.displayName
+                        .takeIf { it.isNotBlank() }
+                        ?: dto.username.takeIf { it.isNotBlank() }
+                        ?: "Người dùng"
+
+                    FriendRecipient(
+                        id = dto.id,
+                        displayName = displayName,
+                        username = dto.username,
+                        avatarUrl = dto.avatarUrl,
+                        isOnline = dto.isOnline
+                    )
+                }
+                ApiResult.Success(friends)
+            } else {
+                ApiResult.Error(
+                    code = response.code(),
+                    message = "Không thể tải danh sách bạn bè (${response.code()})"
+                )
+            }
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = "Không thể tải danh sách bạn bè (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(
+                message = "Lỗi mạng: không thể tải danh sách bạn bè",
+                throwable = e
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(
+                message = "Không thể tải danh sách bạn bè",
+                throwable = e
+            )
+        }
+    }
 }

@@ -51,6 +51,7 @@ fun ProfileScreen(
     onBackClick: () -> Unit = {},
     onNavigateToSetting: () -> Unit = {},
     onNavigateToFriends: () -> Unit = {},
+    onEditPostClick: (String) -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -195,12 +196,18 @@ fun ProfileScreen(
                                 items(tabPosts) { post ->
                                     PostCard(
                                         post = post,
+                                        isOwnPost = currentUser?.id == post.userId,
                                         onSaveClick = { viewModel.toggleSavePost(post.id) },
                                         saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
                                         onShareClick = {
                                             shareTargetPost = post
                                             viewModel.loadShareFriends(currentUser?.id.orEmpty())
-                                        }
+                                        },
+                                        onEditPostRequest = { onEditPostClick(post.id) },
+                                        onChangeVisibility = { visibility ->
+                                            viewModel.changePostVisibility(post.id, visibility)
+                                        },
+                                        onDeletePost = { viewModel.deletePost(post.id) }
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }
