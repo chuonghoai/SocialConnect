@@ -46,6 +46,7 @@ object ApiRoutes {
     const val ACCEPT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/accept"
     const val REJECT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/reject"
     const val GET_USER_FRIENDS = "api/users/{userId}/friends"
+    const val DELETE_FRIEND = "api/users/me/friends/{friendId}"
 
     // Conversation
     const val CONVERSATIONS = "api/conversations"

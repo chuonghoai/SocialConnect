@@ -20,6 +20,7 @@ data class SearchUiState(
     val addingFriendIds: Set<String> = emptySet(),
     val pendingSentFriendIds: Set<String> = emptySet(),
     val pendingIncomingFriendIds: Set<String> = emptySet(),
+    val deletingFriendIds: Set<String> = emptySet(),
     /** true sau khi user bấm Search ít nhất một lần */
     val hasSearched: Boolean = false
 )

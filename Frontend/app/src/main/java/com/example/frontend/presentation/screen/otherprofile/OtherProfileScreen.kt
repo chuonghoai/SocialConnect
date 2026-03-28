@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
 import androidx.compose.material3.Icon
@@ -135,7 +136,8 @@ fun OtherProfileScreen(
                             OtherProfileInfoSection(
                                 user = state.user,
                                 onFriendAction = { viewModel.onFriendAction() },
-                                onNavigateToFriends = onNavigateToFriends
+                                onNavigateToFriends = onNavigateToFriends,
+                                onDeleteFriend = { viewModel.onDeleteFriend() }
                             )
                             Divider(
                                 thickness = 8.dp,
@@ -239,7 +241,7 @@ private fun OtherProfileTopBar(onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun OtherProfileInfoSection(user: User, onFriendAction: () -> Unit, onNavigateToFriends: (String) -> Unit) {
+private fun OtherProfileInfoSection(user: User, onFriendAction: () -> Unit, onNavigateToFriends: (String) -> Unit, onDeleteFriend: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -311,23 +313,37 @@ private fun OtherProfileInfoSection(user: User, onFriendAction: () -> Unit, onNa
             else -> "Kết bạn"
         }
 
-        Button(
-            onClick = onFriendAction,
+        Row(
             modifier = Modifier.fillMaxWidth(0.8f),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (user.friendshipStatus == "NONE") {
-                    OrangePrimary
-                } else {
-                    MaterialTheme.colorScheme.surfaceVariant
-                },
-                contentColor = if (user.friendshipStatus == "NONE") {
-                    Color.White
-                } else {
-                    MaterialTheme.colorScheme.onSurface
-                }
-            )
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Text(buttonText)
+            Button(
+                onClick = onFriendAction,
+                modifier = Modifier.weight(1f),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (user.friendshipStatus == "NONE") {
+                        OrangePrimary
+                    } else {
+                        MaterialTheme.colorScheme.surfaceVariant
+                    },
+                    contentColor = if (user.friendshipStatus == "NONE") {
+                        Color.White
+                    } else {
+                        MaterialTheme.colorScheme.onSurface
+                    }
+                )
+            ) {
+                Text(buttonText)
+            }
+
+            if (user.friendshipStatus == "FRIEND") {
+                OutlinedButton(
+                    onClick = onDeleteFriend,
+                    modifier = Modifier.height(48.dp)
+                ) {
+                    Text("Xóa bạn")
+                }
+            }
         }
     }
 }

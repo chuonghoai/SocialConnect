@@ -41,5 +41,6 @@ object Routes {
     const val CALL_BASE = "call"
     const val CALL = "$CALL_BASE/{targetUserId}?isVideoCall={isVideoCall}&isIncoming={isIncoming}&fullname={fullname}&avatarUrl={avatarUrl}"
     const val MY_FRIENDS = "my_friends"
-    
+    const val DELETE_FRIEND_BASE = "delete_friend"
+    const val DELETE_FRIEND = "$DELETE_FRIEND_BASE/{friendId}"
 }

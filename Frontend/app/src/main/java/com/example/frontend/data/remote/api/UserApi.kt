@@ -31,4 +31,6 @@ interface UserApi {
     @GET(ApiRoutes.GET_USER_FRIENDS)
     suspend fun getUserFriends(@Path("userId") userId: String): Response<FriendListResponseDto>
 
+    @DELETE(ApiRoutes.DELETE_FRIEND)
+    suspend fun deleteFriend(@Path("friendId") friendId: String): Response<Unit>
 }
