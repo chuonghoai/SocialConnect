@@ -75,6 +75,8 @@ import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Reply
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 
 @Composable
 fun ChatScreen(
@@ -95,6 +97,8 @@ fun ChatScreen(
 
     var viewerMediaList by remember { mutableStateOf<List<PostMedia>?>(null) }
     var viewerInitialPage by remember { mutableIntStateOf(0) }
+    val clipboardManager = LocalClipboardManager.current
+
     if (viewerMediaList != null) {
         MediaViewerDialog(
             mediaItems = viewerMediaList!!,
@@ -208,6 +212,10 @@ fun ChatScreen(
                                 },
                                 onRevokeClick = { messageId ->
                                     viewModel.revokeMessage(messageId)
+                                },
+                                onCopyClick = { textToCopy ->
+                                    clipboardManager.setText(AnnotatedString(textToCopy))
+                                    viewModel.notifyMessageCopied()
                                 }
                             )
                         }
@@ -512,7 +520,8 @@ private fun MessageBubble(
     incomingAvatarUrl: String?,
     statusText: String? = null,
     onMediaClick: (PostMedia) -> Unit,
-    onRevokeClick: (String) -> Unit
+    onRevokeClick: (String) -> Unit,
+    onCopyClick: (String) -> Unit
 ) {
     val isUploading = message.id.startsWith("temp_")
     var showMenu by remember { mutableStateOf(false) }
@@ -707,19 +716,22 @@ private fun MessageBubble(
                         Text("Trả lời", color = Color(0xFF333333), fontSize = 16.sp, fontWeight = FontWeight.Medium)
                     }
 
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable {
-                                showMenu = false
-                                // TODO: Code logic Copy ở đây
-                            }
-                            .padding(vertical = 16.dp, horizontal = 24.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFF333333))
-                        Spacer(Modifier.width(16.dp))
-                        Text("Sao chép", color = Color(0xFF333333), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    if (message.text.isNotBlank() && !message.isRecall) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showMenu = false
+                                    onCopyClick(message.text)
+                                }
+                                .padding(vertical = 16.dp, horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFF333333))
+                            Spacer(Modifier.width(16.dp))
+                            Text("Sao chép", color = Color(0xFF333333), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        }
+
                     }
 
                     if (isMine && !message.isRecall) {

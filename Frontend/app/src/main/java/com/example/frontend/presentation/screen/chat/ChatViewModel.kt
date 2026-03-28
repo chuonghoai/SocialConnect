@@ -4,6 +4,7 @@ import MessageItem
 import MessageMedia
 import MessageSender
 import NewMessageEvent
+import android.app.NotificationManager
 import android.content.Context
 import android.media.MediaRecorder
 import android.net.Uri
@@ -13,10 +14,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.network.WebSocketManager
+import com.example.frontend.core.util.AppNotificationManager
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.usecase.ConversationUseCase.GetMessagesUseCase
 import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
+import com.example.frontend.ui.component.NotificationType
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -57,6 +60,7 @@ class ChatViewModel @Inject constructor(
     private val getMeUseCase: GetMeUseCase,
     private val uploadMediaUseCase: UploadMediaUseCase,
     private val webSocketManager: WebSocketManager,
+    private val appNotificationManager: AppNotificationManager,
     private val gson: Gson,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -529,5 +533,9 @@ class ChatViewModel @Inject constructor(
             }
         }
         _uiState.value = _uiState.value.copy(messages = updatedMessages)
+    }
+
+    fun notifyMessageCopied() {
+        appNotificationManager.showMessage("Đã sao chép tin nhắn", NotificationType.SUCCESS)
     }
 }
