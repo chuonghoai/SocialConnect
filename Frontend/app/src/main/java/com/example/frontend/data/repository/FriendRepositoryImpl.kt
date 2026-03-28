@@ -302,4 +302,40 @@ class FriendRepositoryImpl @Inject constructor(
             )
         }
     }
+
+    override suspend fun deleteFriend(friendId: String): ApiResult<Unit> {
+        if (friendId.isBlank()) {
+            return ApiResult.Error(message = "Thiếu friendId")
+        }
+
+        return try {
+            val response = userApi.deleteFriend(friendId)
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                val errorBody = response.errorBody()?.string().orEmpty()
+                val serverMessage = extractServerMessage(errorBody)
+                ApiResult.Error(
+                    code = response.code(),
+                    message = serverMessage ?: "Không thể xóa bạn bè (${response.code()})"
+                )
+            }
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = "Không thể xóa bạn bè (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(
+                message = "Lỗi mạng: không thể xóa bạn bè",
+                throwable = e
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(
+                message = "Không thể xóa bạn bè",
+                throwable = e
+            )
+        }
+    }
 }

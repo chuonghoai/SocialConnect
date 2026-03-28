@@ -173,7 +173,8 @@ fun SearchScreen(
                                                 hasPendingSentRequest = uiState.pendingSentFriendIds.contains(user.id),
                                                 hasPendingIncomingRequest = uiState.pendingIncomingFriendIds.contains(user.id),
                                                 onFriendClick = { viewModel.addFriend(user.id) },
-                                                onUserClick = { onUserClick(user.id) }
+                                                onUserClick = { onUserClick(user.id) },
+                                                onDeleteClick = { viewModel.deleteFriend(user.id) }
                                             )
                                         }
                                     }
@@ -324,7 +325,8 @@ fun UserSearchItem(
     hasPendingSentRequest: Boolean = false,
     hasPendingIncomingRequest: Boolean = false,
     onFriendClick: () -> Unit = {},
-    onUserClick: () -> Unit = {}
+    onUserClick: () -> Unit = {},
+    onDeleteClick: () -> Unit = {}
 ) {
     val buttonText = when {
         user.isFriend -> "Bạn bè"
@@ -368,22 +370,44 @@ fun UserSearchItem(
                 color = Color.Gray
             )
         }
-        Button(
-            onClick = onFriendClick,
-            enabled = buttonEnabled,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = if (buttonEnabled) OrangePrimary else MaterialTheme.colorScheme.surfaceVariant,
-                contentColor = if (buttonEnabled) Color.White else MaterialTheme.colorScheme.onSurface
-            ),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-            modifier = Modifier.height(36.dp)
-        ) {
-            Text(
-                text = buttonText,
-                fontSize = 13.sp,
-                fontWeight = FontWeight.SemiBold
-            )
+        if (user.isFriend) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {},
+                    enabled = false,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    ),
+                    shape = RoundedCornerShape(8.dp),
+                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                    modifier = Modifier.height(36.dp)
+                ) {
+                    Text(text = "Bạn bè", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                TextButton(onClick = onDeleteClick, modifier = Modifier.height(36.dp)) {
+                    Text(text = "Xóa", color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
+                }
+            }
+        } else {
+            Button(
+                onClick = onFriendClick,
+                enabled = buttonEnabled,
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (buttonEnabled) OrangePrimary else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = if (buttonEnabled) Color.White else MaterialTheme.colorScheme.onSurface
+                ),
+                shape = RoundedCornerShape(8.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                modifier = Modifier.height(36.dp)
+            ) {
+                Text(
+                    text = buttonText,
+                    fontSize = 13.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
         }
     }
 }

@@ -12,5 +12,5 @@ interface FriendRepository {
     suspend fun rejectFriendRequest(friendId: String): ApiResult<Unit>
     suspend fun getMyFriends(): ApiResult<List<FriendRecipient>>
     suspend fun getUserFriends(userId: String): ApiResult<List<FriendRecipient>>
-    
+    suspend fun deleteFriend(friendId: String): ApiResult<Unit>
 }

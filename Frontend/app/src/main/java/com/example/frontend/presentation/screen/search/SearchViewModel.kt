@@ -5,6 +5,7 @@ import androidx.lifecycle.viewModelScope
 import android.util.Log
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.domain.usecase.FriendUseCase.AddFriendUseCase
+import com.example.frontend.domain.usecase.FriendUseCase.DeleteFriendUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.AddSearchHistoryUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.ClearSearchHistoryUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.DeleteSearchHistoryUseCase
@@ -22,6 +23,7 @@ import javax.inject.Inject
 class SearchViewModel @Inject constructor(
     private val searchUseCase: SearchUseCase,
     private val addFriendUseCase: AddFriendUseCase,
+    private val deleteFriendUseCase: DeleteFriendUseCase,
     private val getSearchHistoryUseCase: GetSearchHistoryUseCase,
     private val addSearchHistoryUseCase: AddSearchHistoryUseCase,
     private val deleteSearchHistoryUseCase: DeleteSearchHistoryUseCase,
@@ -151,6 +153,42 @@ class SearchViewModel @Inject constructor(
                                 state.pendingSentFriendIds
                             }
                         )
+                    }
+                }
+            }
+        }
+    }
+
+    fun deleteFriend(friendId: String) {
+        if (friendId.isBlank()) return
+
+        val current = _uiState.value
+        if (current.deletingFriendIds.contains(friendId)) return
+
+        viewModelScope.launch {
+            _uiState.update { state ->
+                state.copy(deletingFriendIds = state.deletingFriendIds + friendId)
+            }
+
+            when (val result = deleteFriendUseCase(friendId)) {
+                is ApiResult.Success -> {
+                    _uiState.update { state ->
+                        val updatedResults = state.results?.let { res ->
+                            res.copy(users = res.users.map { u -> if (u.id == friendId) u.copy(isFriend = false) else u })
+                        }
+
+                        state.copy(
+                            results = updatedResults,
+                            deletingFriendIds = state.deletingFriendIds - friendId,
+                            pendingSentFriendIds = state.pendingSentFriendIds - friendId,
+                            pendingIncomingFriendIds = state.pendingIncomingFriendIds - friendId
+                        )
+                    }
+                }
+
+                is ApiResult.Error -> {
+                    _uiState.update { state ->
+                        state.copy(deletingFriendIds = state.deletingFriendIds - friendId, error = result.message)
                     }
                 }
             }
