@@ -524,7 +524,7 @@ private fun MessageBubble(
             .pointerInput(Unit) {
                 detectTapGestures(
                     onLongPress = {
-                        if (isMine && !message.isRecall) {
+                        if (!message.isRecall) {
                             showMenu = true
                         }
                     }
@@ -574,7 +574,13 @@ private fun MessageBubble(
                 ) {
                     val isAudioMessage = message.type == "AUDIO" || message.media.firstOrNull()?.type == "AUDIO"
                     if (isAudioMessage) {
-                        AudioMessageBubble(message, isMine, isUploading)
+                        Box(modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = { if (!message.isRecall) showMenu = true }
+                            )
+                        }) {
+                            AudioMessageBubble(message, isMine, isUploading)
+                        }
                     } else {
                         message.media.forEach { media ->
                             val postMedia = PostMedia(
@@ -583,7 +589,12 @@ private fun MessageBubble(
                             )
 
                             if (media.type == "VIDEO") {
-                                Box(modifier = Modifier.clickable { onMediaClick(postMedia) }) {
+                                Box(modifier = Modifier.pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { onMediaClick(postMedia) },
+                                        onLongPress = { if (!message.isRecall) showMenu = true }
+                                    )
+                                }) {
                                     VideoMessageBubble(media.secureUrl, isUploading)
                                 }
                             } else if (media.type == "IMAGE") {
@@ -592,7 +603,12 @@ private fun MessageBubble(
                                         .padding(bottom = 4.dp)
                                         .clip(RoundedCornerShape(8.dp))
                                         .background(Color.LightGray)
-                                        .clickable { onMediaClick(postMedia) }
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onTap = { onMediaClick(postMedia) },
+                                                onLongPress = { if (!message.isRecall) showMenu = true }
+                                            )
+                                        }
                                 ) {
                                     AsyncImage(
                                         model = media.secureUrl,
