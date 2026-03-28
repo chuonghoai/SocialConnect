@@ -17,6 +17,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
 import com.example.frontend.R
@@ -27,9 +28,21 @@ import com.example.frontend.domain.model.FriendRecipient
 fun OtherFriendScreen(
     onBack: () -> Unit,
     onAvatarClick: ((String) -> Unit)? = null,
+    onNavigateToChat: (String, String, String, String?) -> Unit,
     viewModel: OtherFriendViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.navigateToChatEvent.collect { event ->
+            onNavigateToChat(
+                event.conversationId,
+                event.partnerId,
+                event.partnerName,
+                event.partnerAvatarUrl
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -61,7 +74,8 @@ fun OtherFriendScreen(
                     items(uiState.friends) { friend ->
                         FriendListItem(
                             friend = friend,
-                            onAvatarClick = onAvatarClick
+                            onAvatarClick = onAvatarClick,
+                            onChatClick = { viewModel.startChatWithFriend(friend) }
                         )
                     }
                 }
