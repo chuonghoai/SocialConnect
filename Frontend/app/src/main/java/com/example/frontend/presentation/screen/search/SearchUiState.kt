@@ -1,4 +1,4 @@
-package com.example.frontend.presentation.screen.search
+﻿package com.example.frontend.presentation.screen.search
 
 import com.example.frontend.domain.model.SearchResult
 

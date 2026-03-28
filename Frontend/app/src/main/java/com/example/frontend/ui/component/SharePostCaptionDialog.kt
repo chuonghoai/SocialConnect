@@ -22,12 +22,12 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.outlined.ArrowDropDown
-import androidx.compose.material.icons.outlined.EmojiEmotions
-import androidx.compose.material.icons.outlined.Lock
-import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.People
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -77,6 +77,17 @@ data class ShareFriendItem(
     val avatarUrl: String?
 )
 
+private val DefaultPrivacyOptions = listOf(
+    ShareDropdownOption(id = "friends", label = "Bạn bè"),
+    ShareDropdownOption(id = "public", label = "Công khai")
+)
+
+private val FacebookBlue = Color(0xFF1877F2)
+private val SheetBackground = Color(0xFFF0F2F5)
+private val PillBackground = Color(0xFFE7ECF3)
+private val InputBackground = Color(0xFFF7F8FA)
+private val SkeletonColor = Color(0xFFE2E5EC)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SharePostCaptionDialog(
@@ -95,85 +106,93 @@ fun SharePostCaptionDialog(
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
-    val sheetMaxHeight = (screenHeight * 0.58f).coerceAtLeast(360.dp)
+    val minSheetHeight = screenHeight * 0.5f
+    val maxSheetHeight = (screenHeight * 0.6f).coerceAtLeast(380.dp)
+
+    val effectivePostTargets = if (postTargets.isNotEmpty()) {
+        postTargets
+    } else {
+        listOf(ShareDropdownOption(id = "feed", label = "Bảng feed"))
+    }
+    val effectivePrivacyOptions = remember(privacyOptions) {
+        normalizePrivacyOptions(privacyOptions)
+    }
 
     var shareText by remember(post.id) { mutableStateOf("") }
-    var selectedTargetId by remember(post.id) { mutableStateOf(postTargets.firstOrNull()?.id.orEmpty()) }
-    var selectedPrivacyId by remember(post.id) { mutableStateOf(privacyOptions.firstOrNull()?.id.orEmpty()) }
+    var selectedTargetId by remember(post.id, effectivePostTargets) {
+        mutableStateOf(effectivePostTargets.firstOrNull()?.id.orEmpty())
+    }
+    var selectedPrivacyId by remember(post.id, effectivePrivacyOptions) {
+        mutableStateOf(effectivePrivacyOptions.firstOrNull()?.id.orEmpty())
+    }
     var selectedFriendIds by remember(post.id) { mutableStateOf(setOf<String>()) }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
-        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp),
+        shape = RoundedCornerShape(topStart = 30.dp, topEnd = 30.dp),
         scrimColor = Color.Black.copy(alpha = 0.45f),
-        containerColor = Color(0xFFF2F3F8),
+        containerColor = SheetBackground,
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(top = 8.dp, bottom = 4.dp)
-                    .size(width = 48.dp, height = 5.dp)
+                    .size(width = 52.dp, height = 5.dp)
                     .clip(RoundedCornerShape(100))
-                    .background(Color(0xFFB6BCC8))
+                    .background(Color(0xFFB7BEC9))
             )
         }
     ) {
-        Box(
+        LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
-                .heightIn(min = screenHeight * 0.5f, max = sheetMaxHeight)
+                .heightIn(min = minSheetHeight, max = maxSheetHeight)
+                .padding(horizontal = 14.dp),
+            contentPadding = PaddingValues(bottom = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 14.dp),
-                contentPadding = PaddingValues(bottom = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp)
-            ) {
-                item {
-                    ShareComposer(
-                        userName = currentUserName,
-                        userAvatarUrl = currentUserAvatarUrl,
-                        postTargets = postTargets,
-                        selectedTargetId = selectedTargetId,
-                        onTargetSelected = { selectedTargetId = it },
-                        privacyOptions = privacyOptions,
-                        selectedPrivacyId = selectedPrivacyId,
-                        onPrivacySelected = { selectedPrivacyId = it },
-                        shareText = shareText,
-                        onShareTextChange = { shareText = it },
-                        onClose = onDismiss,
-                        onShareNow = {
-                            onConfirmShare(
-                                SharePostSubmitData(
-                                    shareText = shareText.trim(),
-                                    target = selectedTargetId,
-                                    privacy = selectedPrivacyId,
-                                    selectedFriendIds = selectedFriendIds.toList(),
-                                    currentUserId = currentUserId,
-                                    postId = post.id
-                                )
+            item {
+                ShareComposer(
+                    userName = currentUserName,
+                    userAvatarUrl = currentUserAvatarUrl,
+                    postTargetLabel = effectivePostTargets.firstOrNull { it.id == selectedTargetId }?.label
+                        ?: "Bảng feed",
+                    privacyOptions = effectivePrivacyOptions,
+                    selectedPrivacyId = selectedPrivacyId,
+                    onPrivacySelected = { selectedPrivacyId = it },
+                    shareText = shareText,
+                    onShareTextChange = { shareText = it },
+                    onClose = onDismiss,
+                    onShareNow = {
+                        onConfirmShare(
+                            SharePostSubmitData(
+                                shareText = shareText.trim(),
+                                target = selectedTargetId,
+                                privacy = selectedPrivacyId,
+                                selectedFriendIds = selectedFriendIds.toList(),
+                                currentUserId = currentUserId,
+                                postId = post.id
                             )
-                        }
-                    )
-                }
+                        )
+                    }
+                )
+            }
 
-                item {
-                    FriendRecipientList(
-                        friends = friends,
-                        selectedFriendIds = selectedFriendIds,
-                        isLoading = isFriendsLoading,
-                        errorMessage = friendsError,
-                        onRetry = onRetryLoadFriends,
-                        onToggle = { friendId ->
-                            selectedFriendIds = if (selectedFriendIds.contains(friendId)) {
-                                selectedFriendIds - friendId
-                            } else {
-                                selectedFriendIds + friendId
-                            }
+            item {
+                FriendRecipientList(
+                    friends = friends,
+                    selectedFriendIds = selectedFriendIds,
+                    isLoading = isFriendsLoading,
+                    errorMessage = friendsError,
+                    onRetry = onRetryLoadFriends,
+                    onToggle = { friendId ->
+                        selectedFriendIds = if (selectedFriendIds.contains(friendId)) {
+                            selectedFriendIds - friendId
+                        } else {
+                            selectedFriendIds + friendId
                         }
-                    )
-                }
+                    }
+                )
             }
         }
     }
@@ -183,9 +202,7 @@ fun SharePostCaptionDialog(
 private fun ShareComposer(
     userName: String,
     userAvatarUrl: String?,
-    postTargets: List<ShareDropdownOption>,
-    selectedTargetId: String,
-    onTargetSelected: (String) -> Unit,
+    postTargetLabel: String,
     privacyOptions: List<ShareDropdownOption>,
     selectedPrivacyId: String,
     onPrivacySelected: (String) -> Unit,
@@ -195,9 +212,9 @@ private fun ShareComposer(
     onShareNow: () -> Unit
 ) {
     Surface(
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(24.dp),
         color = MaterialTheme.colorScheme.surface,
-        shadowElevation = 2.dp
+        shadowElevation = 4.dp
     ) {
         Column(
             modifier = Modifier
@@ -210,9 +227,9 @@ private fun ShareComposer(
             ) {
                 AsyncImage(
                     model = userAvatarUrl,
-                    contentDescription = "Current user avatar",
+                    contentDescription = "Ảnh đại diện người dùng",
                     modifier = Modifier
-                        .size(52.dp)
+                        .size(54.dp)
                         .clip(CircleShape)
                         .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
                     contentScale = ContentScale.Crop,
@@ -226,94 +243,81 @@ private fun ShareComposer(
                 ) {
                     Text(
                         text = userName,
-                        style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold),
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.SemiBold,
+                            letterSpacing = 0.1.sp
+                        ),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        ShareSelectorPill(
-                            options = postTargets,
-                            selectedId = selectedTargetId,
-                            onSelected = onTargetSelected
-                        )
-                        ShareSelectorPill(
+                        ShareStaticPill(label = postTargetLabel)
+                        SharePrivacySelectorPill(
                             options = privacyOptions,
                             selectedId = selectedPrivacyId,
-                            onSelected = onPrivacySelected,
-                            leadingIcon = Icons.Outlined.Lock
+                            onSelected = onPrivacySelected
                         )
                     }
                 }
 
                 IconButton(
                     onClick = onClose,
-                    modifier = Modifier.size(28.dp)
+                    modifier = Modifier
+                        .size(30.dp)
+                        .clip(CircleShape)
+                        .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f))
                 ) {
                     Icon(
                         imageVector = Icons.Filled.Close,
-                        contentDescription = "\u0110\u00f3ng popup",
+                        contentDescription = "Đóng popup",
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             OutlinedTextField(
                 value = shareText,
                 onValueChange = onShareTextChange,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .heightIn(min = 96.dp),
+                    .heightIn(min = 108.dp),
                 placeholder = {
                     Text(
-                        text = "H\u00e3y n\u00f3i g\u00ec \u0111\u00f3 v\u1ec1 n\u1ed9i dung n\u00e0y...",
+                        text = "Hãy nói gì đó về nội dung này...",
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 },
                 maxLines = 5,
-                shape = RoundedCornerShape(14.dp),
+                shape = RoundedCornerShape(16.dp),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = Color.Transparent,
                     unfocusedBorderColor = Color.Transparent,
-                    focusedContainerColor = Color(0xFFF7F8FA),
-                    unfocusedContainerColor = Color(0xFFF7F8FA)
+                    focusedContainerColor = InputBackground,
+                    unfocusedContainerColor = InputBackground
                 )
             )
 
-            Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(12.dp))
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Outlined.EmojiEmotions,
-                            contentDescription = "C\u1ea3m x\u00fac",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    IconButton(onClick = {}) {
-                        Icon(
-                            imageVector = Icons.Outlined.PersonAdd,
-                            contentDescription = "G\u1eafn th\u1ebb b\u1ea1n b\u00e8",
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                }
-
                 Button(
                     onClick = onShareNow,
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF1877F2)),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = FacebookBlue,
+                        contentColor = Color.White
+                    ),
                     contentPadding = PaddingValues(horizontal = 20.dp, vertical = 10.dp)
                 ) {
                     Text(
-                        text = "Chia s\u1ebb ngay",
+                        text = "Chia sẻ ngay",
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.SemiBold)
                     )
                 }
@@ -323,63 +327,101 @@ private fun ShareComposer(
 }
 
 @Composable
-private fun ShareSelectorPill(
+private fun ShareStaticPill(label: String) {
+    Surface(
+        shape = RoundedCornerShape(14.dp),
+        color = PillBackground
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 13.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
+                maxLines = 1
+            )
+        }
+    }
+}
+
+@Composable
+private fun SharePrivacySelectorPill(
     options: List<ShareDropdownOption>,
     selectedId: String,
-    onSelected: (String) -> Unit,
-    leadingIcon: ImageVector? = null
+    onSelected: (String) -> Unit
 ) {
     var expanded by remember { mutableStateOf(false) }
     val selectedItem = options.firstOrNull { it.id == selectedId }
-    val selectedLabel = selectedItem?.label ?: ""
-    val enabled = options.isNotEmpty()
+    val fallbackItem = options.firstOrNull()
+    val currentOption = selectedItem ?: fallbackItem ?: DefaultPrivacyOptions.first()
 
     Box {
         Surface(
             shape = RoundedCornerShape(14.dp),
-            color = Color(0xFFE7ECF3),
+            color = PillBackground,
             modifier = Modifier
                 .clip(RoundedCornerShape(14.dp))
-                .clickable(enabled = enabled) {
-                    if (options.size > 1) {
-                        expanded = true
-                    }
-                }
+                .clickable { expanded = true }
         ) {
             Row(
-                modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp),
+                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                if (leadingIcon != null) {
-                    Icon(
-                        imageVector = leadingIcon,
-                        contentDescription = null,
-                        modifier = Modifier.size(16.dp),
-                        tint = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                }
-
+                Icon(
+                    imageVector = iconForPrivacy(currentOption.id),
+                    contentDescription = null,
+                    modifier = Modifier.size(16.dp),
+                    tint = MaterialTheme.colorScheme.onSurface
+                )
+                Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = selectedLabel,
+                    text = currentOption.label,
                     style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
                     maxLines = 1
                 )
                 Icon(
                     imageVector = Icons.Outlined.ArrowDropDown,
                     contentDescription = null,
-                    tint = MaterialTheme.colorScheme.onSurface
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    modifier = Modifier.size(18.dp)
                 )
             }
         }
 
         DropdownMenu(
             expanded = expanded,
-            onDismissRequest = { expanded = false }
+            onDismissRequest = { expanded = false },
+            shape = RoundedCornerShape(14.dp),
+            containerColor = Color.White,
+            shadowElevation = 10.dp,
+            tonalElevation = 1.dp
         ) {
             options.forEach { option ->
                 DropdownMenuItem(
-                    text = { Text(option.label) },
+                    text = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(
+                                imageVector = iconForPrivacy(option.id),
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp)
+                            )
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text(option.label)
+                            Spacer(modifier = Modifier.weight(1f))
+                            if (option.id == currentOption.id) {
+                                Icon(
+                                    imageVector = Icons.Filled.Check,
+                                    contentDescription = null,
+                                    tint = FacebookBlue,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    },
                     onClick = {
                         onSelected(option.id)
                         expanded = false
@@ -388,6 +430,44 @@ private fun ShareSelectorPill(
             }
         }
     }
+}
+
+private fun iconForPrivacy(optionId: String): ImageVector {
+    return when (optionId) {
+        "public" -> Icons.Outlined.Public
+        else -> Icons.Outlined.People
+    }
+}
+
+private fun normalizePrivacyOptions(input: List<ShareDropdownOption>): List<ShareDropdownOption> {
+    if (input.isEmpty()) return DefaultPrivacyOptions
+
+    val mapped = input.mapNotNull { option ->
+        when {
+            option.id.equals("friends", ignoreCase = true) ||
+                option.label.equals("Bạn bè", ignoreCase = true) -> {
+                ShareDropdownOption(id = "friends", label = "Bạn bè")
+            }
+
+            option.id.equals("public", ignoreCase = true) ||
+                option.label.equals("Công khai", ignoreCase = true) -> {
+                ShareDropdownOption(id = "public", label = "Công khai")
+            }
+
+            else -> null
+        }
+    }.distinctBy { it.id }
+
+    if (mapped.isEmpty()) return DefaultPrivacyOptions
+    if (mapped.size == 1) {
+        return if (mapped.first().id == "friends") {
+            mapped + ShareDropdownOption(id = "public", label = "Công khai")
+        } else {
+            listOf(ShareDropdownOption(id = "friends", label = "Bạn bè")) + mapped
+        }
+    }
+
+    return mapped
 }
 
 @Composable
@@ -401,7 +481,7 @@ private fun FriendRecipientList(
 ) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Text(
-            text = "G\u1eedi cho b\u1ea1n b\u00e8",
+            text = "Gửi cho bạn bè",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
         )
         Spacer(modifier = Modifier.height(10.dp))
@@ -430,7 +510,7 @@ private fun FriendRecipientList(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         TextButton(onClick = onRetry) {
-                            Text("Th\u1eed l\u1ea1i")
+                            Text("Thử lại")
                         }
                     }
                 }
@@ -440,11 +520,13 @@ private fun FriendRecipientList(
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(14.dp),
-                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.7f)
+                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.75f)
                 ) {
                     Text(
-                        text = "Ch\u01b0a c\u00f3 b\u1ea1n b\u00e8",
-                        modifier = Modifier.padding(vertical = 18.dp),
+                        text = "Chưa có bạn bè",
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 18.dp),
                         style = MaterialTheme.typography.bodyMedium,
                         textAlign = TextAlign.Center,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -480,7 +562,7 @@ private fun FriendListLoading() {
                     modifier = Modifier
                         .size(68.dp)
                         .clip(CircleShape)
-                        .background(Color(0xFFE2E5EC))
+                        .background(SkeletonColor)
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Box(
@@ -488,7 +570,7 @@ private fun FriendListLoading() {
                         .width(64.dp)
                         .height(12.dp)
                         .clip(RoundedCornerShape(8.dp))
-                        .background(Color(0xFFE2E5EC))
+                        .background(SkeletonColor)
                 )
             }
         }
@@ -516,7 +598,7 @@ private fun FriendRecipientItem(
                     .clip(CircleShape)
                     .border(
                         width = if (selected) 2.dp else 1.dp,
-                        color = if (selected) Color(0xFF1877F2) else MaterialTheme.colorScheme.outlineVariant,
+                        color = if (selected) FacebookBlue else MaterialTheme.colorScheme.outlineVariant,
                         shape = CircleShape
                     ),
                 contentScale = ContentScale.Crop,
@@ -526,8 +608,8 @@ private fun FriendRecipientItem(
             if (selected) {
                 Icon(
                     imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "\u0110\u00e3 ch\u1ecdn",
-                    tint = Color(0xFF1877F2),
+                    contentDescription = "Đã chọn",
+                    tint = FacebookBlue,
                     modifier = Modifier
                         .size(18.dp)
                         .background(Color.White, CircleShape)
@@ -548,8 +630,8 @@ private fun FriendRecipientItem(
 
         if (selected) {
             Text(
-                text = "\u0110\u00e3 ch\u1ecdn",
-                color = Color(0xFF1877F2),
+                text = "Đã chọn",
+                color = FacebookBlue,
                 style = MaterialTheme.typography.labelSmall
             )
         }

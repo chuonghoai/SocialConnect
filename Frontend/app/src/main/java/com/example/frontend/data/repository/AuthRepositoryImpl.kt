@@ -92,7 +92,7 @@ class AuthRepositoryImpl @Inject constructor(
         try {
             authApi.logout()
         } catch (_: Exception) {
-            // Ignore server logout errors (401/timeout...) and always clear local session.
+            // FE-safe: dù API logout lỗi (ví dụ 401), vẫn phải xoá phiên cục bộ.
         } finally {
             tokenDataStore.clear()
             userDao.clearUser()
@@ -177,12 +177,33 @@ class AuthRepositoryImpl @Inject constructor(
 
     override suspend fun updateProfile(displayName: String, dob: String, email: String, avatar: String?): ApiResult<User> {
         return try {
-            val response = authApi.updateProfile(UpdateProfileRequest(displayName, dob, email, avatar))
+            val response = authApi.updateProfile(
+                UpdateProfileRequest(
+                    displayName = displayName.trim().ifBlank { null },
+                    avatarUrl = avatar?.trim()?.ifBlank { null }
+                )
+            )
             if (response.isSuccessful && response.body() != null) {
-                ApiResult.Success(response.body()!!)
+                val updatedUser = response.body()!!
+                userDao.clearUser()
+                userDao.insertUser(updatedUser.toEntity())
+                ApiResult.Success(updatedUser)
             } else {
-                ApiResult.Error(message = "Lỗi cập nhật hồ sơ")
+                val backendMessage = extractErrorMessage(response.errorBody()?.string())
+                ApiResult.Error(
+                    code = response.code(),
+                    message = backendMessage ?: "Lỗi cập nhật hồ sơ (${response.code()})"
+                )
             }
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = extractErrorMessage(e.response()?.errorBody()?.string())
+                    ?: "Lỗi cập nhật hồ sơ (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng: Vui lòng kiểm tra lại kết nối Internet.", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = e.message ?: "Lỗi kết nối")
         }
@@ -198,6 +219,18 @@ class AuthRepositoryImpl @Inject constructor(
             }
         } catch (e: Exception) {
             ApiResult.Error(message = e.message ?: "Lỗi kết nối")
+        }
+    }
+
+    private fun extractErrorMessage(raw: String?): String? {
+        if (raw.isNullOrBlank()) return null
+
+        return try {
+            val type = object : TypeToken<Map<String, Any?>>() {}.type
+            val errorMap: Map<String, Any?> = gson.fromJson(raw, type)
+            errorMap["message"]?.toString()?.trim()?.takeIf { it.isNotBlank() }
+        } catch (_: Exception) {
+            null
         }
     }
 }

@@ -13,6 +13,7 @@ object ApiRoutes {
     const val SHARE_POST = "api/posts/{postId}/share"
     const val LIKE_POST = "api/posts/{postId}/like"
     const val SAVE_POST = "api/posts/{postId}/save"
+    const val REPORT_POST = "api/posts/{postId}/report"
     const val GET_POST_COMMENTS = "api/posts/{postId}/comments"
     const val CREATE_POST_COMMENT = "api/posts/{postId}/comments"
     const val VERIFY_FORGOT_PASSWORD_OTP = "api/auth/forgot-password/verify-otp"
@@ -21,7 +22,7 @@ object ApiRoutes {
     const val GET_SIGNATURE = "api/media/signature"
     const val SAVE_MEDIA = "api/media"
     const val CREATE_POST = "api/posts"
-    const val UPDATE_PROFILE = "/api/auth/me"
+    const val UPDATE_PROFILE = "api/users/me"
     const val CHANGE_PASSWORD = "/auth/change-password"
     const val CONVERSATIONS = "api/conversations"
 }

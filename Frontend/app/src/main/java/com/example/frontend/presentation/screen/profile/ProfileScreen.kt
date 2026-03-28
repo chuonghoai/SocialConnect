@@ -1,6 +1,5 @@
 ﻿package com.example.frontend.presentation.screen.profile
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -36,9 +35,8 @@ import com.example.frontend.R
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.User
 import com.example.frontend.ui.component.PostCard
-import com.example.frontend.ui.component.SharePostCaptionDialog
 import com.example.frontend.ui.component.ShareDropdownOption
-import com.example.frontend.ui.component.ShareFriendItem
+import com.example.frontend.ui.component.SharePostCaptionDialog
 import com.example.frontend.ui.component.ScrollToTopButton
 import com.example.frontend.ui.theme.OrangePrimary
 import kotlinx.coroutines.launch
@@ -49,6 +47,7 @@ fun ProfileScreen(
     onLoggedOut: () -> Unit,
     onBackClick: () -> Unit = {},
     onNavigateToSetting: () -> Unit = {},
+    onEditPostClick: () -> Unit = {},
     viewModel: ProfileViewModel = hiltViewModel(),
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -59,13 +58,15 @@ fun ProfileScreen(
     val successState = uiState as? ProfileUiState.Success
     val currentUser = successState?.user
     val selectedTabIndex = successState?.selectedTabIndex ?: 0
-    val shareFriendsState by viewModel.shareFriendsState.collectAsState()
     var shareTargetPost by remember { mutableStateOf<Post?>(null) }
     val postTargets = remember {
         listOf(ShareDropdownOption(id = "feed", label = "Bảng feed"))
     }
     val privacyOptions = remember {
-        listOf(ShareDropdownOption(id = "only_me", label = "Chỉ mình tôi"))
+        listOf(
+            ShareDropdownOption(id = "friends", label = "Bạn bè"),
+            ShareDropdownOption(id = "public", label = "Công khai")
+        )
     }
 
     val showScrollToTop by remember {
@@ -186,11 +187,23 @@ fun ProfileScreen(
                                 items(tabPosts) { post ->
                                     PostCard(
                                         post = post,
+                                        isOwnPost = post.userId == state.user.id,
                                         onSaveClick = { viewModel.toggleSavePost(post.id) },
-                                        saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
                                         onShareClick = {
                                             shareTargetPost = post
-                                            viewModel.loadShareFriends(currentUser?.id.orEmpty())
+                                        },
+                                        onEditPost = { postToEdit ->
+                                            viewModel.prepareEditPost(postToEdit)
+                                            onEditPostClick()
+                                        },
+                                        onDeletePost = { postId ->
+                                            viewModel.deletePostLocally(postId)
+                                        },
+                                        onHidePost = { postId ->
+                                            viewModel.hidePostLocally(postId)
+                                        },
+                                        onReportPost = { postId, reason ->
+                                            viewModel.reportPost(postId, reason)
                                         }
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
@@ -227,32 +240,13 @@ fun ProfileScreen(
                     currentUserAvatarUrl = currentUser?.avatarUrl,
                     postTargets = postTargets,
                     privacyOptions = privacyOptions,
-                    friends = shareFriendsState.friends.map { friend ->
-                        ShareFriendItem(
-                            id = friend.id,
-                            name = friend.displayName,
-                            avatarUrl = friend.avatarUrl
-                        )
-                    },
-                    isFriendsLoading = shareFriendsState.isLoading,
-                    friendsError = shareFriendsState.error,
-                    onRetryLoadFriends = {
-                        viewModel.loadShareFriends(
-                            currentUserId = currentUser?.id.orEmpty(),
-                            forceRefresh = true
-                        )
-                    },
+                    friends = emptyList(),
+                    isFriendsLoading = false,
+                    friendsError = null,
+                    onRetryLoadFriends = {},
                     onDismiss = { shareTargetPost = null },
                     onConfirmShare = { shareData ->
-                        Log.d(
-                            "SharePost",
-                            "shareNow postId=${shareData.postId}, shareText=${shareData.shareText}, " +
-                                "target=${shareData.target}, privacy=${shareData.privacy}, " +
-                                "selectedFriendIds=${shareData.selectedFriendIds.joinToString()}, " +
-                                "currentUserId=${shareData.currentUserId}"
-                        )
-                        // TODO(BE): hỗ trợ gửi caption + selectedFriendIds trong endpoint share/message để FE nối payload đầy đủ.
-                        viewModel.sharePost(shareData)
+                        // TODO: nối action share ở màn profile nếu cần đồng bộ hành vi với HomeViewModel
                         shareTargetPost = null
                     }
                 )

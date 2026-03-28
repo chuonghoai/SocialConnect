@@ -1,21 +1,45 @@
 package com.example.frontend.presentation.screen.register
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -31,12 +55,7 @@ fun OtpVerificationScreen(
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
-
-    LaunchedEffect(state.otp) {
-        if (state.otp.length == 6) {
-            viewModel.register(onRegisterClick)
-        }
-    }
+    val canSubmit = state.otp.length == 6
 
     Box(
         modifier = Modifier
@@ -48,10 +67,11 @@ fun OtpVerificationScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp),
+                .padding(horizontal = 24.dp)
+                .imePadding()
+                .verticalScroll(rememberScrollState()),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -66,7 +86,7 @@ fun OtpVerificationScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                        contentDescription = "Back",
+                        contentDescription = "Quay l\u1ea1i",
                         tint = Color(0xFFFF8A00)
                     )
                 }
@@ -75,7 +95,7 @@ fun OtpVerificationScreen(
             Spacer(Modifier.height(40.dp))
 
             Text(
-                text = "Xác thực OTP",
+                text = "X\u00e1c th\u1ef1c OTP",
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.ExtraBold
                 ),
@@ -86,7 +106,7 @@ fun OtpVerificationScreen(
             Spacer(Modifier.height(8.dp))
 
             Text(
-                text = "Mã xác thực 6 số đã được gửi đến email\n${state.email}",
+                text = "M\u00e3 x\u00e1c th\u1ef1c 6 s\u1ed1 \u0111\u00e3 \u0111\u01b0\u1ee3c g\u1eedi \u0111\u1ebfn email\n${state.email}",
                 style = MaterialTheme.typography.bodyMedium,
                 color = Color(0xFF6B6B6B),
                 textAlign = TextAlign.Center
@@ -94,7 +114,6 @@ fun OtpVerificationScreen(
 
             Spacer(Modifier.height(50.dp))
 
-            // Otp input
             OtpInputField(
                 otpText = state.otp,
                 onOtpChange = { newValue ->
@@ -114,21 +133,24 @@ fun OtpVerificationScreen(
                 )
             }
 
-            Spacer(modifier = Modifier.weight(1f))
+            Spacer(Modifier.height(24.dp))
 
             Button(
                 onClick = { viewModel.register(onRegisterClick) },
-                enabled = state.otp.length == 6 && !state.loading,
+                enabled = !state.loading,
                 modifier = Modifier
                     .fillMaxWidth(0.78f)
-                    .height(52.dp)
-                    .padding(bottom = 32.dp),
+                    .padding(bottom = 24.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFF9C98A),
+                    containerColor = Color(0xFFFF8A00),
                     contentColor = Color.White,
-                    disabledContainerColor = Color(0xFFE0E0E0),
-                    disabledContentColor = Color(0xFFA0A0A0)
+                    disabledContainerColor = Color(0xFFE0C9AA),
+                    disabledContentColor = Color(0xFF6B5A45)
+                ),
+                contentPadding = androidx.compose.foundation.layout.PaddingValues(
+                    horizontal = 20.dp,
+                    vertical = 14.dp
                 ),
                 elevation = ButtonDefaults.buttonElevation(defaultElevation = 0.dp)
             ) {
@@ -140,12 +162,26 @@ fun OtpVerificationScreen(
                     )
                 } else {
                     Text(
-                        text = "Xác nhận",
-                        style = MaterialTheme.typography.titleMedium.copy(
-                            fontWeight = FontWeight.Bold
-                        )
+                        text = "X\u00e1c th\u1ef1c",
+                        modifier = Modifier.padding(vertical = 2.dp),
+                        style = TextStyle(
+                            fontSize = 18.sp,
+                            lineHeight = 24.sp,
+                            fontWeight = FontWeight.Bold,
+                            platformStyle = PlatformTextStyle(includeFontPadding = true)
+                        ),
+                        color = Color.White
                     )
                 }
+            }
+
+            if (!canSubmit && !state.loading && state.error.isNullOrBlank()) {
+                Text(
+                    text = "Vui l\u00f2ng nh\u1eadp \u0111\u1ee7 6 s\u1ed1 OTP \u0111\u1ec3 x\u00e1c th\u1ef1c",
+                    color = Color(0xFF8A8A8A),
+                    style = MaterialTheme.typography.bodySmall,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }
@@ -166,11 +202,7 @@ private fun OtpInputField(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 repeat(6) { index ->
-                    val char = when {
-                        index < otpText.length -> otpText[index].toString()
-                        else -> ""
-                    }
-
+                    val char = if (index < otpText.length) otpText[index].toString() else ""
                     val isFocused = index == otpText.length
 
                     Box(
@@ -207,7 +239,7 @@ private fun OtpInputField(
 
 @Composable
 private fun TopWaveDecoration() {
-    androidx.compose.foundation.Canvas(
+    Canvas(
         modifier = Modifier
             .fillMaxWidth()
             .height(200.dp)
@@ -215,7 +247,7 @@ private fun TopWaveDecoration() {
         val w = size.width
         val h = size.height
 
-        val path = androidx.compose.ui.graphics.Path().apply {
+        val path = Path().apply {
             moveTo(0f, 0f)
             lineTo(w * 0.72f, 0f)
             cubicTo(

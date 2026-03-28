@@ -37,12 +37,12 @@ class StartViewModel @Inject constructor(
                 }
 
                 is ApiResult.Error -> {
-                    // Token het han/khong hop le -> clear session va tro ve login.
+                    // Token hết hạn/không hợp lệ -> clear session và trở về login.
                     if (meResult.code == 401 || meResult.code == 403) {
                         runCatching { logoutUseCase() }
                         _startDestination.value = Routes.LOGIN
                     } else {
-                        // Neu chi la loi mang tam thoi, van giu HOME de dung du lieu local.
+                        // Nếu chỉ là lỗi mạng tạm thời, vẫn giữ HOME để dùng dữ liệu local.
                         _startDestination.value = Routes.HOME
                     }
                 }

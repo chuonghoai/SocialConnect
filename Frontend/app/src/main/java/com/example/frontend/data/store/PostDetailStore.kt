@@ -11,4 +11,5 @@ import javax.inject.Singleton
 @Singleton
 class PostDetailStore @Inject constructor() {
     var selectedPost: Post? = null
+    var editingPost: Post? = null
 }

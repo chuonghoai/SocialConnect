@@ -32,8 +32,6 @@ class SearchViewModel @Inject constructor(
         loadHistory()
     }
 
-    // ──────────────────────────── Lịch sử ────────────────────────────
-
     private fun loadHistory() {
         viewModelScope.launch {
             val history = getSearchHistoryUseCase()
@@ -55,12 +53,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    // ──────────────────────────── Query ────────────────────────────
-
-    /**
-     * Gọi mỗi khi text trong ô search thay đổi.
-     * Reset kết quả cũ để tránh hiển thị stale data.
-     */
     fun onQueryChange(query: String) {
         _uiState.update {
             it.copy(
@@ -76,9 +68,6 @@ class SearchViewModel @Inject constructor(
         _uiState.update { it.copy(scope = scope) }
     }
 
-    /**
-     * Chọn một mục trong lịch sử: điền vào ô search rồi tìm ngay.
-     */
     fun selectHistory(keyword: String) {
         _uiState.update {
             it.copy(
@@ -102,11 +91,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    // ──────────────────────────── Search ────────────────────────────
-
-    /**
-     * Gửi keyword tới backend, lưu lịch sử, cập nhật UI.
-     */
     fun search() {
         val keyword = _uiState.value.query.trim()
         if (keyword.isBlank()) return
@@ -114,18 +98,45 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null, hasSearched = true) }
 
-            // Lưu lịch sử trước khi gọi API
-            addSearchHistoryUseCase(keyword)
-            loadHistory()
+            runCatching {
+                addSearchHistoryUseCase(keyword)
+                loadHistory()
+                searchUseCase(keyword, _uiState.value.scope.value)
+            }.onSuccess { result ->
+                when (result) {
+                    is ApiResult.Success -> _uiState.update {
+                        it.copy(isLoading = false, results = result.data, error = null)
+                    }
 
-            when (val result = searchUseCase(keyword, _uiState.value.scope.value)) {
-                is ApiResult.Success -> _uiState.update {
-                    it.copy(isLoading = false, results = result.data)
+                    is ApiResult.Error -> _uiState.update {
+                        it.copy(isLoading = false, error = normalizeSearchError(result.message))
+                    }
                 }
-                is ApiResult.Error -> _uiState.update {
-                    it.copy(isLoading = false, error = result.message)
+            }.onFailure { error ->
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = normalizeSearchError(error.message)
+                    )
                 }
             }
         }
+    }
+
+    private fun normalizeSearchError(raw: String?): String {
+        val normalized = raw?.trim().orEmpty()
+        if (normalized.isBlank()) {
+            return "Không thể tìm kiếm lúc này. Vui lòng thử lại."
+        }
+
+        val lower = normalized.lowercase()
+        if (lower.contains("unable to create converter")) {
+            return "Không thể đọc dữ liệu tìm kiếm. Vui lòng thử lại."
+        }
+        if (lower.contains("không xác định") || lower.contains("unexpected")) {
+            return "Không thể xử lý kết quả tìm kiếm. Vui lòng thử lại."
+        }
+
+        return normalized
     }
 }

@@ -20,6 +20,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import com.example.frontend.presentation.navigation.bottomnav.BottomBar
 import com.example.frontend.presentation.navigation.bottomnav.bottomNavItems
 import com.example.frontend.presentation.screen.chat.ChatScreen
@@ -204,6 +206,9 @@ fun AppNavGraph(
                         },
                         onNavigateToSetting = {
                             navController.navigate(Routes.SETTING)
+                        },
+                        onEditPostClick = {
+                            navController.navigate(Routes.createPostRoute(mode = "edit"))
                         }
                     )
                 }
@@ -215,7 +220,10 @@ fun AppNavGraph(
                             navController.navigate(Routes.CONVERSATION_LIST)
                         },
                         onCreatePostClick = {
-                            navController.navigate(Routes.CREATE_POST)
+                            navController.navigate(Routes.createPostRoute(mode = "create"))
+                        },
+                        onEditPostClick = {
+                            navController.navigate(Routes.createPostRoute(mode = "edit"))
                         },
                         onPostClick = { _ ->
                             navController.navigate(Routes.POST_DETAIL)
@@ -238,6 +246,12 @@ fun AppNavGraph(
 
                 composable(
                     route = Routes.CREATE_POST,
+                    arguments = listOf(
+                        navArgument("mode") {
+                            type = NavType.StringType
+                            defaultValue = "create"
+                        }
+                    ),
                     enterTransition = {
                         slideIntoContainer(
                             towards = AnimatedContentTransitionScope.SlideDirection.Up,
@@ -253,10 +267,13 @@ fun AppNavGraph(
                 ) {
                     val createPostViewModel: CreatePostViewModel = hiltViewModel()
                     val currentUser by sessionViewModel.currentUser.collectAsState()
+                    val isEditMode =
+                        it.arguments?.getString("mode").equals("edit", ignoreCase = true)
 
                     CreatePostScreen(
                         currentUser = currentUser,
                         viewModel = createPostViewModel,
+                        isEditMode = isEditMode,
                         onBackClick = { navController.popBackStack() },
                         onSuccess = { navController.popBackStack() }
                     )

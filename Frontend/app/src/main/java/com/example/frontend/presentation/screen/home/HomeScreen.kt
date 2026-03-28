@@ -1,7 +1,6 @@
 ﻿package com.example.frontend.presentation.screen.home
 
 import android.net.Uri
-import android.util.Log
 import android.widget.MediaController
 import android.widget.VideoView
 import androidx.compose.foundation.border
@@ -36,7 +35,6 @@ import com.example.frontend.domain.model.User
 import com.example.frontend.ui.theme.OrangePrimary
 import java.time.LocalDateTime
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.animateContentSize
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -49,9 +47,8 @@ import com.example.frontend.presentation.navigation.Routes
 import com.example.frontend.ui.theme.OrangeLight
 import kotlinx.coroutines.launch
 import com.example.frontend.ui.component.PostCard
-import com.example.frontend.ui.component.SharePostCaptionDialog
 import com.example.frontend.ui.component.ShareDropdownOption
-import com.example.frontend.ui.component.ShareFriendItem
+import com.example.frontend.ui.component.SharePostCaptionDialog
 import com.example.frontend.ui.component.ScrollToTopButton
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -60,6 +57,7 @@ fun HomeScreen(
     currentUser: User?,
     onNavigateToMessages: () -> Unit = {},
     onCreatePostClick: () -> Unit = {},
+    onEditPostClick: () -> Unit = {},
     onPostClick: (Post) -> Unit = {},
     onVideoClick: () -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel()
@@ -70,13 +68,16 @@ fun HomeScreen(
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     val uploadState by viewModel.uploadState.collectAsState()
-    val shareFriendsState by viewModel.shareFriendsState.collectAsState()
+    val postCreatedTick by viewModel.postCreatedTick.collectAsState()
     var shareTargetPost by remember { mutableStateOf<Post?>(null) }
     val postTargets = remember {
         listOf(ShareDropdownOption(id = "feed", label = "Bảng feed"))
     }
     val privacyOptions = remember {
-        listOf(ShareDropdownOption(id = "only_me", label = "Chỉ mình tôi"))
+        listOf(
+            ShareDropdownOption(id = "friends", label = "Bạn bè"),
+            ShareDropdownOption(id = "public", label = "Công khai")
+        )
     }
 
     val shouldLoadMore by remember {
@@ -104,6 +105,11 @@ fun HomeScreen(
         if (shouldLoadMore) {
             viewModel.loadMore()
         }
+    }
+
+    LaunchedEffect(postCreatedTick) {
+        if (postCreatedTick <= 0L) return@LaunchedEffect
+        listState.animateScrollToItem(0)
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -146,15 +152,7 @@ fun HomeScreen(
 
                     if (uploadState.isUploading) {
                         item {
-                            Box {
-                                androidx.compose.animation.AnimatedVisibility(
-                                    visible = uploadState.isUploading,
-                                    enter = fadeIn() + slideInVertically(initialOffsetY = { -it / 3 }),
-                                    exit = fadeOut() + slideOutVertically(targetOffsetY = { -it / 3 })
-                                ) {
-                                    UploadingIndicator(progressText = uploadState.progressText)
-                                }
-                            }
+                            UploadingIndicator(progressText = uploadState.progressText)
                         }
                     }
 
@@ -193,6 +191,7 @@ fun HomeScreen(
                             items(state.posts, key = { it.id }) { post ->
                                 PostCard(
                                     post = post,
+                                    isOwnPost = post.userId == currentUser?.id,
                                     onLikeClick = {
                                         viewModel.toggleLike(post.id)
                                     },
@@ -203,12 +202,25 @@ fun HomeScreen(
                                     onSaveClick = {
                                         viewModel.savePost(post.id)
                                     },
-                                    saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
                                     onShareClick = {
                                         shareTargetPost = post
-                                        viewModel.loadShareFriends(currentUser?.id.orEmpty())
                                     },
-                                    onVideoClick = onVideoClick
+                                    onEditPost = { postToEdit ->
+                                        viewModel.prepareEditPost(postToEdit)
+                                        onEditPostClick()
+                                    },
+                                    onDeletePost = { postId ->
+                                        viewModel.deletePostLocally(postId)
+                                    },
+                                    onHidePost = { postId ->
+                                        viewModel.hidePostLocally(postId)
+                                    },
+                                    onReportPost = { postId, reason ->
+                                        viewModel.reportPost(postId, reason)
+                                    },
+                                    onCopyLink = {
+                                        viewModel.onPostLinkCopied()
+                                    }
                                 )
                             }
 
@@ -252,32 +264,13 @@ fun HomeScreen(
                     currentUserAvatarUrl = currentUser?.avatarUrl,
                     postTargets = postTargets,
                     privacyOptions = privacyOptions,
-                    friends = shareFriendsState.friends.map { friend ->
-                        ShareFriendItem(
-                            id = friend.id,
-                            name = friend.displayName,
-                            avatarUrl = friend.avatarUrl
-                        )
-                    },
-                    isFriendsLoading = shareFriendsState.isLoading,
-                    friendsError = shareFriendsState.error,
-                    onRetryLoadFriends = {
-                        viewModel.loadShareFriends(
-                            currentUserId = currentUser?.id.orEmpty(),
-                            forceRefresh = true
-                        )
-                    },
+                    friends = emptyList(),
+                    isFriendsLoading = false,
+                    friendsError = null,
+                    onRetryLoadFriends = {},
                     onDismiss = { shareTargetPost = null },
                     onConfirmShare = { shareData ->
-                        Log.d(
-                            "SharePost",
-                            "shareNow postId=${shareData.postId}, shareText=${shareData.shareText}, " +
-                                "target=${shareData.target}, privacy=${shareData.privacy}, " +
-                                "selectedFriendIds=${shareData.selectedFriendIds.joinToString()}, " +
-                                "currentUserId=${shareData.currentUserId}"
-                        )
-                        // TODO(BE): hỗ trợ gửi caption + selectedFriendIds trong endpoint share/message để FE nối payload đầy đủ.
-                        viewModel.sharePost(shareData)
+                        viewModel.sharePost(shareData.postId)
                         shareTargetPost = null
                     }
                 )
@@ -293,13 +286,12 @@ fun HomeHeader(
     onCreatePostClick: () -> Unit = {}
 ) {
     Surface(
-        shadowElevation = 3.dp,
-        tonalElevation = 1.dp,
+        shadowElevation = 0.dp,
         color = MaterialTheme.colorScheme.background
     ) {
         Row(
             modifier = Modifier
-                .height(64.dp)
+                .height(60.dp)
                 .padding(horizontal = 16.dp)
                 .fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -314,30 +306,19 @@ fun HomeHeader(
             )
 
             Row(verticalAlignment = Alignment.CenterVertically) {
-                FilledTonalIconButton(
-                    onClick = onCreatePostClick,
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
-                    )
-                ) {
+                IconButton(onClick = onCreatePostClick) {
                     Icon(
                         painter = painterResource(id = R.drawable.icon_plus),
                         contentDescription = "New Post",
-                        modifier = Modifier.size(22.dp),
+                        modifier = Modifier.size(26.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
-                Spacer(Modifier.width(8.dp))
-                FilledTonalIconButton(
-                    onClick = onNavigateToMessages,
-                    colors = IconButtonDefaults.filledTonalIconButtonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.75f)
-                    )
-                ) {
+                IconButton(onClick = onNavigateToMessages) {
                     Icon(
                         painter = painterResource(id = R.drawable.icon_message),
                         contentDescription = "Messages",
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(24.dp),
                         tint = MaterialTheme.colorScheme.onSurface
                     )
                 }
@@ -355,8 +336,7 @@ fun CreatePostSection(user: User, onCreatePostClick: () -> Unit = {}) {
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         color = MaterialTheme.colorScheme.background,
-        tonalElevation = 3.dp,
-        shape = RoundedCornerShape(16.dp)
+        tonalElevation = 2.dp
     ) {
         Row(
             modifier = Modifier.padding(12.dp),
@@ -410,7 +390,6 @@ fun CreatePostSection(user: User, onCreatePostClick: () -> Unit = {}) {
 fun UploadingIndicator(progressText: String) {
     Surface(
         modifier = Modifier
-            .animateContentSize()
             .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 4.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f),

@@ -5,7 +5,18 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
@@ -15,7 +26,18 @@ import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.Lock
 import androidx.compose.material.icons.outlined.Person
-import androidx.compose.material3.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
@@ -26,8 +48,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.platform.LocalFocusManager
@@ -50,9 +70,6 @@ fun RegisterScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
-    val usernameFocusRequester = remember { FocusRequester() }
-    val passwordFocusRequester = remember { FocusRequester() }
-    val confirmPasswordFocusRequester = remember { FocusRequester() }
 
     Box(
         modifier = Modifier
@@ -70,10 +87,9 @@ fun RegisterScreen(
         ) {
             Spacer(Modifier.height(50.dp))
 
-            // App icon
             Image(
                 painter = painterResource(id = R.drawable.app_icon),
-                contentDescription = "App icon",
+                contentDescription = "Bi\u1ec3u t\u01b0\u1ee3ng \u1ee9ng d\u1ee5ng",
                 modifier = Modifier
                     .size(86.dp)
                     .clip(RoundedCornerShape(18.dp))
@@ -81,9 +97,8 @@ fun RegisterScreen(
 
             Spacer(Modifier.height(18.dp))
 
-            // Screen title
             Text(
-                text = "Đăng ký",
+                text = "\u0110\u0103ng k\u00fd",
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.ExtraBold
                 ),
@@ -94,7 +109,6 @@ fun RegisterScreen(
 
             Spacer(Modifier.height(6.dp))
 
-            // Email
             RoundedInputField(
                 value = state.email,
                 onValueChange = viewModel::setEmail,
@@ -102,35 +116,31 @@ fun RegisterScreen(
                 leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
                 enabled = !state.loading,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { passwordFocusRequester.requestFocus() })
+                keyboardActions = KeyboardActions(onNext = {})
             )
 
             Spacer(Modifier.height(14.dp))
 
-            // Password
             RoundedInputField(
                 value = state.password,
                 onValueChange = viewModel::setPassword,
-                placeholder = "Mật khẩu",
+                placeholder = "M\u1eadt kh\u1ea9u",
                 leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
                 isPassword = true,
                 enabled = !state.loading,
-                modifier = Modifier.focusRequester(passwordFocusRequester),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onNext = { confirmPasswordFocusRequester.requestFocus() })
+                keyboardActions = KeyboardActions(onNext = {})
             )
 
             Spacer(Modifier.height(14.dp))
 
-            // Confirm password
             RoundedInputField(
                 value = state.confirmPassword,
                 onValueChange = viewModel::setConfirmPassword,
-                placeholder = "Nhập lại mật khẩu",
+                placeholder = "Nh\u1eadp l\u1ea1i m\u1eadt kh\u1ea9u",
                 leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
                 isPassword = true,
                 enabled = !state.loading,
-                modifier = Modifier.focusRequester(confirmPasswordFocusRequester),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     focusManager.clearFocus()
@@ -150,13 +160,12 @@ fun RegisterScreen(
                 Spacer(Modifier.height(10.dp))
             }
 
-            // "Bạn đã có tài khoản? Đăng nhập"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Bạn đã có tài khoản. ",
+                    text = "B\u1ea1n \u0111\u00e3 c\u00f3 t\u00e0i kho\u1ea3n. ",
                     style = MaterialTheme.typography.bodyMedium,
                     color = Color(0xFF6B6B6B)
                 )
@@ -165,14 +174,13 @@ fun RegisterScreen(
                     contentPadding = PaddingValues(0.dp)
                 ) {
                     Text(
-                        text = "Đăng nhập",
+                        text = "\u0110\u0103ng nh\u1eadp",
                         color = Color(0xFFFF8A00),
                         fontWeight = FontWeight.SemiBold
                     )
                 }
             }
 
-            // Register button
             Button(
                 onClick = { viewModel.sendOtp(onSendOtpClick) },
                 enabled = !state.loading,
@@ -194,7 +202,7 @@ fun RegisterScreen(
                     )
                 } else {
                     Text(
-                        text = "Đăng ký",
+                        text = "\u0110\u0103ng k\u00fd",
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold
                         )
@@ -204,19 +212,17 @@ fun RegisterScreen(
 
             Spacer(Modifier.height(22.dp))
 
-            // Social register (Google)
             Row(
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Nút tròn nền trắng sau icon Google
                 Box(
                     modifier = Modifier
                         .size(44.dp)
                         .clip(CircleShape)
                         .background(Color.White)
                         .border(1.dp, Color(0xFFEDEDED), CircleShape)
-                        .clickable { /* ... */ },
+                        .clickable { },
                     contentAlignment = Alignment.Center
                 ) {
                     Image(
@@ -268,7 +274,7 @@ private fun RoundedInputField(
                 IconButton(onClick = { showPassword = !showPassword }) {
                     Icon(
                         imageVector = if (showPassword) Icons.Filled.VisibilityOff else Icons.Filled.Visibility,
-                        contentDescription = if (showPassword) "Hide password" else "Show password"
+                        contentDescription = if (showPassword) "\u1ea8n m\u1eadt kh\u1ea9u" else "Hi\u1ec7n m\u1eadt kh\u1ea9u"
                     )
                 }
             }
@@ -285,7 +291,6 @@ private fun RoundedInputField(
         keyboardOptions = keyboardOptions,
         keyboardActions = keyboardActions
     )
-
 }
 
 @Composable

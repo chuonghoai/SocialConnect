@@ -7,6 +7,7 @@ import com.example.frontend.data.local.dao.PostDao
 import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import com.example.frontend.data.remote.dto.ReportPostRequest
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.repository.PostRepository
 import com.google.gson.JsonParseException
@@ -214,6 +215,30 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Không thể chia sẻ bài viết", throwable = e)
+        }
+    }
+
+    override suspend fun reportPost(postId: String, reason: String): ApiResult<Unit> {
+        return try {
+            val response = postApi.reportPost(
+                postId = postId,
+                request = ReportPostRequest(reason = reason)
+            )
+
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                ApiResult.Error(
+                    code = response.code(),
+                    message = "Báo cáo thất bại (${response.code()})"
+                )
+            }
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể báo cáo bài viết", throwable = e)
         }
     }
 

@@ -1,9 +1,20 @@
-package com.example.frontend.presentation.screen.search
+﻿package com.example.frontend.presentation.screen.search
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
@@ -14,8 +25,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -34,7 +59,6 @@ import com.example.frontend.domain.model.SearchUserItem
 import com.example.frontend.ui.component.PostCard
 import com.example.frontend.ui.theme.OrangePrimary
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel()
@@ -47,7 +71,6 @@ fun SearchScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // ─────────────────────── Search Bar ───────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -60,9 +83,15 @@ fun SearchScreen(
                 modifier = Modifier
                     .weight(1f)
                     .height(52.dp),
-                placeholder = { Text("Tìm kiếm người dùng, bài viết...", color = Color.Gray, fontSize = 14.sp) },
+                placeholder = {
+                    Text(
+                        "Tìm kiếm người dùng, bài viết...",
+                        color = Color.Gray,
+                        fontSize = 14.sp
+                    )
+                },
                 leadingIcon = {
-                    Icon(Icons.Default.Search, contentDescription = "Search", tint = Color.Gray)
+                    Icon(Icons.Default.Search, contentDescription = "Tìm kiếm", tint = Color.Gray)
                 },
                 trailingIcon = {
                     if (uiState.query.isNotEmpty()) {
@@ -90,7 +119,6 @@ fun SearchScreen(
             )
         }
 
-        // ─────────────────────── Scope Filter Chips ───────────────────────
         if (uiState.query.isNotEmpty() || uiState.hasSearched) {
             Row(
                 modifier = Modifier
@@ -102,7 +130,12 @@ fun SearchScreen(
                 SearchScope.values().forEach { scope ->
                     FilterChip(
                         selected = uiState.scope == scope,
-                        onClick = { viewModel.onScopeChange(scope) },
+                        onClick = {
+                            viewModel.onScopeChange(scope)
+                            if (uiState.hasSearched && uiState.query.isNotBlank()) {
+                                viewModel.search()
+                            }
+                        },
                         label = { Text(scope.label, fontSize = 13.sp) },
                         colors = FilterChipDefaults.filterChipColors(
                             selectedContainerColor = OrangePrimary,
@@ -115,10 +148,8 @@ fun SearchScreen(
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
-        // ─────────────────────── Main Content ───────────────────────
         Box(modifier = Modifier.fillMaxSize()) {
             when {
-                // 1. Đang tải
                 uiState.isLoading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
@@ -126,11 +157,9 @@ fun SearchScreen(
                     )
                 }
 
-                // 2. Đã tìm kiếm → hiển thị kết quả hoặc lỗi
                 uiState.hasSearched -> {
                     when {
                         uiState.error != null -> {
-                            val errorMsg = uiState.error ?: ""
                             Column(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -138,7 +167,7 @@ fun SearchScreen(
                                 horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Text(
-                                    text = errorMsg,
+                                    text = uiState.error.orEmpty(),
                                     color = MaterialTheme.colorScheme.error,
                                     fontSize = 15.sp
                                 )
@@ -181,7 +210,6 @@ fun SearchScreen(
                     }
                 }
 
-                // 3. Query rỗng → hiển thị lịch sử tìm kiếm
                 uiState.query.isEmpty() -> {
                     SearchHistorySection(
                         history = uiState.searchHistory,
@@ -191,7 +219,6 @@ fun SearchScreen(
                     )
                 }
 
-                // 4. Đang gõ, chưa nhấn Search
                 else -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
@@ -205,8 +232,6 @@ fun SearchScreen(
         }
     }
 }
-
-// ─────────────────────── History Section ───────────────────────
 
 @Composable
 private fun SearchHistorySection(
@@ -293,8 +318,6 @@ private fun SearchHistorySection(
     }
 }
 
-// ─────────────────────── Reusable Composables ───────────────────────
-
 @Composable
 private fun SearchSectionHeader(title: String) {
     Text(
@@ -314,13 +337,13 @@ fun UserSearchItem(user: SearchUserItem) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* TODO: navigate to user profile */ }
+            .clickable { /* TODO(FE): điều hướng sang profile người dùng */ }
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         AsyncImage(
             model = user.avatarUrl,
-            contentDescription = "Avatar",
+            contentDescription = "Ảnh đại diện",
             modifier = Modifier
                 .size(50.dp)
                 .clip(CircleShape)
@@ -342,7 +365,7 @@ fun UserSearchItem(user: SearchUserItem) {
             )
         }
         Button(
-            onClick = { /* TODO: add/remove friend */ },
+            onClick = { /* TODO(FE): thêm/bỏ bạn */ },
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (user.isFriend) MaterialTheme.colorScheme.surfaceVariant else OrangePrimary,
                 contentColor = if (user.isFriend) MaterialTheme.colorScheme.onSurface else Color.White

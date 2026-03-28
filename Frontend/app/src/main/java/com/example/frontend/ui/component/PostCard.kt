@@ -3,6 +3,7 @@
 import android.net.Uri
 import android.widget.MediaController
 import android.widget.VideoView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,15 +14,23 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.Flag
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreHoriz
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material3.*
-import androidx.compose.animation.animateContentSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -34,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.layout.onSizeChanged
@@ -56,19 +66,40 @@ import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
 import com.example.frontend.ui.theme.OrangePrimary
 import kotlin.math.hypot
-import java.time.LocalDateTime
 
 @Composable
 fun PostCard(
     post: Post,
+    isOwnPost: Boolean = false,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
     onVideoClick: (() -> Unit)? = null,
     onSaveClick: (() -> Unit)? = null,
-    saveMenuLabel: String = "Lưu bài viết",
-    onShareClick: (() -> Unit)? = null
+    onShareClick: (() -> Unit)? = null,
+    onEditPost: ((post: Post) -> Unit)? = null,
+    onDeletePost: ((postId: String) -> Unit)? = null,
+    onHidePost: ((postId: String) -> Unit)? = null,
+    onReportPost: ((postId: String, reason: String) -> Unit)? = null,
+    onCopyLink: ((link: String) -> Unit)? = null
     ) {
-    var isMoreMenuExpanded by remember { mutableStateOf(false) }
+    var isMoreSheetVisible by remember { mutableStateOf(false) }
+    var isDeleteConfirmVisible by remember { mutableStateOf(false) }
+    var isReportReasonDialogVisible by remember { mutableStateOf(false) }
+    var selectedReportReason by remember { mutableStateOf(REPORT_REASONS.first()) }
+    val clipboardManager = LocalClipboardManager.current
+    val postLink = remember(post.id) { "https://socialconnect.app/posts/${post.id}" }
+    val mediaItems = remember(
+        post.id,
+        post.cdnUrl,
+        post.kind,
+        post.media,
+        post.mediaIds,
+        post.mediaUrls,
+        post.images,
+        post.videos
+    ) { post.toMediaItems() }
+    var isViewerVisible by remember(post.id) { mutableStateOf(false) }
+    var viewerInitialPage by remember(post.id) { mutableStateOf(0) }
 
     val isSharedPost = post.type.equals("SHARED", ignoreCase = true)
     val originalPost = post.originalPost
@@ -78,32 +109,23 @@ fun PostCard(
     val shouldShowSharedCaption = shouldRenderOriginalPost &&
         trimmedContent.isNotEmpty() &&
         trimmedContent != trimmedOriginalContent
-    val mediaItems = post.toMediaItems()
-    val clipboardManager = LocalClipboardManager.current
 
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 10.dp, vertical = 6.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(16.dp),
-        border = androidx.compose.foundation.BorderStroke(
-            0.5.dp,
-            MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.7f)
-        ),
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.45f)),
         elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
     ) {
-        Column(
-            modifier = Modifier
-                .padding(16.dp)
-                .animateContentSize()
-        ) {
+        Column(modifier = Modifier.padding(14.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 AsyncImage(
                     model = post.userAvatar,
                     contentDescription = null,
                     modifier = Modifier
-                        .size(40.dp)
+                        .size(42.dp)
                         .clip(CircleShape)
                         .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape),
                     contentScale = ContentScale.Crop,
@@ -113,7 +135,7 @@ fun PostCard(
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = post.displayName,
-                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -133,52 +155,18 @@ fun PostCard(
                 }
 
                 Box {
-                    IconButton(onClick = { isMoreMenuExpanded = true }) {
+                    IconButton(
+                        onClick = { isMoreSheetVisible = true },
+                        modifier = Modifier.size(34.dp),
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Transparent
+                        )
+                    ) {
                         Icon(
                             Icons.Default.MoreHoriz,
                             contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = isMoreMenuExpanded,
-                        onDismissRequest = { isMoreMenuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(saveMenuLabel) },
-                            enabled = onSaveClick != null,
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                onSaveClick?.invoke()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Chia sẻ bài viết") },
-                            enabled = onShareClick != null,
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                onShareClick?.invoke()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Sao chép liên kết") },
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                clipboardManager.setText(AnnotatedString("https://socialconnect.app/posts/${post.id}"))
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Ẩn bài viết") },
-                            onClick = {
-                                isMoreMenuExpanded = false
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Báo cáo bài viết") },
-                            onClick = {
-                                isMoreMenuExpanded = false
-                            }
+                            tint = MaterialTheme.colorScheme.onSurface,
+                            modifier = Modifier.size(20.dp)
                         )
                     }
                 }
@@ -189,7 +177,9 @@ fun PostCard(
                     Text(
                         text = post.content,
                         modifier = Modifier.padding(vertical = 12.dp),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = 21.sp
                     )
                 } else {
                     Spacer(Modifier.height(12.dp))
@@ -201,51 +191,139 @@ fun PostCard(
                     Text(
                         text = post.content,
                         modifier = Modifier.padding(vertical = 12.dp),
-                        color = MaterialTheme.colorScheme.onSurface
+                        color = MaterialTheme.colorScheme.onSurface,
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = 21.sp
                     )
                 }
 
                 if (mediaItems.isNotEmpty()) {
-                    PostMediaPreview(
-                        mediaItems = mediaItems,
-                        onVideoClick = onVideoClick
-                    )
+                    val previewAspectRatio = when (mediaItems.size.coerceAtMost(4)) {
+                        1 -> 4f / 3f
+                        2 -> 16f / 9f
+                        3 -> 1.15f
+                        else -> 1f
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .aspectRatio(previewAspectRatio)
+                            .clip(RoundedCornerShape(12.dp))
+                            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(12.dp))
+                    ) {
+                        MediaGridPreview(
+                            mediaItems = mediaItems,
+                            onItemClick = { index ->
+                                viewerInitialPage = index
+                                isViewerVisible = true
+                            }
+                        )
+                    }
                 }
             }
 
             Spacer(Modifier.height(12.dp))
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                LikeComponent(
-                    isLiked = post.isLiked,
-                    likeCount = post.likeCount,
-                    onLikeClick = onLikeClick,
-                    isVertical = false
-                )
-                Spacer(Modifier.width(24.dp))
-                InteractionItem(
-                    R.drawable.icon_message,
-                    post.commentCount.toString(),
-                    onClick = onCommentClick
-                )
-                Spacer(Modifier.width(24.dp))
-                InteractionItem(
-                    R.drawable.icon_share,
-                    post.shareCount.toString(),
-                    enabled = onShareClick != null,
-                    onClick = { onShareClick?.invoke() }
-                )
-                Spacer(Modifier.width(24.dp))
-                SaveInteractionItem(
-                    isSaved = post.isSaved,
-                    onClick = onSaveClick
-                )
-            }
+            PostActionBar(
+                isLiked = post.isLiked,
+                isSaved = post.isSaved,
+                likeCount = post.likeCount,
+                commentCount = post.commentCount,
+                shareCount = post.shareCount,
+                onLikeClick = onLikeClick,
+                onCommentClick = onCommentClick,
+                onShareClick = { onShareClick?.invoke() },
+                onSaveClick = onSaveClick
+            )
         }
     }
+
+    if (isViewerVisible && mediaItems.isNotEmpty()) {
+        MediaViewerDialog(
+            mediaItems = mediaItems,
+            initialPage = viewerInitialPage,
+            isLiked = post.isLiked,
+            likeCount = post.likeCount,
+            commentCount = post.commentCount,
+            shareCount = post.shareCount,
+            onLikeClick = onLikeClick,
+            onCommentClick = {
+                isViewerVisible = false
+                onCommentClick()
+            },
+            onShareClick = {
+                isViewerVisible = false
+                onShareClick?.invoke()
+            },
+            onDismiss = { isViewerVisible = false }
+        )
+    }
+
+    if (isMoreSheetVisible) {
+        PostMoreOptionsSheet(
+            isOwnPost = isOwnPost,
+            onDismiss = { isMoreSheetVisible = false },
+            onEdit = {
+                isMoreSheetVisible = false
+                onEditPost?.invoke(post)
+            },
+            onDelete = {
+                isMoreSheetVisible = false
+                isDeleteConfirmVisible = true
+            },
+            onHide = {
+                isMoreSheetVisible = false
+                onHidePost?.invoke(post.id)
+            },
+            onCopyLink = {
+                isMoreSheetVisible = false
+                clipboardManager.setText(AnnotatedString(postLink))
+                onCopyLink?.invoke(postLink)
+            },
+            onReport = {
+                isMoreSheetVisible = false
+                isReportReasonDialogVisible = true
+            }
+        )
+    }
+
+    if (isReportReasonDialogVisible) {
+        ReportReasonDialog(
+            reasons = REPORT_REASONS,
+            selectedReason = selectedReportReason,
+            onSelectReason = { selectedReportReason = it },
+            onDismiss = { isReportReasonDialogVisible = false },
+            onConfirm = {
+                isReportReasonDialogVisible = false
+                onReportPost?.invoke(post.id, selectedReportReason)
+            }
+        )
+    }
+
+    if (isDeleteConfirmVisible) {
+        AlertDialog(
+            onDismissRequest = { isDeleteConfirmVisible = false },
+            title = { Text("Xóa bài viết") },
+            text = { Text("Bạn có chắc muốn xóa bài viết này không?") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        isDeleteConfirmVisible = false
+                        onDeletePost?.invoke(post.id)
+                    }
+                ) {
+                    Text("Xóa")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { isDeleteConfirmVisible = false }) {
+                    Text("Hủy")
+                }
+            }
+        )
+    }
+
 }
 
 private data class PostMediaItem(
@@ -253,15 +331,189 @@ private data class PostMediaItem(
     val kind: String
 )
 
+private enum class PostMoreAction {
+    EDIT,
+    DELETE,
+    HIDE,
+    COPY_LINK,
+    REPORT
+}
+
+private val REPORT_REASONS = listOf(
+    "Vấn đề liên quan đến người dưới 18 tuổi",
+    "Bắt nạt, quấy rối hoặc lăng mạ/lạm dụng/ngược đãi",
+    "Tự tử hoặc tự hại bản thân",
+    "Nội dung mang tính bạo lực, thù ghét hoặc gây phiền toái",
+    "Bán hoặc quảng bá mặt hàng bị hạn chế",
+    "Nội dung người lớn",
+    "Thông tin sai sự thật, lừa đảo hoặc gian lận",
+    "Quyền sở hữu trí tuệ",
+    "Tôi không muốn xem nội dung này"
+)
+
+@Composable
+private fun ReportReasonDialog(
+    reasons: List<String>,
+    selectedReason: String,
+    onSelectReason: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Báo cáo bài viết",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 300.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                reasons.forEach { reason ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { onSelectReason(reason) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedReason == reason,
+                            onClick = { onSelectReason(reason) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = reason,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("Gửi báo cáo")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Hủy")
+            }
+        }
+    )
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PostMoreOptionsSheet(
+    isOwnPost: Boolean,
+    onDismiss: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onHide: () -> Unit,
+    onCopyLink: () -> Unit,
+    onReport: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val options = buildList {
+        if (isOwnPost) {
+            add(PostMoreAction.EDIT)
+            add(PostMoreAction.DELETE)
+        }
+        add(PostMoreAction.HIDE)
+        add(PostMoreAction.COPY_LINK)
+        if (!isOwnPost) {
+            add(PostMoreAction.REPORT)
+        }
+    }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            options.forEach { action ->
+                PostMoreOptionItem(
+                    action = action,
+                    onClick = {
+                        when (action) {
+                            PostMoreAction.EDIT -> onEdit()
+                            PostMoreAction.DELETE -> onDelete()
+                            PostMoreAction.HIDE -> onHide()
+                            PostMoreAction.COPY_LINK -> onCopyLink()
+                            PostMoreAction.REPORT -> onReport()
+                        }
+                    }
+                )
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
+    }
+}
+
+@Composable
+private fun PostMoreOptionItem(
+    action: PostMoreAction,
+    onClick: () -> Unit
+) {
+    val (icon, label, tint) = when (action) {
+        PostMoreAction.EDIT -> Triple(Icons.Default.Edit, "Chỉnh sửa bài viết", MaterialTheme.colorScheme.onSurface)
+        PostMoreAction.DELETE -> Triple(Icons.Default.Delete, "Xóa bài viết", MaterialTheme.colorScheme.error)
+        PostMoreAction.HIDE -> Triple(Icons.Default.VisibilityOff, "Ẩn bài viết", MaterialTheme.colorScheme.onSurface)
+        PostMoreAction.COPY_LINK -> Triple(Icons.Default.Link, "Sao chép liên kết", MaterialTheme.colorScheme.onSurface)
+        PostMoreAction.REPORT -> Triple(Icons.Default.Flag, "Báo cáo bài viết", MaterialTheme.colorScheme.error)
+    }
+
+    Surface(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick),
+        color = Color.Transparent
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 14.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = tint,
+                modifier = Modifier.size(22.dp)
+            )
+            Spacer(modifier = Modifier.width(12.dp))
+            Text(
+                text = label,
+                color = tint,
+                style = MaterialTheme.typography.bodyLarge
+            )
+        }
+    }
+}
+
 @Composable
 private fun SharedPostPreviewCard(originalPost: OriginalPost) {
-    val mediaItems = originalPost.toMediaItems()
-
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(10.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f)),
-        border = androidx.compose.foundation.BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -301,8 +553,8 @@ private fun SharedPostPreviewCard(originalPost: OriginalPost) {
                 Spacer(Modifier.height(8.dp))
             }
 
-            if (mediaItems.isNotEmpty()) {
-                PostMediaPreview(mediaItems = mediaItems)
+            if (originalPost.cdnUrl.isNotEmpty()) {
+                PostMediaContent(kind = originalPost.kind, cdnUrl = originalPost.cdnUrl)
             }
         }
     }
@@ -344,91 +596,15 @@ fun PostMediaContent(kind: String, cdnUrl: String) {
 }
 
 @Composable
-private fun PostMediaPreview(
-    mediaItems: List<PostMediaItem>,
-    onVideoClick: (() -> Unit)? = null
-) {
-    if (mediaItems.isEmpty()) return
-
-    var isViewerOpen by remember(mediaItems) { mutableStateOf(false) }
-    var selectedIndex by remember(mediaItems) { mutableStateOf(0) }
-
-    val openViewer: (Int) -> Unit = { index ->
-        selectedIndex = index.coerceIn(0, mediaItems.lastIndex)
-        isViewerOpen = true
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(8.dp))
-    ) {
-        if (mediaItems.size == 1) {
-            val item = mediaItems.first()
-            if (item.kind == "VIDEO") {
-                FeedVideoPlayer(
-                    videoUrl = item.url,
-                    shouldPlay = true,
-                    mediaAspectRatio = 16f / 9f,
-                    onVideoClick = {
-                        if (onVideoClick != null) onVideoClick()
-                        else openViewer(0)
-                    }
-                )
-            } else {
-                AsyncImage(
-                    model = item.url,
-                    contentDescription = null,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .aspectRatio(4f / 3f)
-                        .clickable { openViewer(0) },
-                    contentScale = ContentScale.Crop
-                )
-            }
-        } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .aspectRatio(1f)
-            ) {
-                MediaGridPreview(
-                    mediaItems = mediaItems,
-                    onItemClick = { index ->
-                        val item = mediaItems[index]
-                        if (item.kind == "VIDEO" && onVideoClick != null) {
-                            onVideoClick()
-                        } else {
-                            openViewer(index)
-                        }
-                    }
-                )
-            }
-        }
-    }
-
-    if (isViewerOpen) {
-        MediaViewerDialog(
-            mediaItems = mediaItems,
-            initialPage = selectedIndex,
-            onDismiss = { isViewerOpen = false }
-        )
-    }
-}
-
-@Composable
 private fun MediaGridPreview(
     mediaItems: List<PostMediaItem>,
     onItemClick: (Int) -> Unit
 ) {
-    if (mediaItems.isEmpty()) return
-
     val previewItems = mediaItems.take(4)
-    val hiddenCount = (mediaItems.size - 4).coerceAtLeast(0)
+    val extraCount = (mediaItems.size - 4).coerceAtLeast(0)
     val spacing = 2.dp
 
-    when (mediaItems.size) {
+    when (previewItems.size) {
         1 -> {
             MediaTile(
                 item = previewItems[0],
@@ -502,38 +678,8 @@ private fun MediaGridPreview(
                     MediaTile(
                         item = previewItems[3],
                         modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(3) }
-                    )
-                }
-            }
-        }
-
-        else -> {
-            Column(modifier = Modifier.fillMaxSize(), verticalArrangement = Arrangement.spacedBy(spacing)) {
-                Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    MediaTile(
-                        item = previewItems[0],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(0) }
-                    )
-                    MediaTile(
-                        item = previewItems[1],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(1) }
-                    )
-                }
-
-                Row(modifier = Modifier.weight(1f).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(spacing)) {
-                    MediaTile(
-                        item = previewItems[2],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
-                        onClick = { onItemClick(2) }
-                    )
-                    MediaTile(
-                        item = previewItems[3],
-                        modifier = Modifier.weight(1f).fillMaxHeight(),
                         onClick = { onItemClick(3) },
-                        overlayText = if (hiddenCount > 0) "+$hiddenCount" else null
+                        overlayText = if (extraCount > 0) "+$extraCount" else null
                     )
                 }
             }
@@ -587,6 +733,13 @@ private fun MediaTile(
 private fun MediaViewerDialog(
     mediaItems: List<PostMediaItem>,
     initialPage: Int,
+    isLiked: Boolean,
+    likeCount: Int,
+    commentCount: Int,
+    shareCount: Int,
+    onLikeClick: () -> Unit,
+    onCommentClick: () -> Unit,
+    onShareClick: () -> Unit,
     onDismiss: () -> Unit
 ) {
     Dialog(
@@ -643,6 +796,179 @@ private fun MediaViewerDialog(
                     style = MaterialTheme.typography.bodyMedium
                 )
             }
+
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .fillMaxWidth(),
+                color = Color.Black.copy(alpha = 0.48f)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    ViewerActionButton(
+                        modifier = Modifier.weight(1f),
+                        icon = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                        count = likeCount.toString(),
+                        iconTint = if (isLiked) Color(0xFFF91880) else Color.White,
+                        onClick = onLikeClick
+                    )
+                    ViewerActionButton(
+                        modifier = Modifier.weight(1f),
+                        iconRes = R.drawable.icon_message,
+                        count = commentCount.toString(),
+                        onClick = onCommentClick
+                    )
+                    ViewerActionButton(
+                        modifier = Modifier.weight(1f),
+                        iconRes = R.drawable.icon_share,
+                        count = shareCount.toString(),
+                        onClick = onShareClick
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PostActionBar(
+    isLiked: Boolean,
+    isSaved: Boolean,
+    likeCount: Int,
+    commentCount: Int,
+    shareCount: Int,
+    onLikeClick: () -> Unit,
+    onCommentClick: () -> Unit,
+    onShareClick: () -> Unit,
+    onSaveClick: (() -> Unit)?
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(20.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        LikeComponent(
+            isLiked = isLiked,
+            likeCount = likeCount,
+            onLikeClick = onLikeClick,
+            iconSize = 22.dp,
+            unlikedTint = MaterialTheme.colorScheme.onSurfaceVariant,
+            textColor = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        PostActionIcon(
+            count = commentCount.toString(),
+            onClick = onCommentClick
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.icon_message),
+                contentDescription = "Bình luận",
+                modifier = Modifier.size(21.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        PostActionIcon(
+            count = shareCount.toString(),
+            onClick = onShareClick
+        ) {
+            Icon(
+                painter = painterResource(id = R.drawable.icon_share),
+                contentDescription = "Chia sẻ",
+                modifier = Modifier.size(21.dp),
+                tint = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+
+        IconButton(
+            enabled = onSaveClick != null,
+            onClick = { onSaveClick?.invoke() },
+            modifier = Modifier.size(32.dp),
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = Color.Transparent
+            )
+        ) {
+            Icon(
+                imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                contentDescription = if (isSaved) "Đã lưu bài viết" else "Lưu bài viết",
+                modifier = Modifier.size(23.dp),
+                tint = if (isSaved) OrangePrimary else MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun PostActionIcon(
+    count: String,
+    onClick: () -> Unit,
+    icon: @Composable () -> Unit
+) {
+    Row(
+        modifier = Modifier.clickable(onClick = onClick),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        icon()
+        Spacer(Modifier.width(5.dp))
+        Text(
+            text = count,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun ViewerActionButton(
+    modifier: Modifier = Modifier,
+    icon: ImageVector? = null,
+    iconRes: Int? = null,
+    count: String,
+    iconTint: Color = Color.White,
+    onClick: () -> Unit
+) {
+    Surface(
+        modifier = modifier
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick),
+        shape = RoundedCornerShape(12.dp),
+        color = Color.White.copy(alpha = 0.08f),
+        border = BorderStroke(0.5.dp, Color.White.copy(alpha = 0.22f))
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 8.dp, vertical = 9.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.Center
+        ) {
+            when {
+                icon != null -> Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = iconTint
+                )
+
+                iconRes != null -> Icon(
+                    painter = painterResource(id = iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = iconTint
+                )
+            }
+            Spacer(Modifier.width(6.dp))
+            Text(
+                text = count.ifBlank { "0" },
+                fontSize = 13.sp,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
@@ -876,20 +1202,6 @@ private fun List<PostMedia>.toPostMediaItems(): List<PostMediaItem> {
     }
 }
 
-private fun OriginalPost.toMediaItems(): List<PostMediaItem> {
-    val urls = parseMediaUrls(cdnUrl)
-    if (urls.isEmpty()) return emptyList()
-
-    val kinds = parseKinds(kind)
-    return urls.mapIndexed { index, url ->
-        val normalizedKind = normalizeKind(
-            rawKind = kinds.getOrNull(index) ?: kinds.firstOrNull(),
-            url = url
-        )
-        PostMediaItem(url = url, kind = normalizedKind)
-    }
-}
-
 private fun parseMediaUrls(raw: String): List<String> {
     val trimmed = raw.trim()
     if (trimmed.isEmpty()) return emptyList()
@@ -948,59 +1260,6 @@ private fun String.cleanToken(): String {
 
 private val URL_REGEX = Regex("""https?://[^\s"'|,\]\[]+""")
 private val VIDEO_EXTENSIONS = setOf("mp4", "mov", "webm", "m3u8", "mkv", "avi", "3gp", "flv")
-
-@Composable
-fun InteractionItem(
-    iconRes: Int,
-    count: String,
-    enabled: Boolean = true,
-    onClick: () -> Unit = {}
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(enabled = enabled, onClick = onClick)
-            .padding(horizontal = 2.dp, vertical = 1.dp)
-    ) {
-        Icon(
-            painter = painterResource(id = iconRes),
-            contentDescription = null,
-            modifier = Modifier.size(21.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Spacer(Modifier.width(4.dp))
-        Text(
-            text = count,
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-private fun SaveInteractionItem(
-    isSaved: Boolean,
-    onClick: (() -> Unit)?
-) {
-    val enabled = onClick != null
-    val iconTint = if (isSaved) OrangePrimary else MaterialTheme.colorScheme.onSurfaceVariant
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .clip(RoundedCornerShape(14.dp))
-            .clickable(enabled = enabled) { onClick?.invoke() }
-            .padding(horizontal = 2.dp, vertical = 1.dp)
-    ) {
-        Icon(
-            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-            contentDescription = "Lưu bài viết",
-            modifier = Modifier.size(22.dp),
-            tint = iconTint
-        )
-    }
-}
 
 fun formatTimeAgo(timeString: String): String {
     return try {

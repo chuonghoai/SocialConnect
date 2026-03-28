@@ -21,6 +21,11 @@ object Routes {
     const val SETTING ="setting"
     const val EDIT_PROFILE = "edit_profile"
     const val CHANGE_PASSWORD = "change_password"
-    const val CREATE_POST = "create_post"
+    const val CREATE_POST_BASE = "create_post"
+    const val CREATE_POST = "$CREATE_POST_BASE?mode={mode}"
     const val POST_DETAIL = "post_detail"
+
+    fun createPostRoute(mode: String = "create"): String {
+        return "$CREATE_POST_BASE?mode=$mode"
+    }
 }

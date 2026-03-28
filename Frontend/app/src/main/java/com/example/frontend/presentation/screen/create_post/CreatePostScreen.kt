@@ -5,7 +5,17 @@ import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,33 +24,56 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
+import coil.decode.VideoFrameDecoder
+import coil.request.ImageRequest
 import com.example.frontend.R
 import com.example.frontend.domain.model.User
-import coil.request.ImageRequest
-import coil.decode.VideoFrameDecoder
-import androidx.compose.ui.platform.LocalContext
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun CreatePostScreen(
     currentUser: User?,
     viewModel: CreatePostViewModel,
+    isEditMode: Boolean = false,
     onBackClick: () -> Unit,
     onSuccess: () -> Unit
 ) {
     val state by viewModel.uiState.collectAsState()
+    LaunchedEffect(isEditMode) {
+        viewModel.initialize(isEditMode = isEditMode)
+    }
 
     val photoPickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20),
@@ -49,9 +82,15 @@ fun CreatePostScreen(
 
     Scaffold(
         topBar = {
-            // Top bar
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                // Nút Back
+                Text(
+                    text = if (state.mode == PostComposerMode.EDIT) "Chỉnh sửa bài viết" else "Tạo bài viết",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -63,7 +102,7 @@ fun CreatePostScreen(
                     }
 
                     AsyncImage(
-                        model = currentUser?.avatarUrl ?: "",
+                        model = currentUser?.avatarUrl.orEmpty(),
                         contentDescription = "Avatar",
                         modifier = Modifier
                             .size(48.dp)
@@ -78,15 +117,11 @@ fun CreatePostScreen(
                         fontSize = 16.sp,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-
-
-
                 }
                 Divider(color = Color.LightGray.copy(alpha = 0.3f))
             }
         },
         bottomBar = {
-            // Bottom bar
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
                 Divider(color = Color.LightGray.copy(alpha = 0.3f))
                 Row(
@@ -96,14 +131,12 @@ fun CreatePostScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Visibility mode
                     VisibilityDropdown(
                         selectedOption = state.visibility,
                         onOptionSelected = viewModel::onVisibilityChange
                     )
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // Button add media
                     IconButton(
                         onClick = {
                             photoPickerLauncher.launch(
@@ -119,20 +152,21 @@ fun CreatePostScreen(
                         )
                     }
 
-                    // button post
                     Button(
-                        onClick = { viewModel.createPost(onSuccess = onSuccess) },
+                        onClick = { viewModel.submit(onSuccess = onSuccess) },
                         enabled = state.content.isNotBlank() || state.selectedMediaUris.isNotEmpty(),
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(20.dp)
                     ) {
-                        Text("Đăng", fontWeight = FontWeight.Bold)
+                        Text(
+                            text = if (state.mode == PostComposerMode.EDIT) "Lưu" else "Đăng",
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
             }
         }
     ) { innerPadding ->
-        // Post content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -160,14 +194,13 @@ fun CreatePostScreen(
                 modifier = Modifier.fillMaxWidth()
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Show image
             if (state.selectedMediaUris.isNotEmpty()) {
                 val context = LocalContext.current
 
                 Column(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     state.selectedMediaUris.forEach { uri ->
@@ -184,7 +217,7 @@ fun CreatePostScreen(
 
                             AsyncImage(
                                 model = imageRequest,
-                                contentDescription = "Selected Media",
+                                contentDescription = "Selected media",
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(12.dp)),

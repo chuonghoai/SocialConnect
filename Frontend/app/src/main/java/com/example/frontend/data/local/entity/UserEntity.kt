@@ -37,13 +37,20 @@ data class UserEntity(
 }
 
 fun User.toEntity(): UserEntity {
+    val safeDisplayName = (displayName as String?)?.ifBlank { (username as String?).orEmpty() }
+        ?: (username as String?).orEmpty()
+    val safeUsername = (username as String?).orEmpty()
+    val safeEmail = (email as String?).orEmpty()
+    val safePhone = (phone as String?).orEmpty()
+    val safeRole = (role as String?)?.ifBlank { "CLIENT" } ?: "CLIENT"
+
     return UserEntity(
         id = id,
-        displayName = displayName,
-        username = username,
-        email = email,
-        phone = phone,
-        role = role,
+        displayName = safeDisplayName,
+        username = safeUsername,
+        email = safeEmail,
+        phone = safePhone,
+        role = safeRole,
         isOnline = isOnline,
         postCount = postCount,
         friendCount = friendCount,

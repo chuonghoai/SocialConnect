@@ -8,6 +8,7 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 import retrofit2.Response
+import retrofit2.http.PATCH
 import retrofit2.http.PUT
 
 interface AuthApi {
@@ -29,7 +30,7 @@ interface AuthApi {
     @POST(ApiRoutes.RESET_PASSWORD)
     suspend fun resetPassword(@Body req: Map<String, String>): Map<String, String>
 
-    @PUT(ApiRoutes.UPDATE_PROFILE)
+    @PATCH(ApiRoutes.UPDATE_PROFILE)
     suspend fun updateProfile(@Body request: UpdateProfileRequest): Response<User>
 
     @PUT(ApiRoutes.CHANGE_PASSWORD)
