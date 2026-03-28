@@ -4,6 +4,7 @@ import MessageItem
 import MessageMedia
 import MessageSender
 import NewMessageEvent
+import RepliedMessageInfo
 import android.app.NotificationManager
 import android.content.Context
 import android.media.MediaRecorder
@@ -250,7 +251,12 @@ class ChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedMedia = current)
     }
 
-    fun sendChatWithMedia(conversationId: String, content: String?) {
+    fun sendChatWithMedia(
+        conversationId: String,
+        content: String?,
+        replyToId: String? = null,
+        replyToMessageInfo: RepliedMessageInfo? = null
+    ) {
         val currentUser = _uiState.value.currentUser ?: return
         val selectedMedia = _uiState.value.selectedMedia.toList() // Copy list
         
@@ -258,7 +264,7 @@ class ChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             if (!content.isNullOrBlank()) {
-                sendChatMessage(conversationId, content)
+                sendChatMessage(conversationId, content, replyToId = replyToId , replyToMessageInfo = replyToMessageInfo)
             }
 
             if (selectedMedia.isNotEmpty()) {
@@ -312,7 +318,13 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendChatMessage(conversationId: String, content: String, type: String = "TEXT") {
+    fun sendChatMessage(
+        conversationId: String,
+        content: String,
+        type: String = "TEXT",
+        replyToId: String? = null,
+        replyToMessageInfo: RepliedMessageInfo? = null
+    ) {
         if (content.isBlank()) return
         
         val currentUser = _uiState.value.currentUser ?: return
@@ -324,7 +336,7 @@ class ChatViewModel @Inject constructor(
             text = content,
             isRecall = false,
             createAt = java.time.ZonedDateTime.now().toString(),
-            replyToMessage = null,
+            replyToMessage = replyToMessageInfo,
             sender = MessageSender(
                 id = currentUser.id,
                 displayName = currentUser.displayName ?: currentUser.username,
@@ -344,7 +356,8 @@ class ChatViewModel @Inject constructor(
                     conversationId = conversationId,
                     content = content,
                     type = type,
-                    temporaryId = tempId
+                    temporaryId = tempId,
+                    replyToId = replyToId
                 )
                 true
             }

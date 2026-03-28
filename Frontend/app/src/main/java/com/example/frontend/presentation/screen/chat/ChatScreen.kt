@@ -1,6 +1,7 @@
 package com.example.frontend.presentation.screen.chat
 
 import MessageItem
+import RepliedMessageInfo
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
@@ -98,6 +99,7 @@ fun ChatScreen(
     var viewerMediaList by remember { mutableStateOf<List<PostMedia>?>(null) }
     var viewerInitialPage by remember { mutableIntStateOf(0) }
     val clipboardManager = LocalClipboardManager.current
+    var replyingToMessage by remember { mutableStateOf<MessageItem?>(null) }
 
     if (viewerMediaList != null) {
         MediaViewerDialog(
@@ -216,6 +218,9 @@ fun ChatScreen(
                                 onCopyClick = { textToCopy ->
                                     clipboardManager.setText(AnnotatedString(textToCopy))
                                     viewModel.notifyMessageCopied()
+                                },
+                                onReplyClick = {
+                                    replyingToMessage = msg
                                 }
                             )
                         }
@@ -287,32 +292,72 @@ fun ChatScreen(
                     }
                 )
             } else {
-                ChatInputBar(
-                    value = messageText,
-                    onValueChange = {
-                        messageText = it
-                        viewModel.onTyping(it)
-                    },
-                    onSendClick = {
-                        if (messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()) {
-                            viewModel.sendChatWithMedia(conversationId, messageText)
-                            messageText = ""
+                Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
+                    AnimatedVisibility(visible = replyingToMessage != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF5F5F5))
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(modifier = Modifier.width(4.dp).height(32.dp).background(OrangePrimary, RoundedCornerShape(2.dp)))
+                            Spacer(Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Đang trả lời ${replyingToMessage?.sender?.displayName}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = OrangePrimary)
+                                Text(
+                                    text = if (replyingToMessage?.isRecall == true) "Tin nhắn đã bị thu hồi" else (replyingToMessage?.text?.ifBlank { "[Đa phương tiện]" } ?: ""),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = Color.Gray,
+                                    fontSize = 13.sp
+                                )
+                            }
+                            IconButton(onClick = { replyingToMessage = null }) {
+                                Icon(Icons.Default.Close, contentDescription = "Hủy trả lời", tint = Color.Gray)
+                            }
                         }
-                    },
-                    onAddClick = {
-                        launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-                    },
-                    onVoiceClick = { 
-                        Log.d("ChatFlow", "Bấm icon micro -> Kiểm tra quyền")
-                        val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-                            viewModel.toggleVoiceRecorder(true)
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    },
-                    isSendEnabled = messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()
-                )
+                    }
+
+                    ChatInputBar(
+                        value = messageText,
+                        onValueChange = {
+                            messageText = it
+                            viewModel.onTyping(it)
+                        },
+                        onSendClick = {
+                            val replyInfo = replyingToMessage?.let {
+                                RepliedMessageInfo(
+                                    id = it.id, type = it.type, text = it.text,
+                                    isRecall = it.isRecall, sender = it.sender
+                                )
+                            }
+                            if (messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()) {
+                                viewModel.sendChatWithMedia(
+                                    conversationId,
+                                    messageText,
+                                    replyToId = replyingToMessage?.id,
+                                    replyToMessageInfo = replyInfo
+                                )
+                                messageText = ""
+                            }
+                            replyingToMessage = null
+                        },
+                        onAddClick = {
+                            launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                        },
+                        onVoiceClick = {
+                            Log.d("ChatFlow", "Bấm icon micro -> Kiểm tra quyền")
+                            val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                            if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                                viewModel.toggleVoiceRecorder(true)
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
+                        isSendEnabled = messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()
+                    )
+                }
             }
         }
 
@@ -521,7 +566,8 @@ private fun MessageBubble(
     statusText: String? = null,
     onMediaClick: (PostMedia) -> Unit,
     onRevokeClick: (String) -> Unit,
-    onCopyClick: (String) -> Unit
+    onCopyClick: (String) -> Unit,
+    onReplyClick: () -> Unit,
 ) {
     val isUploading = message.id.startsWith("temp_")
     var showMenu by remember { mutableStateOf(false) }
@@ -577,6 +623,30 @@ private fun MessageBubble(
                     )
                 }
             } else {
+                if (message.replyToMessage != null) {
+                    Column(
+                        modifier = Modifier
+                            .padding(bottom = 6.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.05f))
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = message.replyToMessage.sender.displayName,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (isMine) Color.DarkGray else OrangePrimary
+                        )
+                        Text(
+                            text = if (message.replyToMessage.isRecall) "Đã thu hồi" else message.replyToMessage.text.ifBlank { "[Đa phương tiện]" },
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (isMine) Color.DarkGray.copy(alpha = 0.8f) else Color.Gray
+                        )
+                    }
+                }
+
                 Column(
                     modifier = Modifier.widthIn(max = 240.dp),
                     horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
@@ -706,7 +776,7 @@ private fun MessageBubble(
                             .fillMaxWidth()
                             .clickable {
                                 showMenu = false
-                                // TODO: Code logic Reply ở đây
+                                onReplyClick()
                             }
                             .padding(vertical = 16.dp, horizontal = 24.dp),
                         verticalAlignment = Alignment.CenterVertically
