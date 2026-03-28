@@ -21,7 +21,7 @@ object Routes {
     const val CHAT_BASE = "chat"
     const val CHAT = "chat/{conversationId}?partnerId={partnerId}&name={name}&avatar={avatar}"
     const val CHAT_PROFILE_BASE = "chat_profile"
-    const val CHAT_PROFILE = "$CHAT_PROFILE_BASE/{partnerId}?name={name}&avatar={avatar}"
+    const val CHAT_PROFILE = "$CHAT_PROFILE_BASE/{partnerId}?name={name}&avatar={avatar}&conversationId={conversationId}"
     const val SETTING ="setting"
     const val EDIT_PROFILE = "edit_profile"
     const val CHANGE_PASSWORD = "change_password"

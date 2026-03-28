@@ -4,6 +4,7 @@ import GetMessagesResponse
 import android.util.Log
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.remote.api.MessageApi
+import com.example.frontend.domain.model.MediaHistoryItem
 import com.example.frontend.domain.repository.MessageRepository
 import com.google.gson.JsonParseException
 import retrofit2.HttpException
@@ -30,6 +31,17 @@ class MessageRepositoryImpl @Inject constructor(
         } catch (e: Exception) {
             Log.e("MessageRepo", "getMessages error", e)
             ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
+        }
+    }
+
+    override suspend fun getConversationMedias(conversationId: String, page: Int, limit: Int): ApiResult<List<MediaHistoryItem>> {
+        return try {
+            val response = messageApi.getConversationMedias(conversationId, page, limit)
+            ApiResult.Success(response.medias.map { it.toDomain() })
+        } catch (e: retrofit2.HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ khi lấy ảnh/video", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Đã xảy ra lỗi không xác định", throwable = e)
         }
     }
 }

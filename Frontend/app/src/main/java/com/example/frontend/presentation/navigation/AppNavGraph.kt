@@ -550,7 +550,7 @@ fun AppNavGraph(
                         onProfileClick = {
                             val encodedName = Uri.encode(conversationName)
                             val encodedAvatar = Uri.encode(conversationAvatar ?: "")
-                            navController.navigate("${Routes.CHAT_PROFILE_BASE}/$partnerId?name=$encodedName&avatar=$encodedAvatar")
+                            navController.navigate("${Routes.CHAT_PROFILE_BASE}/$partnerId?name=$encodedName&avatar=$encodedAvatar&conversationId=$conversationId")
                         }
                     )
                 }
@@ -559,10 +559,12 @@ fun AppNavGraph(
                     val partnerId = backStackEntry.arguments?.getString("partnerId") ?: ""
                     val partnerName = backStackEntry.arguments?.getString("name")?.let(Uri::decode) ?: "Người dùng"
                     val partnerAvatarUrl = backStackEntry.arguments?.getString("avatar")?.let(Uri::decode)
+                    val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
 
                     val currentUser by sessionViewModel.currentUser.collectAsState()
 
                     ChatProfileScreen(
+                        conversationId = conversationId,
                         partnerId = partnerId,
                         partnerName = partnerName,
                         partnerAvatarUrl = partnerAvatarUrl,

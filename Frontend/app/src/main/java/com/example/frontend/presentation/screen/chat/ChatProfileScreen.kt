@@ -4,15 +4,26 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Call
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.PlayCircle
 import androidx.compose.material.icons.filled.Videocam
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,21 +32,47 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.frontend.R
+import com.example.frontend.domain.model.MediaHistoryItem
+import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.ui.component.MediaViewerDialog
 import com.example.frontend.ui.theme.OrangePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatProfileScreen(
+    conversationId: String,
     partnerId: String,
     partnerName: String,
     partnerAvatarUrl: String?,
     onBackClick: () -> Unit,
     onNavigateToProfile: (String) -> Unit,
     onVoiceCallClick: () -> Unit,
-    onVideoCallClick: () -> Unit
+    onVideoCallClick: () -> Unit,
+    viewModel: ChatProfileViewModel = hiltViewModel()
 ) {
+    val uiState by viewModel.uiState.collectAsState()
+
+    var viewerMediaList by remember { mutableStateOf<List<PostMedia>?>(null) }
+    var viewerInitialPage by remember { mutableIntStateOf(0) }
+
+    if (viewerMediaList != null) {
+        MediaViewerDialog(
+            mediaItems = viewerMediaList!!,
+            initialPage = viewerInitialPage,
+            onDismiss = { viewerMediaList = null }
+        )
+    }
+
+    LaunchedEffect(conversationId) {
+        if (conversationId.isNotBlank()) {
+            viewModel.loadMedias(conversationId)
+        }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -115,24 +152,47 @@ fun ChatProfileScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
-                    .padding(16.dp)
             ) {
                 Text(
                     text = "Lịch sử đa phương tiện",
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.SemiBold,
-                    modifier = Modifier.padding(bottom = 16.dp)
+                    modifier = Modifier.padding(16.dp)
                 )
 
-                Box(
-                    modifier = Modifier.fillMaxSize(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Chưa có dữ liệu đa phương tiện",
-                        color = Color.Gray,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
+                if (uiState.isLoading) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        CircularProgressIndicator(color = OrangePrimary)
+                    }
+                } else if (!uiState.error.isNullOrBlank()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Lỗi: ${uiState.error}", color = Color.Red)
+                    }
+                } else if (uiState.medias.isEmpty()) {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Text("Chưa có dữ liệu đa phương tiện", color = Color.Gray, style = MaterialTheme.typography.bodyMedium)
+                    }
+                } else {
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(3),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 2.dp),
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        itemsIndexed(uiState.medias) { index, media ->
+                            MediaHistoryGridItem(
+                                media = media,
+                                onClick = {
+                                    viewerMediaList = uiState.medias.map {
+                                        PostMedia(cdnUrl = it.secureUrl, kind = it.type)
+                                    }
+                                    viewerInitialPage = index
+                                }
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -170,5 +230,38 @@ private fun ActionItem(
             style = MaterialTheme.typography.bodySmall,
             fontWeight = FontWeight.Medium
         )
+    }
+}
+
+@Composable
+private fun MediaHistoryGridItem(media: MediaHistoryItem, onClick: () -> Unit) {
+    Box(
+        modifier = Modifier
+            .aspectRatio(1f)
+            .background(Color.LightGray)
+            .clickable(onClick = onClick)
+    ) {
+        val thumbnailUrl = if (media.type == "VIDEO" && media.secureUrl.contains("cloudinary.com")) {
+            media.secureUrl.substringBeforeLast(".") + ".jpg"
+        } else media.secureUrl
+
+        AsyncImage(
+            model = thumbnailUrl,
+            contentDescription = null,
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+
+        if (media.type == "VIDEO") {
+            Icon(
+                imageVector = Icons.Default.PlayCircle,
+                contentDescription = "Video",
+                tint = Color.White,
+                modifier = Modifier
+                    .size(32.dp)
+                    .align(Alignment.Center)
+                    .background(Color.Black.copy(alpha = 0.3f), CircleShape)
+            )
+        }
     }
 }
