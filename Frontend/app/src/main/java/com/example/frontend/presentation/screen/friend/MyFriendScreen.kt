@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -29,9 +30,21 @@ import com.example.frontend.domain.model.FriendRecipient
 fun MyFriendScreen(
     onBack: () -> Unit,
     onAvatarClick: ((String) -> Unit)? = null,
+    onNavigateToChat: (String, String, String, String?) -> Unit,
     viewModel: MyFriendViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+
+    LaunchedEffect(Unit) {
+        viewModel.navigateToChatEvent.collect { event ->
+            onNavigateToChat(
+                event.conversationId,
+                event.partnerId,
+                event.partnerName,
+                event.partnerAvatarUrl
+            )
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -63,7 +76,8 @@ fun MyFriendScreen(
                     items(uiState.friends) { friend ->
                         FriendListItem(
                             friend = friend,
-                            onAvatarClick = onAvatarClick
+                            onAvatarClick = onAvatarClick,
+                            onChatClick = { viewModel.startChatWithFriend(friend) }
                         )
                     }
                 }
@@ -74,7 +88,8 @@ fun MyFriendScreen(
 @Composable
 fun FriendListItem(
     friend: FriendRecipient,
-    onAvatarClick: ((String) -> Unit)? = null
+    onAvatarClick: ((String) -> Unit)? = null,
+    onChatClick: () -> Unit
 ) {
     Card(
         modifier = Modifier
@@ -144,7 +159,7 @@ fun FriendListItem(
 
             // Chat Icon
             IconButton(
-                onClick = { /* TODO: Implement chat action */ }
+                onClick = onChatClick
             ) {
                 Icon(
                     imageVector = Icons.Default.Chat,

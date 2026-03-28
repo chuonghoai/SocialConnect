@@ -562,6 +562,11 @@ fun AppNavGraph(
                                 val encodedUserId = Uri.encode(clickedUserId)
                                 navController.navigate("${Routes.OTHER_PROFILE_BASE}/$encodedUserId")
                             }
+                        },
+                        onNavigateToChat = { conversationId, partnerId, conversationName, conversationAvatar ->
+                            val encodedName = Uri.encode(conversationName)
+                            val encodedAvatar = Uri.encode(conversationAvatar ?: "")
+                            navController.navigate("${Routes.CHAT_BASE}/$conversationId?partnerId=$partnerId&name=$encodedName&avatar=$encodedAvatar")
                         }
                     )
                 }

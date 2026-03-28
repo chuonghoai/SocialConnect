@@ -11,3 +11,12 @@ data class ConversationDto(
     val id: String?,
     val participants: List<ConversationParticipantDto>?
 )
+
+data class CreateConversationRequest(
+    val participantIds: List<String>
+)
+
+data class CreateConversationResponse(
+    val id: String,
+    val reused: Boolean
+)
