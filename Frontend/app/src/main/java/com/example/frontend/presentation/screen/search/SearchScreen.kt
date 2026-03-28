@@ -37,7 +37,8 @@ import com.example.frontend.ui.theme.OrangePrimary
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SearchScreen(
-    viewModel: SearchViewModel = hiltViewModel()
+    viewModel: SearchViewModel = hiltViewModel(),
+    onUserClick: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
@@ -171,7 +172,8 @@ fun SearchScreen(
                                                 isFriendActionLoading = uiState.addingFriendIds.contains(user.id),
                                                 hasPendingSentRequest = uiState.pendingSentFriendIds.contains(user.id),
                                                 hasPendingIncomingRequest = uiState.pendingIncomingFriendIds.contains(user.id),
-                                                onFriendClick = { viewModel.addFriend(user.id) }
+                                                onFriendClick = { viewModel.addFriend(user.id) },
+                                                onUserClick = { onUserClick(user.id) }
                                             )
                                         }
                                     }
@@ -321,7 +323,8 @@ fun UserSearchItem(
     isFriendActionLoading: Boolean = false,
     hasPendingSentRequest: Boolean = false,
     hasPendingIncomingRequest: Boolean = false,
-    onFriendClick: () -> Unit = {}
+    onFriendClick: () -> Unit = {},
+    onUserClick: () -> Unit = {}
 ) {
     val buttonText = when {
         user.isFriend -> "Bạn bè"
@@ -338,7 +341,7 @@ fun UserSearchItem(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable { /* TODO: navigate to user profile */ }
+            .clickable {onUserClick()}
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
