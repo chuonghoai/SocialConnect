@@ -82,10 +82,15 @@ import kotlin.OptIn
 fun VideoScreen(
     viewModel: VideoViewModel = hiltViewModel(),
     onCommentClick: (String) -> Unit = {},
-    currentUserAvatarUrl: String? = null
+    currentUserAvatarUrl: String? = null,
+    initialPostId: String? = null,
+    initialVideoUrl: String? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val commentsSheetState by viewModel.commentsSheetState.collectAsState()
+    var hasScrolledToInitialTarget by remember(initialPostId, initialVideoUrl) {
+        mutableStateOf(false)
+    }
 
     val imagePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
@@ -120,6 +125,15 @@ fun VideoScreen(
             is VideoUiState.Success -> {
                 val posts = state.posts
                 val pagerState = rememberPagerState(pageCount = { posts.size })
+
+                LaunchedEffect(posts, initialPostId, initialVideoUrl, hasScrolledToInitialTarget) {
+                    if (hasScrolledToInitialTarget || posts.isEmpty()) return@LaunchedEffect
+                    val targetIndex = findTargetVideoIndex(posts, initialPostId, initialVideoUrl)
+                    if (targetIndex >= 0) {
+                        pagerState.scrollToPage(targetIndex)
+                        hasScrolledToInitialTarget = true
+                    }
+                }
 
                 LaunchedEffect(pagerState.currentPage) {
                     if (pagerState.currentPage >= posts.size - 2) {
@@ -183,6 +197,29 @@ fun VideoScreen(
             )
         }
     }
+}
+
+private fun findTargetVideoIndex(
+    posts: List<Post>,
+    targetPostId: String?,
+    targetVideoUrl: String?
+): Int {
+    val normalizedUrl = targetVideoUrl?.trim().orEmpty()
+
+    if (normalizedUrl.isNotBlank()) {
+        val byUrl = posts.indexOfFirst { post ->
+            post.cdnUrl.equals(normalizedUrl, ignoreCase = true)
+        }
+        if (byUrl >= 0) return byUrl
+    }
+
+    val normalizedPostId = targetPostId?.trim().orEmpty()
+    if (normalizedPostId.isNotBlank()) {
+        val byPostId = posts.indexOfFirst { post -> post.id == normalizedPostId }
+        if (byPostId >= 0) return byPostId
+    }
+
+    return -1
 }
 
 @Composable

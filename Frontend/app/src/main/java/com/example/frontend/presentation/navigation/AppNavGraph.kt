@@ -85,13 +85,13 @@ fun AppNavGraph(
 
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
-    val currentBaseRoute = currentRoute?.substringBefore("/")
+    val currentBaseRoute = currentRoute?.substringBefore("/")?.substringBefore("?")
     var notificationRefreshKey by remember { mutableIntStateOf(0) }
 
     val bottomBarRoutes = setOf(
         Routes.HOME,
         Routes.SEARCH,
-        Routes.VIDEO,
+        Routes.VIDEO_BASE,
         Routes.NOTIFICATION,
         Routes.PROFILE
     )
@@ -330,8 +330,10 @@ fun AppNavGraph(
                         onPostClick = { post ->
                             navController.navigate("${Routes.POST_DETAIL_BASE}/${Uri.encode(post.id)}")
                         },
-                        onVideoClick = {
-                            navController.navigate(Routes.VIDEO) {
+                        onVideoClick = { postId, videoUrl ->
+                            val encodedPostId = Uri.encode(postId)
+                            val encodedVideoUrl = Uri.encode(videoUrl)
+                            navController.navigate("${Routes.VIDEO_BASE}?postId=$encodedPostId&videoUrl=$encodedVideoUrl") {
                                 launchSingleTop = true
                                 restoreState = true
                                 popUpTo(Routes.HOME) { saveState = true }
@@ -420,8 +422,28 @@ fun AppNavGraph(
                     SearchScreen()
                 }
 
-                composable(Routes.VIDEO) {
-                    VideoScreen(currentUserAvatarUrl = currentUser?.avatarUrl)
+                composable(
+                    route = Routes.VIDEO,
+                    arguments = listOf(
+                        navArgument("postId") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        },
+                        navArgument("videoUrl") {
+                            type = NavType.StringType
+                            nullable = true
+                            defaultValue = null
+                        }
+                    )
+                ) { backStackEntry ->
+                    val initialPostId = backStackEntry.arguments?.getString("postId")?.let(Uri::decode)
+                    val initialVideoUrl = backStackEntry.arguments?.getString("videoUrl")?.let(Uri::decode)
+                    VideoScreen(
+                        currentUserAvatarUrl = currentUser?.avatarUrl,
+                        initialPostId = initialPostId,
+                        initialVideoUrl = initialVideoUrl
+                    )
                 }
 
                 composable(Routes.NOTIFICATION) {

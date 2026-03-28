@@ -110,7 +110,7 @@ fun PostCard(
     isOwnPost: Boolean = false,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
-    onVideoClick: (() -> Unit)? = null,
+    onVideoClick: ((String) -> Unit)? = null,
     onSaveClick: (() -> Unit)? = null,
     saveMenuLabel: String = "Lưu bài viết",
     onShareClick: (() -> Unit)? = null,
@@ -1051,7 +1051,7 @@ private fun SaveInteractionItem(
 @Composable
 fun PostMediaPreview(
     mediaItems: List<PostMedia>,
-    onVideoClick: (() -> Unit)? = null
+    onVideoClick: ((String) -> Unit)? = null
 ) {
     if (mediaItems.isEmpty()) return
 
@@ -1077,7 +1077,7 @@ fun PostMediaPreview(
                     shouldPlay = true,
                     mediaAspectRatio = 16f / 9f,
                     onVideoClick = {
-                        if (onVideoClick != null) onVideoClick()
+                        if (onVideoClick != null) onVideoClick(item.cdnUrl)
                         else openViewer(0)
                     }
                 )
@@ -1103,7 +1103,7 @@ fun PostMediaPreview(
                     onItemClick = { index ->
                         val item = mediaItems[index]
                         if (item.kind == "VIDEO" && onVideoClick != null) {
-                            onVideoClick()
+                            onVideoClick(item.cdnUrl)
                         } else {
                             openViewer(index)
                         }

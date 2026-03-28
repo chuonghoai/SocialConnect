@@ -63,7 +63,7 @@ fun HomeScreen(
     onCreatePostClick: () -> Unit = {},
     onEditPostClick: (String) -> Unit = {},
     onPostClick: (Post) -> Unit = {},
-    onVideoClick: () -> Unit = {},
+    onVideoClick: (postId: String, videoUrl: String) -> Unit = { _, _ -> },
     onAvatarClick: (String) -> Unit = {},
     viewModel: HomeViewModel = hiltViewModel(),
     webSocketViewModel: WebSocketViewModel = hiltViewModel()
@@ -226,7 +226,9 @@ fun HomeScreen(
                                         viewModel.loadShareFriends(currentUser?.id.orEmpty(), forceRefresh = true)
                                     },
                                     onAvatarClick = onAvatarClick,
-                                    onVideoClick = onVideoClick,
+                                    onVideoClick = { clickedVideoUrl ->
+                                        onVideoClick(post.id, clickedVideoUrl)
+                                    },
                                     onEditPostRequest = {
                                         onEditPostClick(post.id)
                                     },

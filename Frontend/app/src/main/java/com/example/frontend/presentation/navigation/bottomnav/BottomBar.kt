@@ -149,7 +149,7 @@ private fun BottomBarIcon(icon: BottomNavIcon, selected: Boolean, badgeCount: In
 
 private fun String?.isSameRouteAs(tabRoute: String): Boolean {
     if (this == null) return false
-    val base = this.substringBefore("/")
-    val tabBase = tabRoute.substringBefore("/")
+    val base = this.substringBefore("/").substringBefore("?")
+    val tabBase = tabRoute.substringBefore("/").substringBefore("?")
     return base == tabBase
 }
