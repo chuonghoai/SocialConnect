@@ -192,10 +192,9 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideFriendRepository(
-        conversationApi: ConversationApi,
         userApi: UserApi
     ): FriendRepository {
-        return FriendRepositoryImpl(conversationApi, userApi)
+        return FriendRepositoryImpl(userApi)
     }
 
     @Provides

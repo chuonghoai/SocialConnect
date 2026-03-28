@@ -1,4 +1,4 @@
-﻿package com.example.frontend.presentation.screen.home
+package com.example.frontend.presentation.screen.home
 
 import android.net.Uri
 import android.util.Log
@@ -223,8 +223,7 @@ fun HomeScreen(
                                     saveMenuLabel = if (post.isSaved) "Bỏ lưu bài viết" else "Lưu bài viết",
                                     onShareClick = {
                                         shareTargetPost = post
-                                        viewModel.loadShareFriends(currentUser?.id.orEmpty())
-                                        // viewModel.sharePost(post.id)
+                                        viewModel.loadShareFriends(currentUser?.id.orEmpty(), forceRefresh = true)
                                     },
                                     onAvatarClick = onAvatarClick,
                                     onVideoClick = onVideoClick,
