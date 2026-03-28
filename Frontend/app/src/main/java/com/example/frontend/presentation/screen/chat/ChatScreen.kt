@@ -77,6 +77,7 @@ fun ChatScreen(
     onBackClick: () -> Unit = {},
     onVoiceCallClick: () -> Unit = {},
     onVideoCallClick: () -> Unit = {},
+    onProfileClick: () -> Unit = {},
     viewModel: ChatViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -303,6 +304,7 @@ fun ChatScreen(
             onBackClick = onBackClick,
             onVoiceCallClick = onVoiceCallClick,
             onVideoCallClick = onVideoCallClick,
+            onProfileClick = onProfileClick,
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .zIndex(10f)
@@ -812,6 +814,7 @@ private fun ChatTopBar(
     onBackClick: () -> Unit,
     onVoiceCallClick: () -> Unit,
     onVideoCallClick: () -> Unit,
+    onProfileClick: () -> Unit, // THÊM CALLBACK
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -820,7 +823,7 @@ private fun ChatTopBar(
             .height(66.dp)
             .background(Color.White)
             .border(width = 0.8.dp, color = Color(0xFFD3D3D3))
-            .padding(horizontal = 6.dp),
+            .padding(horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         IconButton(onClick = onBackClick) {
@@ -832,50 +835,64 @@ private fun ChatTopBar(
             )
         }
 
-        AsyncImage(
-            model = avatarUrl,
-            contentDescription = "Avatar",
+        Row(
             modifier = Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .background(Color(0xFFE0E0E0)),
-            contentScale = ContentScale.Crop,
-            placeholder = painterResource(id = R.drawable.icon_user),
-            error = painterResource(id = R.drawable.icon_user)
-        )
+                .weight(1f)
+                .clip(RoundedCornerShape(8.dp))
+                .clickable { onProfileClick() }
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box {
+                AsyncImage(
+                    model = avatarUrl,
+                    contentDescription = "Avatar",
+                    modifier = Modifier
+                        .size(38.dp)
+                        .clip(CircleShape)
+                        .background(Color(0xFFE0E0E0)),
+                    contentScale = ContentScale.Crop,
+                    placeholder = painterResource(id = R.drawable.icon_user),
+                    error = painterResource(id = R.drawable.icon_user)
+                )
 
-        Box(
-            modifier = Modifier
-                .offset(x = (-4).dp, y = 10.dp)
-                .size(8.dp)
-                .background(if (isOnline) OnlineGreen else Color.Gray, CircleShape)
-                .border(1.dp, Color.White, CircleShape)
-        )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.BottomEnd)
+                        .size(11.dp)
+                        .background(if (isOnline) OnlineGreen else Color.Gray, CircleShape)
+                        .border(1.5.dp, Color.White, CircleShape)
+                )
+            }
 
-        Spacer(Modifier.width(8.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                color = Color(0xFF111111),
-                fontSize = 25.sp,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                fontWeight = FontWeight.Medium,
-                fontFamily = FontFamily.SansSerif
-            )
-            Text(
-                text = if (isOnline) "Online" else "Offline",
-                color = Color(0xFF6F6F6F),
-                fontSize = 11.sp,
-                fontFamily = FontFamily.SansSerif
-            )
+            Spacer(Modifier.width(8.dp))
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = Color(0xFF111111),
+                    fontSize = 20.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    fontWeight = FontWeight.Medium,
+                    fontFamily = FontFamily.SansSerif
+                )
+                Text(
+                    text = if (isOnline) "Online" else "Offline",
+                    color = Color(0xFF6F6F6F),
+                    fontSize = 12.sp,
+                    fontFamily = FontFamily.SansSerif
+                )
+            }
         }
 
         IconButton(onClick = onVoiceCallClick) {
-            Icon(Icons.Default.Phone, null, tint = Color(0xFF212121), modifier = Modifier.size(20.dp))
+            Icon(Icons.Default.Phone, null, tint = Color(0xFF212121), modifier = Modifier.size(22.dp))
         }
         IconButton(onClick = onVideoCallClick) {
-            Icon(Icons.Default.Videocam, null, tint = Color(0xFF212121), modifier = Modifier.size(21.dp))
+            Icon(Icons.Default.Videocam, null, tint = Color(0xFF212121), modifier = Modifier.size(24.dp))
+        }
+        IconButton(onClick = onProfileClick) {
+            Icon(Icons.Default.MoreVert, contentDescription = "More Options", tint = Color(0xFF212121), modifier = Modifier.size(24.dp))
         }
     }
 }
