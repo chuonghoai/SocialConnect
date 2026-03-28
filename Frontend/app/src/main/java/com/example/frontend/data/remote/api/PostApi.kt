@@ -19,7 +19,8 @@ interface PostApi {
     @GET(ApiRoutes.NEWS_FEED)
     suspend fun getNewsFeed(
         @Query("after") lastPostId: String? = null,
-        @Query("limit") limit: Int = 10
+        @Query("limit") limit: Int = 10,
+        @Query("includeHidden") includeHidden: Boolean = false
     ) : List<Map<String, Any?>>
 
     @POST(ApiRoutes.SHARE_POST)
@@ -38,7 +39,8 @@ interface PostApi {
     suspend fun getUserPosts(
         @Path("userId") userId: String,
         @Query("after") lastPostId: String? = null,
-        @Query("limit") limit: Int = 10
+        @Query("limit") limit: Int = 10,
+        @Query("includeHidden") includeHidden: Boolean = false
     ): List<Map<String, Any?>>
 
     @GET(ApiRoutes.SAVED_POSTS)
@@ -76,6 +78,15 @@ interface PostApi {
 
     @DELETE(ApiRoutes.DELETE_POST)
     suspend fun deletePost(@Path("postId") postId: String): Response<Unit>
+
+    @PATCH(ApiRoutes.ADMIN_HIDE_POST)
+    suspend fun hidePostByAdmin(@Path("postId") postId: String): Map<String, Any?>
+
+    @PATCH(ApiRoutes.ADMIN_SHOW_POST)
+    suspend fun showPostByAdmin(@Path("postId") postId: String): Map<String, Any?>
+
+    @DELETE(ApiRoutes.ADMIN_DELETE_POST)
+    suspend fun deletePostByAdmin(@Path("postId") postId: String): Map<String, Any?>
 
     @GET(ApiRoutes.GET_POST_COMMENTS)
     suspend fun getPostComments(

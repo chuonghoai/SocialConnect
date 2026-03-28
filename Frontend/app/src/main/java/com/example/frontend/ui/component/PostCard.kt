@@ -105,6 +105,8 @@ import kotlinx.coroutines.delay
 @Composable
 fun PostCard(
     post: Post,
+    adminMode: Boolean = false,
+    isHiddenByAdmin: Boolean = false,
     isOwnPost: Boolean = false,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
@@ -136,7 +138,8 @@ fun PostCard(
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp, vertical = 6.dp),
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+            .graphicsLayer(alpha = if (adminMode && isHiddenByAdmin) 0.55f else 1f),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(16.dp),
         border = androidx.compose.foundation.BorderStroke(
@@ -198,33 +201,9 @@ fun PostCard(
                         expanded = isMoreMenuExpanded,
                         onDismissRequest = { isMoreMenuExpanded = false }
                     ) {
-                        if (isOwnPost) {
+                        if (adminMode) {
                             DropdownMenuItem(
-                                text = { Text("Sửa bài viết") },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    onEditPostRequest?.invoke()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Đổi quyền bài viết") },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    showVisibilityDialog = true
-                                },
-                                enabled = onChangeVisibility != null
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Xóa bài viết") },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    onDeletePost?.invoke()
-                                },
-                                enabled = onDeletePost != null
-                            )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("Ẩn bài viết") },
+                                text = { Text(if (isHiddenByAdmin) "Hien bai viet" else "An bai viet") },
                                 onClick = {
                                     isMoreMenuExpanded = false
                                     onHidePost?.invoke()
@@ -232,33 +211,103 @@ fun PostCard(
                                 enabled = onHidePost != null
                             )
                             DropdownMenuItem(
+                                text = { Text("Xoa bai viet") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onDeletePost?.invoke()
+                                },
+                                enabled = onDeletePost != null
+                            )
+                        } else {
+                            if (isOwnPost) {
+                                DropdownMenuItem(
+                                    text = { Text("Sửa bài viết") },
+                                    onClick = {
+                                        isMoreMenuExpanded = false
+                                        onEditPostRequest?.invoke()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Đổi quyền bài viết") },
+                                    onClick = {
+                                        isMoreMenuExpanded = false
+                                        showVisibilityDialog = true
+                                    },
+                                    enabled = onChangeVisibility != null
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Xóa bài viết") },
+                                    onClick = {
+                                        isMoreMenuExpanded = false
+                                        onDeletePost?.invoke()
+                                    },
+                                    enabled = onDeletePost != null
+                                )
+                            } else {
+                                DropdownMenuItem(
+                                    text = { Text(saveMenuLabel) },
+                                    onClick = {
+                                        isMoreMenuExpanded = false
+                                        onSaveClick?.invoke()
+                                    },
+                                    enabled = onSaveClick != null
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Ẩn bài viết") },
+                                    onClick = {
+                                        isMoreMenuExpanded = false
+                                        onHidePost?.invoke()
+                                    },
+                                    enabled = onHidePost != null
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Báo cáo bài viết") },
+                                    onClick = {
+                                        isMoreMenuExpanded = false
+                                        onReportPost?.invoke()
+                                    },
+                                    enabled = onReportPost != null
+                                )
+                            }
+                            DropdownMenuItem(
+                                text = { Text(saveMenuLabel) },
+                                enabled = onSaveClick != null,
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onSaveClick?.invoke()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Chia sẻ bài viết") },
+                                enabled = onShareClick != null,
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onShareClick?.invoke()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Sao chép liên kết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    clipboardManager.setText(AnnotatedString("https://socialconnect.app/posts/${post.id}"))
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Ẩn bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                }
+                            )
+                            DropdownMenuItem(
                                 text = { Text("Báo cáo bài viết") },
                                 onClick = {
                                     isMoreMenuExpanded = false
-                                    onReportPost?.invoke()
-                                },
-                                enabled = onReportPost != null
+                                }
                             )
                         }
-                        DropdownMenuItem(
-                            text = { Text("Chia sẻ bài viết") },
-                            enabled = onShareClick != null,
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                onShareClick?.invoke()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Sao chép liên kết") },
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                clipboardManager.setText(AnnotatedString("https://socialconnect.app/posts/${post.id}"))
-                            }
-                        )
                     }
                 }
             }
-
             if (shouldRenderOriginalPost) {
                 if (shouldShowSharedCaption) {
                     Text(

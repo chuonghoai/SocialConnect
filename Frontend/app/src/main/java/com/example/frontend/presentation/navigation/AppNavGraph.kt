@@ -18,6 +18,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.navigation.NavType
+import androidx.navigation.navArgument
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
@@ -63,6 +65,8 @@ import com.example.frontend.presentation.screen.calls.CallViewModel
 import com.example.frontend.ui.component.toMediaItems
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
+import com.example.frontend.presentation.screen.admin.AdminScreen
+import com.example.frontend.presentation.screen.admin.AdminUserProfileScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -117,7 +121,7 @@ fun AppNavGraph(
                 type = NotificationType.ERROR
             )
             navController.navigate(Routes.LOGIN) {
-                popUpTo(Routes.HOME) { inclusive = true }
+                popUpTo(Routes.SPLASH) { inclusive = true }
                 launchSingleTop = true
             }
         }
@@ -164,7 +168,7 @@ fun AppNavGraph(
 
                     LaunchedEffect(dest) {
                         if (dest != null) {
-                            if (dest == Routes.HOME) {
+                            if (dest == Routes.HOME || dest == Routes.ADMIN) {
                                 sessionViewModel.fetchCurrentUser()
                             }
 
@@ -178,13 +182,45 @@ fun AppNavGraph(
                 composable(Routes.LOGIN) {
                     LoginScreen(
                         onLoggedIn = {
-                            sessionViewModel.fetchCurrentUser()
-                            navController.navigate(Routes.HOME) {
+                            navController.navigate(Routes.SPLASH) {
                                 popUpTo(Routes.LOGIN) { inclusive = true }
                             }
                         },
                         onRegisterClick = { navController.navigate(Routes.REGISTER) },
                         onForgotPasswordClick = { navController.navigate(Routes.FORGOT_PASSWORD_EMAIL) }
+                    )
+                }
+
+                composable(Routes.ADMIN) {
+                    AdminScreen(
+                        onLoggedOut = {
+                            sessionViewModel.clearSession()
+                            navController.navigate(Routes.LOGIN) {
+                                popUpTo(Routes.SPLASH) { inclusive = true }
+                            }
+                        },
+                        onUserClick = { userId, isLocked ->
+                            val encodedUserId = Uri.encode(userId)
+                            navController.navigate(
+                                "${Routes.ADMIN_USER_PROFILE_BASE}/$encodedUserId?locked=$isLocked"
+                            )
+                        }
+                    )
+                }
+
+                composable(
+                    route = Routes.ADMIN_USER_PROFILE,
+                    arguments = listOf(
+                        navArgument("userId") { type = NavType.StringType },
+                        navArgument("locked") {
+                            type = NavType.BoolType
+                            defaultValue = false
+                        }
+                    )
+                ) {
+                    AdminUserProfileScreen(
+                        onBackClick = { navController.popBackStack() },
+                        onDeleted = { navController.popBackStack() }
                     )
                 }
 

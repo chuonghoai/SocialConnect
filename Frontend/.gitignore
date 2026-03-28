@@ -1,5 +1,8 @@
 *.iml
+.gradlec
 .gradle
+.gradle-user
+.gradle-user-admin-verify
 /.gradle-user-home
 /local.properties
 /.idea/caches
@@ -14,3 +17,4 @@
 .externalNativeBuild
 .cxx
 local.properties
+.kotlin
