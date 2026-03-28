@@ -28,4 +28,7 @@ interface UserApi {
     @GET(ApiRoutes.GET_MY_FRIENDS)
     suspend fun getMyFriends(): Response<FriendListResponseDto>
 
+    @GET(ApiRoutes.GET_USER_FRIENDS)
+    suspend fun getUserFriends(@Path("userId") userId: String): Response<FriendListResponseDto>
+
 }

@@ -2,6 +2,7 @@ package com.example.frontend.presentation.screen.otherprofile
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -60,6 +61,7 @@ fun OtherProfileScreen(
     userId: String,
     onBackClick: () -> Unit,
     onPostClick: (Post) -> Unit = {},
+    onNavigateToFriends: (String) -> Unit = {},
     viewModel: OtherProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -130,7 +132,11 @@ fun OtherProfileScreen(
                         modifier = Modifier.fillMaxSize()
                     ) {
                         item {
-                            OtherProfileInfoSection(user = state.user)
+                            OtherProfileInfoSection(
+                                user = state.user,
+                                onFriendAction = { viewModel.onFriendAction() },
+                                onNavigateToFriends = onNavigateToFriends
+                            )
                             Divider(
                                 thickness = 8.dp,
                                 color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
@@ -233,7 +239,7 @@ private fun OtherProfileTopBar(onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun OtherProfileInfoSection(user: User) {
+private fun OtherProfileInfoSection(user: User, onFriendAction: () -> Unit, onNavigateToFriends: (String) -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -281,7 +287,8 @@ private fun OtherProfileInfoSection(user: User) {
                 Text(text = user.postCount.toString(), fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text(text = "Bài đăng", color = Color.Gray, fontSize = 13.sp)
             }
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally,
+                   modifier = Modifier.clickable { onNavigateToFriends(user.id) }) {
                 Text(text = user.friendCount.toString(), fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Text(text = "Bạn bè", color = Color.Gray, fontSize = 13.sp)
             }
@@ -305,7 +312,7 @@ private fun OtherProfileInfoSection(user: User) {
         }
 
         Button(
-            onClick = { /* TODO: integrate friend action APIs */ },
+            onClick = onFriendAction,
             modifier = Modifier.fillMaxWidth(0.8f),
             colors = ButtonDefaults.buttonColors(
                 containerColor = if (user.friendshipStatus == "NONE") {
