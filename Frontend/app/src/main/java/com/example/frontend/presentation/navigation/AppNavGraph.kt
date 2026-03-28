@@ -312,6 +312,9 @@ fun AppNavGraph(
                         },
                         onNavigateToFriends = {
                             navController.navigate(Routes.MY_FRIENDS)
+                        },
+                        onEditPostClick = { postId ->
+                            navController.navigate("${Routes.EDIT_POST_BASE}/$postId")
                         }
                     )
                 }
