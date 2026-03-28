@@ -7,10 +7,12 @@ import com.example.frontend.core.util.AppNotificationManager
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.AuthUseCase.LogoutUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.GetShareFriendsUseCase
+import com.example.frontend.domain.usecase.PostUseCase.DeletePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetUserPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.UpdatePostUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
 import com.example.frontend.presentation.screen.share.ShareFriendsUiState
 import com.example.frontend.presentation.screen.share.SharePostSubmitData
@@ -30,6 +32,8 @@ class ProfileViewModel @Inject constructor(
     private val savePostUseCase: SavePostUseCase,
     private val sharePostUseCase: SharePostUseCase,
     private val getShareFriendsUseCase: GetShareFriendsUseCase,
+    private val updatePostUseCase: UpdatePostUseCase,
+    private val deletePostUseCase: DeletePostUseCase,
     private val notificationManager: AppNotificationManager,
     private val logoutUseCase: LogoutUseCase
 ) : ViewModel() {
@@ -320,6 +324,48 @@ class ProfileViewModel @Inject constructor(
         viewModelScope.launch {
             logoutUseCase()
             onLoggedOut()
+        }
+    }
+
+    fun changePostVisibility(postId: String, visibility: String) {
+        viewModelScope.launch {
+            when (val result = updatePostUseCase(postId = postId, visibility = visibility)) {
+                is ApiResult.Success -> {
+                    notificationManager.showMessage("Đã đổi quyền bài viết", NotificationType.SUCCESS)
+                }
+                is ApiResult.Error -> {
+                    val message = result.message.ifBlank { "Không thể đổi quyền bài viết" }
+                    notificationManager.showMessage(message, NotificationType.ERROR)
+                }
+            }
+        }
+    }
+
+    fun deletePost(postId: String) {
+        val currentState = _uiState.value as? ProfileUiState.Success ?: return
+        val oldPosts = currentState.posts
+        val oldSaved = currentState.savedPosts
+
+        val updatedPosts = oldPosts.filterNot { it.id == postId }
+        val updatedSavedPosts = oldSaved.filterNot { it.id == postId }
+        _uiState.value = currentState.copy(posts = updatedPosts, savedPosts = updatedSavedPosts)
+
+        viewModelScope.launch {
+            when (val result = deletePostUseCase(postId)) {
+                is ApiResult.Success -> {
+                    notificationManager.showMessage("Đã xóa bài viết", NotificationType.SUCCESS)
+                }
+                is ApiResult.Error -> {
+                    val latestState = _uiState.value as? ProfileUiState.Success
+                    if (latestState != null) {
+                        _uiState.value = latestState.copy(posts = oldPosts, savedPosts = oldSaved)
+                    }
+                    notificationManager.showMessage(
+                        result.message.ifBlank { "Không thể xóa bài viết" },
+                        NotificationType.ERROR
+                    )
+                }
+            }
         }
     }
 }
