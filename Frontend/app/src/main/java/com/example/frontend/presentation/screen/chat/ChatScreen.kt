@@ -47,6 +47,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,6 +68,13 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.frontend.domain.model.PostMedia
 import com.example.frontend.ui.component.MediaViewerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Reply
 
 @Composable
 fun ChatScreen(
@@ -197,6 +205,9 @@ fun ChatScreen(
                                 onMediaClick = { selectedMedia ->
                                     viewerMediaList = listOf(selectedMedia)
                                     viewerInitialPage = 0
+                                },
+                                onRevokeClick = { messageId ->
+                                    viewModel.revokeMessage(messageId)
                                 }
                             )
                         }
@@ -312,6 +323,7 @@ fun ChatScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VoiceRecorderUI(
     uiState: ChatUiState,
@@ -492,22 +504,37 @@ fun formatDuration(ms: Long): String {
     return String.format("%02d:%02d", minutes, seconds)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MessageBubble(
     message: MessageItem,
     isMine: Boolean,
     incomingAvatarUrl: String?,
     statusText: String? = null,
-    onMediaClick: (PostMedia) -> Unit
+    onMediaClick: (PostMedia) -> Unit,
+    onRevokeClick: (String) -> Unit
 ) {
     val isUploading = message.id.startsWith("temp_")
+    var showMenu by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = {
+                        if (isMine && !message.isRecall) {
+                            showMenu = true
+                        }
+                    }
+                )
+            },
         horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth(),
             horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
             verticalAlignment = Alignment.Bottom
         ) {
@@ -526,66 +553,82 @@ private fun MessageBubble(
                 Spacer(Modifier.width(8.dp))
             }
 
-            Column(
-                modifier = Modifier.widthIn(max = 240.dp),
-                horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
-            ) {
-                val isAudioMessage = message.type == "AUDIO" || message.media.firstOrNull()?.type == "AUDIO"
-                if (isAudioMessage) {
-                    AudioMessageBubble(message, isMine, isUploading)
-                } else {
-                    message.media.forEach { media ->
-                        val postMedia = PostMedia(
-                            cdnUrl = media.secureUrl,
-                            kind = if (media.type == "VIDEO") "VIDEO" else "IMAGE"
-                        )
+            if (message.isRecall) {
+                Box(
+                    modifier = Modifier
+                        .background(Color.Transparent, RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.Gray, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "Tin nhắn đã bị thu hồi",
+                        color = Color.Gray,
+                        fontStyle = FontStyle.Italic,
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                Column(
+                    modifier = Modifier.widthIn(max = 240.dp),
+                    horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
+                ) {
+                    val isAudioMessage = message.type == "AUDIO" || message.media.firstOrNull()?.type == "AUDIO"
+                    if (isAudioMessage) {
+                        AudioMessageBubble(message, isMine, isUploading)
+                    } else {
+                        message.media.forEach { media ->
+                            val postMedia = PostMedia(
+                                cdnUrl = media.secureUrl,
+                                kind = if (media.type == "VIDEO") "VIDEO" else "IMAGE"
+                            )
 
-                        if (media.type == "VIDEO") {
-                            Box(modifier = Modifier.clickable { onMediaClick(postMedia) }) {
-                                VideoMessageBubble(media.secureUrl, isUploading)
-                            }
-                        } else if (media.type == "IMAGE") {
-                            Box(
-                                modifier = Modifier
-                                    .padding(bottom = 4.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.LightGray)
-                                    .clickable { onMediaClick(postMedia) }
-                            ) {
-                                AsyncImage(
-                                    model = media.secureUrl,
-                                    contentDescription = null,
+                            if (media.type == "VIDEO") {
+                                Box(modifier = Modifier.clickable { onMediaClick(postMedia) }) {
+                                    VideoMessageBubble(media.secureUrl, isUploading)
+                                }
+                            } else if (media.type == "IMAGE") {
+                                Box(
                                     modifier = Modifier
-                                        .width(200.dp)
-                                        .heightIn(max = 300.dp)
-                                        .alpha(if (isUploading) 0.5f else 1f),
-                                    contentScale = ContentScale.Crop
-                                )
-                                if (isUploading) {
-                                    CircularProgressIndicator(
+                                        .padding(bottom = 4.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.LightGray)
+                                        .clickable { onMediaClick(postMedia) }
+                                ) {
+                                    AsyncImage(
+                                        model = media.secureUrl,
+                                        contentDescription = null,
                                         modifier = Modifier
-                                            .size(30.dp)
-                                            .align(Alignment.Center),
-                                        color = OrangePrimary,
-                                        strokeWidth = 2.dp
+                                            .width(200.dp)
+                                            .heightIn(max = 300.dp)
+                                            .alpha(if (isUploading) 0.5f else 1f),
+                                        contentScale = ContentScale.Crop
                                     )
+                                    if (isUploading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .size(30.dp)
+                                                .align(Alignment.Center),
+                                            color = OrangePrimary,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (message.text.isNotEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
-                            shadowElevation = 1.dp
-                        ) {
-                            Text(
-                                text = message.text,
-                                color = Color(0xFF1F1F1F),
-                                fontSize = 16.sp,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            )
+                        if (message.text.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
+                                shadowElevation = 1.dp
+                            ) {
+                                Text(
+                                    text = message.text,
+                                    color = Color(0xFF1F1F1F),
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -617,6 +660,69 @@ private fun MessageBubble(
                     color = if (statusText.contains("Đang") || statusText.contains("Lỗi")) Color.Gray else OrangePrimary,
                     fontSize = 10.sp
                 )
+            }
+        }
+
+        // Bottom sheet
+        if (showMenu) {
+            ModalBottomSheet(
+                onDismissRequest = { showMenu = false },
+                sheetState = sheetState,
+                containerColor = Color.White,
+                dragHandle = { BottomSheetDefaults.DragHandle() }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showMenu = false
+                                // TODO: Code logic Reply ở đây
+                            }
+                            .padding(vertical = 16.dp, horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Reply, contentDescription = "Reply", tint = Color(0xFF333333))
+                        Spacer(Modifier.width(16.dp))
+                        Text("Trả lời", color = Color(0xFF333333), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showMenu = false
+                                // TODO: Code logic Copy ở đây
+                            }
+                            .padding(vertical = 16.dp, horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFF333333))
+                        Spacer(Modifier.width(16.dp))
+                        Text("Sao chép", color = Color(0xFF333333), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    }
+
+                    if (isMine && !message.isRecall) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showMenu = false
+                                    onRevokeClick(message.id)
+                                }
+                                .padding(vertical = 16.dp, horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Revoke", tint = Color.Red)
+                            Spacer(Modifier.width(16.dp))
+                            Text("Thu hồi tin nhắn", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
             }
         }
     }

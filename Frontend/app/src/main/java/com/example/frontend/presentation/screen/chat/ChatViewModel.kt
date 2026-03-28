@@ -81,6 +81,7 @@ class ChatViewModel @Inject constructor(
         observeMessagesRead()
         observeOnlineUsers()
         observeTypingEvents()
+        observeRevokedMessages()
     }
 
     private fun fetchCurrentUser() {
@@ -175,6 +176,19 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private fun observeRevokedMessages() {
+        viewModelScope.launch {
+            webSocketManager.messageRevokedFlow.collect { payload ->
+                val evtConversationId = payload.optString("conversationId")
+                val evtMessageId = payload.optString("messageId")
+
+                if (evtConversationId == currentConversationId) {
+                    updateMessageToRecalled(evtMessageId)
+                }
+            }
+        }
+    }
+
     private fun observeMessagesRead() {
         viewModelScope.launch {
             webSocketManager.messagesReadEvent.collect { json ->
@@ -254,7 +268,7 @@ class ChatViewModel @Inject constructor(
                         text = "",
                         isRecall = false,
                         createAt = java.time.ZonedDateTime.now().toString(),
-                        replyToMessageId = null,
+                        replyToMessage = null,
                         sender = MessageSender(
                             id = currentUser.id,
                             displayName = currentUser.displayName ?: currentUser.username,
@@ -306,7 +320,7 @@ class ChatViewModel @Inject constructor(
             text = content,
             isRecall = false,
             createAt = java.time.ZonedDateTime.now().toString(),
-            replyToMessageId = null,
+            replyToMessage = null,
             sender = MessageSender(
                 id = currentUser.id,
                 displayName = currentUser.displayName ?: currentUser.username,
@@ -463,7 +477,7 @@ class ChatViewModel @Inject constructor(
                 text = "",
                 isRecall = false,
                 createAt = java.time.ZonedDateTime.now().toString(),
-                replyToMessageId = null,
+                replyToMessage = null,
                 sender = MessageSender(
                     id = currentUser.id,
                     displayName = currentUser.displayName ?: currentUser.username,
@@ -497,5 +511,23 @@ class ChatViewModel @Inject constructor(
             }
             _uiState.value = _uiState.value.copy(isUploadingMedia = false, recordingFileUri = null)
         }
+    }
+
+    fun revokeMessage(messageId: String) {
+        webSocketManager.revokeMessage(messageId, currentConversationId)
+
+        updateMessageToRecalled(messageId)
+    }
+
+    private fun updateMessageToRecalled(messageId: String) {
+        val currentMessages = _uiState.value.messages
+        val updatedMessages = currentMessages.map { msg ->
+            if (msg.id == messageId) {
+                msg.copy(isRecall = true, text = "", media = emptyList())
+            } else {
+                msg
+            }
+        }
+        _uiState.value = _uiState.value.copy(messages = updatedMessages)
     }
 }

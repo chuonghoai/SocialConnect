@@ -13,7 +13,7 @@ data class MessageItem(
     val text: String,
     val isRecall: Boolean,
     val createAt: String,           // Chuỗi ISO 8601, bạn có thể map sang Date/LocalDateTime nếu cần
-    val replyToMessageId: String?,  // Có thể null nếu không phải tin nhắn reply
+    val replyToMessage: RepliedMessageInfo?,  // Có thể null nếu không phải tin nhắn reply
     val sender: MessageSender,
     val media: List<MessageMedia>,
     val isRead: Boolean = false
@@ -31,6 +31,14 @@ data class MessageMedia(
     val publicId: String,
     val secureUrl: String,
     val type: String                // Ví dụ: "IMAGE", "VIDEO"
+)
+
+data class RepliedMessageInfo(
+    val id: String,
+    val type: String,
+    val text: String,
+    val isRecall: Boolean,
+    val sender: MessageSender
 )
 
 // 5. Model phân trang
