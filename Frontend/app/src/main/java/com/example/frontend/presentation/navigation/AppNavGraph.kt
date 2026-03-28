@@ -67,6 +67,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
 import com.example.frontend.presentation.screen.admin.AdminScreen
 import com.example.frontend.presentation.screen.admin.AdminUserProfileScreen
+import com.example.frontend.presentation.screen.chat.ChatProfileScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -544,6 +545,49 @@ fun AppNavGraph(
                         onVideoCallClick = {
                             val encodedName = Uri.encode(conversationName)
                             val encodedAvatar = Uri.encode(conversationAvatar ?: "")
+                            navController.navigate("${Routes.CALL_BASE}/$partnerId?isVideoCall=true&isIncoming=false&fullname=$encodedName&avatarUrl=$encodedAvatar")
+                        },
+                        onProfileClick = {
+                            val encodedName = Uri.encode(conversationName)
+                            val encodedAvatar = Uri.encode(conversationAvatar ?: "")
+                            navController.navigate("${Routes.CHAT_PROFILE_BASE}/$partnerId?name=$encodedName&avatar=$encodedAvatar&conversationId=$conversationId")
+                        }
+                    )
+                }
+
+                composable(Routes.CHAT_PROFILE) { backStackEntry ->
+                    val partnerId = backStackEntry.arguments?.getString("partnerId") ?: ""
+                    val partnerName = backStackEntry.arguments?.getString("name")?.let(Uri::decode) ?: "Người dùng"
+                    val partnerAvatarUrl = backStackEntry.arguments?.getString("avatar")?.let(Uri::decode)
+                    val conversationId = backStackEntry.arguments?.getString("conversationId") ?: ""
+
+                    val currentUser by sessionViewModel.currentUser.collectAsState()
+
+                    ChatProfileScreen(
+                        conversationId = conversationId,
+                        partnerId = partnerId,
+                        partnerName = partnerName,
+                        partnerAvatarUrl = partnerAvatarUrl,
+                        onBackClick = { navController.popBackStack() },
+                        onNavigateToProfile = { clickedUserId ->
+                            if (clickedUserId == currentUser?.id) {
+                                navController.navigate(Routes.PROFILE) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else if (clickedUserId.isNotBlank()) {
+                                val encodedUserId = Uri.encode(clickedUserId)
+                                navController.navigate("${Routes.OTHER_PROFILE_BASE}/$encodedUserId")
+                            }
+                        },
+                        onVoiceCallClick = {
+                            val encodedName = Uri.encode(partnerName)
+                            val encodedAvatar = Uri.encode(partnerAvatarUrl ?: "")
+                            navController.navigate("${Routes.CALL_BASE}/$partnerId?isVideoCall=false&isIncoming=false&fullname=$encodedName&avatarUrl=$encodedAvatar")
+                        },
+                        onVideoCallClick = {
+                            val encodedName = Uri.encode(partnerName)
+                            val encodedAvatar = Uri.encode(partnerAvatarUrl ?: "")
                             navController.navigate("${Routes.CALL_BASE}/$partnerId?isVideoCall=true&isIncoming=false&fullname=$encodedName&avatarUrl=$encodedAvatar")
                         }
                     )
