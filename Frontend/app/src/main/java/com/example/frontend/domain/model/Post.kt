@@ -65,7 +65,7 @@ data class Post(
     val displayName: String = "",
     val userAvatar: String = "",
     val content: String = "",
-    val visibility: String = "Công khai",
+    val visibility: String = PostVisibility.PUBLIC,
     val type: String = "",
     val kind: String = "",
     val createdAt: String = "",

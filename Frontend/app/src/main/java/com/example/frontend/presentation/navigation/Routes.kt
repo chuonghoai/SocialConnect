@@ -14,6 +14,8 @@ object Routes {
     const val PROFILE = "profile"
     const val OTHER_PROFILE_BASE = "other_profile"
     const val OTHER_PROFILE = "$OTHER_PROFILE_BASE/{userId}"
+    const val VIDEO_BASE = "video"
+    const val VIDEO = "$VIDEO_BASE?postId={postId}&videoUrl={videoUrl}"
     const val OTHER_FRIENDS_BASE = "other_friends"
     const val OTHER_FRIENDS = "$OTHER_FRIENDS_BASE/{userId}"
     const val VIDEO = "video"

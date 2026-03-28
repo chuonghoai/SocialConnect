@@ -55,6 +55,7 @@ import coil.decode.VideoFrameDecoder
 import coil.request.ImageRequest
 import com.example.frontend.R
 import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.domain.model.PostVisibility
 import com.example.frontend.domain.model.User
 import com.example.frontend.presentation.screen.create_post.VisibilityDropdown
 
@@ -82,7 +83,7 @@ fun EditPostScreen(
 
     var content by rememberSaveable(initialContent) { mutableStateOf(initialContent) }
     var visibility by rememberSaveable(initialVisibility) {
-        mutableStateOf(initialVisibility.ifBlank { "Công khai" })
+        mutableStateOf(PostVisibility.normalize(initialVisibility))
     }
     var existingMedia by remember(normalizedInitialMedia) { mutableStateOf(normalizedInitialMedia) }
     var newMediaUris by remember(normalizedInitialMedia) { mutableStateOf(emptyList<Uri>()) }

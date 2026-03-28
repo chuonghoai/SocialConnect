@@ -31,7 +31,7 @@ fun bottomNavItems(userAvatarUrl: String?, notificationUnreadCount: Int = 0): Li
         icon = BottomNavIcon.Drawable(R.drawable.icon_search)
     ),
     BottomNavItem(
-        route = Routes.VIDEO,
+        route = Routes.VIDEO_BASE,
         label = "VIDEO",
         icon = BottomNavIcon.Drawable(R.drawable.icon_film)
     ),

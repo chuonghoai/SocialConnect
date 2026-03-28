@@ -13,6 +13,7 @@ import com.example.frontend.data.remote.dto.SharePostRequest
 import com.example.frontend.data.remote.dto.UpdatePostRequest
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
+import com.example.frontend.domain.model.PostVisibility
 import com.example.frontend.domain.repository.PostRepository
 import com.google.gson.JsonParseException
 import retrofit2.HttpException
@@ -379,12 +380,7 @@ class PostRepositoryImpl @Inject constructor(
     }
 
     private fun normalizeVisibility(raw: String): String {
-        return when (raw.trim().lowercase()) {
-            "cong khai", "công khai", "public" -> "PUBLIC"
-            "ban be", "bạn bè", "friends", "friend" -> "FRIENDS"
-            "rieng tu", "riêng tư", "private" -> "PRIVATE"
-            else -> raw.trim().uppercase()
-        }
+        return PostVisibility.normalize(raw)
     }
 
     override suspend fun updatePost(
@@ -399,7 +395,7 @@ class PostRepositoryImpl @Inject constructor(
                 postId = postId,
                 request = UpdatePostRequest(
                     content = content,
-                    visibility = visibility,
+                    visibility = visibility?.let(::normalizeVisibility),
                     mediaPublicIds = mediaPublicIds,
                     mediaUrls = mediaUrls
                 )

@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -27,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.frontend.R
+import com.example.frontend.domain.model.PostVisibility
 import com.example.frontend.domain.model.User
 import coil.request.ImageRequest
 import coil.decode.VideoFrameDecoder
@@ -217,7 +219,8 @@ fun CreatePostScreen(
 @Composable
 fun VisibilityDropdown(selectedOption: String, onOptionSelected: (String) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
-    val options = listOf("Công khai", "Bạn bè", "Riêng tư")
+    val options = PostVisibility.options
+    val selectedValue = PostVisibility.normalize(selectedOption)
 
     Box {
         Row(
@@ -228,7 +231,11 @@ fun VisibilityDropdown(selectedOption: String, onOptionSelected: (String) -> Uni
                 .padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = selectedOption, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+            Text(
+                text = PostVisibility.label(selectedValue),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
             Icon(Icons.Default.ArrowDropDown, contentDescription = null)
         }
 
@@ -237,8 +244,24 @@ fun VisibilityDropdown(selectedOption: String, onOptionSelected: (String) -> Uni
             onDismissRequest = { expanded = false }
         ) {
             options.forEach { option ->
+                val isSelected = option == selectedValue
                 DropdownMenuItem(
-                    text = { Text(option) },
+                    text = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(PostVisibility.label(option))
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Đang chọn",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
+                    },
                     onClick = {
                         onOptionSelected(option)
                         expanded = false

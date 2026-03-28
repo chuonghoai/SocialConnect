@@ -46,6 +46,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.outlined.BookmarkBorder
@@ -97,6 +98,7 @@ import com.example.frontend.R
 import com.example.frontend.domain.model.OriginalPost
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.domain.model.PostVisibility
 import com.example.frontend.ui.theme.OrangePrimary
 import kotlin.math.hypot
 import java.time.LocalDateTime
@@ -110,7 +112,7 @@ fun PostCard(
     isOwnPost: Boolean = false,
     onLikeClick: () -> Unit = {},
     onCommentClick: () -> Unit = {},
-    onVideoClick: (() -> Unit)? = null,
+    onVideoClick: ((String) -> Unit)? = null,
     onSaveClick: (() -> Unit)? = null,
     saveMenuLabel: String = "Lưu bài viết",
     onShareClick: (() -> Unit)? = null,
@@ -203,7 +205,7 @@ fun PostCard(
                     ) {
                         if (adminMode) {
                             DropdownMenuItem(
-                                text = { Text(if (isHiddenByAdmin) "Hien bai viet" else "An bai viet") },
+                                text = { Text(if (isHiddenByAdmin) "Hiện bài viết" else "Ẩn bài viết") },
                                 onClick = {
                                     isMoreMenuExpanded = false
                                     onHidePost?.invoke()
@@ -211,64 +213,53 @@ fun PostCard(
                                 enabled = onHidePost != null
                             )
                             DropdownMenuItem(
-                                text = { Text("Xoa bai viet") },
+                                text = { Text("Xóa bài viết") },
                                 onClick = {
                                     isMoreMenuExpanded = false
                                     onDeletePost?.invoke()
                                 },
                                 enabled = onDeletePost != null
                             )
+                        } else if (isOwnPost) {
+                            DropdownMenuItem(
+                                text = { Text("Sửa bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onEditPostRequest?.invoke()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Đổi quyền bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    showVisibilityDialog = true
+                                },
+                                enabled = onChangeVisibility != null
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Xóa bài viết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onDeletePost?.invoke()
+                                },
+                                enabled = onDeletePost != null
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Chia sẻ bài viết") },
+                                enabled = onShareClick != null,
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    onShareClick?.invoke()
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Sao chép liên kết") },
+                                onClick = {
+                                    isMoreMenuExpanded = false
+                                    clipboardManager.setText(AnnotatedString("https://socialconnect.app/posts/${post.id}"))
+                                }
+                            )
                         } else {
-                            if (isOwnPost) {
-                                DropdownMenuItem(
-                                    text = { Text("Sửa bài viết") },
-                                    onClick = {
-                                        isMoreMenuExpanded = false
-                                        onEditPostRequest?.invoke()
-                                    }
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Đổi quyền bài viết") },
-                                    onClick = {
-                                        isMoreMenuExpanded = false
-                                        showVisibilityDialog = true
-                                    },
-                                    enabled = onChangeVisibility != null
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Xóa bài viết") },
-                                    onClick = {
-                                        isMoreMenuExpanded = false
-                                        onDeletePost?.invoke()
-                                    },
-                                    enabled = onDeletePost != null
-                                )
-                            } else {
-                                DropdownMenuItem(
-                                    text = { Text(saveMenuLabel) },
-                                    onClick = {
-                                        isMoreMenuExpanded = false
-                                        onSaveClick?.invoke()
-                                    },
-                                    enabled = onSaveClick != null
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Ẩn bài viết") },
-                                    onClick = {
-                                        isMoreMenuExpanded = false
-                                        onHidePost?.invoke()
-                                    },
-                                    enabled = onHidePost != null
-                                )
-                                DropdownMenuItem(
-                                    text = { Text("Báo cáo bài viết") },
-                                    onClick = {
-                                        isMoreMenuExpanded = false
-                                        onReportPost?.invoke()
-                                    },
-                                    enabled = onReportPost != null
-                                )
-                            }
                             DropdownMenuItem(
                                 text = { Text(saveMenuLabel) },
                                 enabled = onSaveClick != null,
@@ -296,13 +287,17 @@ fun PostCard(
                                 text = { Text("Ẩn bài viết") },
                                 onClick = {
                                     isMoreMenuExpanded = false
-                                }
+                                    onHidePost?.invoke()
+                                },
+                                enabled = onHidePost != null
                             )
                             DropdownMenuItem(
                                 text = { Text("Báo cáo bài viết") },
                                 onClick = {
                                     isMoreMenuExpanded = false
-                                }
+                                    onReportPost?.invoke()
+                                },
+                                enabled = onReportPost != null
                             )
                         }
                     }
@@ -371,14 +366,16 @@ fun PostCard(
     }
 
     if (showVisibilityDialog) {
+        val currentVisibility = PostVisibility.normalize(post.visibility)
+        val options = PostVisibility.options
         AlertDialog(
             onDismissRequest = { showVisibilityDialog = false },
             title = { Text("Đổi quyền bài viết") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Công khai", "Bạn bè", "Riêng tư").forEach { option ->
-                        Text(
-                            text = option,
+                    options.forEach { option ->
+                        val isSelected = option == currentVisibility
+                        Row(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(8.dp))
@@ -386,8 +383,19 @@ fun PostCard(
                                     showVisibilityDialog = false
                                     onChangeVisibility?.invoke(option)
                                 }
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
-                        )
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(PostVisibility.label(option))
+                            if (isSelected) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Đang chọn",
+                                    tint = MaterialTheme.colorScheme.primary
+                                )
+                            }
+                        }
                     }
                 }
             },
@@ -1051,7 +1059,7 @@ private fun SaveInteractionItem(
 @Composable
 fun PostMediaPreview(
     mediaItems: List<PostMedia>,
-    onVideoClick: (() -> Unit)? = null
+    onVideoClick: ((String) -> Unit)? = null
 ) {
     if (mediaItems.isEmpty()) return
 
@@ -1077,7 +1085,7 @@ fun PostMediaPreview(
                     shouldPlay = true,
                     mediaAspectRatio = 16f / 9f,
                     onVideoClick = {
-                        if (onVideoClick != null) onVideoClick()
+                        if (onVideoClick != null) onVideoClick(item.cdnUrl)
                         else openViewer(0)
                     }
                 )
@@ -1103,7 +1111,7 @@ fun PostMediaPreview(
                     onItemClick = { index ->
                         val item = mediaItems[index]
                         if (item.kind == "VIDEO" && onVideoClick != null) {
-                            onVideoClick()
+                            onVideoClick(item.cdnUrl)
                         } else {
                             openViewer(index)
                         }
