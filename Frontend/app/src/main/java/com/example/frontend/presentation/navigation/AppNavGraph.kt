@@ -498,7 +498,18 @@ fun AppNavGraph(
 
                 composable(Routes.FRIEND_REQUESTS) {
                     FriendRequestsScreen(
-                        onBack = { navController.popBackStack() }
+                        onBack = { navController.popBackStack() },
+                        onAvatarClick = { clickedUserId ->
+                            if (clickedUserId == currentUser?.id) {
+                                navController.navigate(Routes.PROFILE) {
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            } else if (clickedUserId.isNotBlank()) {
+                                val encodedUserId = Uri.encode(clickedUserId)
+                                navController.navigate("${Routes.OTHER_PROFILE_BASE}/$encodedUserId")
+                            }
+                        },
                     )
                 }
 
