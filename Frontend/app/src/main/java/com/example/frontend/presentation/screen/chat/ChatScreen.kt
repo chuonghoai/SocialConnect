@@ -78,6 +78,16 @@ import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Reply
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun ChatScreen(
@@ -203,32 +213,39 @@ fun ChatScreen(
                                 }
                             } else null
 
-                            MessageBubble(
-                                message = msg,
+                            SwipeToReplyWrapper(
                                 isMine = isMine,
-                                incomingAvatarUrl = conversationAvatarUrl,
-                                statusText = statusText,
-                                onMediaClick = { selectedMedia ->
-                                    viewerMediaList = listOf(selectedMedia)
-                                    viewerInitialPage = 0
-                                },
-                                onRevokeClick = { messageId ->
-                                    viewModel.revokeMessage(messageId)
-                                },
-                                onCopyClick = { textToCopy ->
-                                    clipboardManager.setText(AnnotatedString(textToCopy))
-                                    viewModel.notifyMessageCopied()
-                                },
-                                onReplyClick = {
+                                swipeEnabled = !msg.isRecall,
+                                onReply = {
                                     replyingToMessage = msg
                                 }
-                            )
+                            ) {
+                                MessageBubble(
+                                    message = msg,
+                                    isMine = isMine,
+                                    incomingAvatarUrl = conversationAvatarUrl,
+                                    statusText = statusText,
+                                    onMediaClick = { selectedMedia ->
+                                        viewerMediaList = listOf(selectedMedia)
+                                        viewerInitialPage = 0
+                                    },
+                                    onRevokeClick = { messageId ->
+                                        viewModel.revokeMessage(messageId)
+                                    },
+                                    onCopyClick = { textToCopy ->
+                                        clipboardManager.setText(AnnotatedString(textToCopy))
+                                        viewModel.notifyMessageCopied()
+                                    },
+                                    onReplyClick = {
+                                        replyingToMessage = msg
+                                    }
+                                )
+                            }
                         }
                     }
                 }
             }
 
-            // Thanh preview media đã chọn
             if (uiState.selectedMedia.isNotEmpty() && !uiState.showVoiceRecorder) {
                 LazyRow(
                     modifier = Modifier
@@ -1018,7 +1035,7 @@ private fun ChatTopBar(
     onBackClick: () -> Unit,
     onVoiceCallClick: () -> Unit,
     onVideoCallClick: () -> Unit,
-    onProfileClick: () -> Unit, // THÊM CALLBACK
+    onProfileClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -1175,6 +1192,108 @@ private fun ChatInputBar(
                 tint = if (isSendEnabled) OrangePrimary else Color.Gray,
                 modifier = Modifier.size(20.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun SwipeToReplyWrapper(
+    isMine: Boolean,
+    swipeEnabled: Boolean = true,
+    onReply: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val offsetX = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+
+    val maxSwipePx = with(density) { 60.dp.toPx() }
+    val thresholdPx = with(density) { 40.dp.toPx() }
+
+    var hasTriggeredHaptic by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(swipeEnabled) {
+                if (!swipeEnabled) return@pointerInput
+
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        scope.launch {
+                            if (kotlin.math.abs(offsetX.value) >= thresholdPx) {
+                                onReply()
+                            }
+                            hasTriggeredHaptic = false
+                            offsetX.animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            )
+                        }
+                    },
+                    onDragCancel = {
+                        scope.launch {
+                            hasTriggeredHaptic = false
+                            offsetX.animateTo(0f)
+                        }
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            val newOffset = offsetX.value + dragAmount
+
+                            val clampedOffset = if (isMine) {
+                                newOffset.coerceIn(-maxSwipePx, 0f)
+                            } else {
+                                newOffset.coerceIn(0f, maxSwipePx)
+                            }
+
+                            if (kotlin.math.abs(clampedOffset) >= thresholdPx && !hasTriggeredHaptic) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                hasTriggeredHaptic = true
+                            } else if (kotlin.math.abs(clampedOffset) < thresholdPx) {
+                                hasTriggeredHaptic = false
+                            }
+
+                            offsetX.snapTo(clampedOffset)
+                        }
+                    }
+                )
+            }
+    ) {
+        val iconAlpha = (kotlin.math.abs(offsetX.value) / maxSwipePx).coerceIn(0f, 1f)
+        val iconScale = 0.5f + 0.5f * iconAlpha
+
+        if (offsetX.value != 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(horizontal = 16.dp),
+                contentAlignment = if (isMine) Alignment.CenterEnd else Alignment.CenterStart
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Reply,
+                    contentDescription = "Reply",
+                    tint = OrangePrimary.copy(alpha = iconAlpha),
+                    modifier = Modifier
+                        .size(24.dp)
+                        .graphicsLayer {
+                            scaleX = iconScale
+                            scaleY = iconScale
+                            alpha = iconAlpha
+                        }
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier.offset { IntOffset(offsetX.value.roundToInt(), 0) }
+        ) {
+            content()
         }
     }
 }
