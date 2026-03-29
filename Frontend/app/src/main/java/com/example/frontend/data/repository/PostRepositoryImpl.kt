@@ -9,6 +9,7 @@ import com.example.frontend.data.local.entity.toEntity
 import com.example.frontend.data.remote.api.PostApi
 import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import com.example.frontend.data.remote.dto.ReportPostRequest
 import com.example.frontend.data.remote.dto.SharePostRequest
 import com.example.frontend.data.remote.dto.UpdatePostRequest
 import com.example.frontend.domain.model.Comment
@@ -244,6 +245,30 @@ class PostRepositoryImpl @Inject constructor(
             ApiResult.Error(code = e.code(), message = "Server error (${e.code()})", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Unexpected error", throwable = e)
+        }
+    }
+
+    override suspend fun reportPost(postId: String, reason: String): ApiResult<Unit> {
+        return try {
+            val response = postApi.reportPost(
+                postId = postId,
+                request = ReportPostRequest(reason = reason)
+            )
+
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                ApiResult.Error(
+                    code = response.code(),
+                    message = "Báo cáo thất bại (${response.code()})"
+                )
+            }
+        } catch (e: IOException) {
+            ApiResult.Error(message = "Lỗi mạng", throwable = e)
+        } catch (e: HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ (${e.code()})", throwable = e)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể báo cáo bài viết", throwable = e)
         }
     }
 
