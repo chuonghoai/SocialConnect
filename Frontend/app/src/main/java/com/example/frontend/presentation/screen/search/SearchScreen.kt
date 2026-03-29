@@ -38,6 +38,7 @@ import com.example.frontend.ui.theme.OrangePrimary
 @Composable
 fun SearchScreen(
     viewModel: SearchViewModel = hiltViewModel(),
+    currentUserId: String? = null,
     onUserClick: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
@@ -154,7 +155,11 @@ fun SearchScreen(
                             val results: SearchResult = uiState.results!!
                             val showUsers = uiState.scope == SearchScope.ALL || uiState.scope == SearchScope.USER
                             val showPosts = uiState.scope == SearchScope.ALL || uiState.scope == SearchScope.POST
-                            val filteredUsers: List<SearchUserItem> = if (showUsers) results.users else emptyList()
+                            val filteredUsers: List<SearchUserItem> = if (showUsers) {
+                                results.users.filter { user -> user.id != currentUserId }
+                            } else {
+                                emptyList()
+                            }
                             val filteredPosts: List<Post> = if (showPosts) results.posts else emptyList()
 
                             if (filteredUsers.isEmpty() && filteredPosts.isEmpty()) {
@@ -167,11 +172,14 @@ fun SearchScreen(
                                     if (filteredUsers.isNotEmpty()) {
                                         item { SearchSectionHeader("Người dùng (${filteredUsers.size})") }
                                         items(filteredUsers, key = { it.id }) { user ->
+                                            val userStatus = normalizeFriendshipStatus(user.friendshipStatus)
                                             UserSearchItem(
                                                 user = user,
                                                 isFriendActionLoading = uiState.addingFriendIds.contains(user.id),
-                                                hasPendingSentRequest = uiState.pendingSentFriendIds.contains(user.id),
-                                                hasPendingIncomingRequest = uiState.pendingIncomingFriendIds.contains(user.id),
+                                                hasPendingSentRequest = uiState.pendingSentFriendIds.contains(user.id) ||
+                                                    isSentPendingStatus(userStatus),
+                                                hasPendingIncomingRequest = uiState.pendingIncomingFriendIds.contains(user.id) ||
+                                                    isIncomingPendingStatus(userStatus),
                                                 onFriendClick = { viewModel.addFriend(user.id) },
                                                 onUserClick = { onUserClick(user.id) },
                                                 onDeleteClick = { viewModel.deleteFriend(user.id) }
@@ -422,4 +430,16 @@ fun SearchEmptyResult(message: String) {
     ) {
         Text(text = message, color = Color.Gray, fontSize = 15.sp)
     }
+}
+
+private fun normalizeFriendshipStatus(raw: String?): String {
+    return raw.orEmpty().trim().uppercase()
+}
+
+private fun isSentPendingStatus(status: String): Boolean {
+    return status in setOf("PENDING", "REQUEST_SENT", "OUTGOING_PENDING")
+}
+
+private fun isIncomingPendingStatus(status: String): Boolean {
+    return status in setOf("REQUEST_RECEIVED", "INCOMING_PENDING")
 }

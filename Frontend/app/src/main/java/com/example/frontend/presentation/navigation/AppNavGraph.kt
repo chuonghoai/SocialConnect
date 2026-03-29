@@ -425,6 +425,7 @@ fun AppNavGraph(
 
                 composable(Routes.SEARCH) {
                     SearchScreen(
+                        currentUserId = currentUser?.id,
                         onUserClick = { userId ->
                             if (userId.isNotBlank()) {
                                 val encodedUserId = Uri.encode(userId)
