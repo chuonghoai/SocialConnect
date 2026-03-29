@@ -43,6 +43,8 @@ fun SearchScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
+    var selectedUserForAction by remember { mutableStateOf<SearchUserItem?>(null) }
+    var showBottomSheet by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -180,7 +182,14 @@ fun SearchScreen(
                                                     isSentPendingStatus(userStatus),
                                                 hasPendingIncomingRequest = uiState.pendingIncomingFriendIds.contains(user.id) ||
                                                     isIncomingPendingStatus(userStatus),
-                                                onFriendClick = { viewModel.addFriend(user.id) },
+                                                onFriendClick = { btnText ->
+                                                    if (btnText == "Kết bạn") {
+                                                        viewModel.addFriend(user.id)
+                                                    } else {
+                                                        selectedUserForAction = user
+                                                        showBottomSheet = true
+                                                    }
+                                                },
                                                 onUserClick = { onUserClick(user.id) },
                                                 onDeleteClick = { viewModel.deleteFriend(user.id) }
                                             )
@@ -216,6 +225,66 @@ fun SearchScreen(
                             color = Color.Gray,
                             fontSize = 15.sp
                         )
+                    }
+                }
+            }
+        }
+
+        if (showBottomSheet && selectedUserForAction != null) {
+            val user = selectedUserForAction!!
+
+            ModalBottomSheet(
+                onDismissRequest = { showBottomSheet = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp, top = 8.dp)
+                ) {
+                    Text(
+                        text = "Tùy chọn với ${user.displayName}",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                    HorizontalDivider()
+                    val normalizedStatus = normalizeFriendshipStatus(user.friendshipStatus)
+
+                    if (user.isFriend || normalizedStatus == "FRIEND") {
+                        ListItem(
+                            headlineContent = { Text("Hủy kết bạn", color = Color.Red) },
+                            modifier = Modifier.clickable {
+                                viewModel.deleteFriend(user.id)
+                                showBottomSheet = false
+                            }
+                        )
+                    } else {
+                        when (normalizedStatus) {
+                            "REQUEST_SENT", "PENDING", "OUTGOING_PENDING" -> {
+                                ListItem(
+                                    headlineContent = { Text("Thu hồi lời mời") },
+                                    modifier = Modifier.clickable {
+                                        viewModel.cancelRequest(user.id)
+                                        showBottomSheet = false
+                                    }
+                                )
+                            }
+                            "REQUEST_RECEIVED", "INCOMING_PENDING" -> {
+                                ListItem(
+                                    headlineContent = { Text("Chấp nhận") },
+                                    modifier = Modifier.clickable {
+                                        viewModel.acceptRequest(user.id)
+                                        showBottomSheet = false
+                                    }
+                                )
+                                ListItem(
+                                    headlineContent = { Text("Từ chối") },
+                                    modifier = Modifier.clickable {
+                                        viewModel.rejectRequest(user.id)
+                                        showBottomSheet = false
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -332,7 +401,7 @@ fun UserSearchItem(
     isFriendActionLoading: Boolean = false,
     hasPendingSentRequest: Boolean = false,
     hasPendingIncomingRequest: Boolean = false,
-    onFriendClick: () -> Unit = {},
+    onFriendClick: (String) -> Unit = {},
     onUserClick: () -> Unit = {},
     onDeleteClick: () -> Unit = {}
 ) {
@@ -343,10 +412,7 @@ fun UserSearchItem(
         isFriendActionLoading -> "Đang gửi..."
         else -> "Kết bạn"
     }
-    val buttonEnabled = !user.isFriend &&
-        !isFriendActionLoading &&
-        !hasPendingSentRequest &&
-        !hasPendingIncomingRequest
+    val canClick = !isFriendActionLoading
 
     Row(
         modifier = Modifier
@@ -378,44 +444,22 @@ fun UserSearchItem(
                 color = Color.Gray
             )
         }
-        if (user.isFriend) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
-                    onClick = {},
-                    enabled = false,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        contentColor = MaterialTheme.colorScheme.onSurface
-                    ),
-                    shape = RoundedCornerShape(8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                    modifier = Modifier.height(36.dp)
-                ) {
-                    Text(text = "Bạn bè", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                }
-
-                TextButton(onClick = onDeleteClick, modifier = Modifier.height(36.dp)) {
-                    Text(text = "Xóa", color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-                }
-            }
-        } else {
-            Button(
-                onClick = onFriendClick,
-                enabled = buttonEnabled,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (buttonEnabled) OrangePrimary else MaterialTheme.colorScheme.surfaceVariant,
-                    contentColor = if (buttonEnabled) Color.White else MaterialTheme.colorScheme.onSurface
-                ),
-                shape = RoundedCornerShape(8.dp),
-                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
-                modifier = Modifier.height(36.dp)
-            ) {
-                Text(
-                    text = buttonText,
-                    fontSize = 13.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+        Button(
+            onClick = { onFriendClick(buttonText) },
+            enabled = !isFriendActionLoading,
+            colors = ButtonDefaults.buttonColors(
+                containerColor = if (buttonText == "Kết bạn") OrangePrimary else MaterialTheme.colorScheme.surfaceVariant,
+                contentColor = if (buttonText == "Kết bạn") Color.White else MaterialTheme.colorScheme.onSurface
+            ),
+            shape = RoundedCornerShape(8.dp),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+            modifier = Modifier.height(36.dp)
+        ) {
+            Text(
+                text = buttonText,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
         }
     }
 }
