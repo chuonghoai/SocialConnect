@@ -1,33 +1,16 @@
 package com.example.frontend.presentation.screen.friendrequest
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowBack
-import androidx.compose.material3.Button
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -36,125 +19,160 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import coil.compose.AsyncImage
+import com.example.frontend.R
+import com.example.frontend.ui.theme.OrangePrimary
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun FriendRequestsScreen(
     onBack: () -> Unit,
+    onAvatarClick: (String) -> Unit,
     viewModel: FriendRequestsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Loi moi ket ban") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.background
-                )
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+            }
+            Text(
+                text = "Lời mời kết bạn",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
         }
-    ) { innerPadding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding)
-                .background(MaterialTheme.colorScheme.background)
-        ) {
-            when {
-                uiState.isLoading -> {
-                    CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
-                }
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
 
-                uiState.error != null -> {
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.Center)
-                            .padding(horizontal = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(uiState.error.orEmpty(), color = MaterialTheme.colorScheme.error)
-                        Spacer(modifier = Modifier.height(12.dp))
-                        Button(onClick = { viewModel.loadRequests() }) {
-                            Text("Thu lai")
-                        }
-                    }
-                }
+        Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
+            if (uiState.isLoading) {
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = OrangePrimary
+                )
+            } else if (uiState.error != null) {
+                Text(
+                    text = "Lỗi: ${uiState.error}",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else if (uiState.items.isEmpty()) {
+                Text(
+                    text = "Không có lời mời kết bạn nào.",
+                    color = Color.Gray,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize(),
+                    contentPadding = PaddingValues(bottom = 16.dp)
+                ) {
+                    items(uiState.items, key = { it.fromUserId }) { item ->
 
-                uiState.items.isEmpty() -> {
-                    Text(
-                        text = "Khong co loi moi ket ban",
-                        modifier = Modifier.align(Alignment.Center),
-                        color = Color.Gray
-                    )
-                }
+                        val isHandling = uiState.handlingUserIds.contains(item.fromUserId)
 
-                else -> {
-                    LazyColumn(modifier = Modifier.fillMaxSize()) {
-                        items(uiState.items, key = { it.requestId }) { item ->
-                            val isHandling = uiState.handlingUserIds.contains(item.fromUserId)
-
-                            Row(
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp, vertical = 16.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            AsyncImage(
+                                model = item.fromAvatarUrl,
+                                contentDescription = "Avatar",
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                AsyncImage(
-                                    model = item.fromAvatarUrl,
-                                    contentDescription = "Avatar",
-                                    modifier = Modifier
-                                        .size(48.dp)
-                                        .clip(CircleShape),
-                                    contentScale = ContentScale.Crop
-                                )
+                                    .size(60.dp)
+                                    .clip(CircleShape)
+                                    .background(Color.LightGray)
+                                    .border(0.5.dp, MaterialTheme.colorScheme.outlineVariant, CircleShape)
+                                    .clickable { onAvatarClick(item.fromUserId) },
+                                contentScale = ContentScale.Crop,
+                                error = painterResource(R.drawable.icon_user)
+                            )
 
-                                Column(
-                                    modifier = Modifier
-                                        .weight(1f)
-                                        .padding(horizontal = 12.dp)
-                                ) {
+                            Spacer(modifier = Modifier.width(12.dp))
+
+                            Column(
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text(
+                                    text = item.fromDisplayName,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.Bold,
+                                    color = MaterialTheme.colorScheme.onSurface
+                                )
+                                if (item.fromUsername.isNotBlank() && item.fromDisplayName != item.fromUsername) {
                                     Text(
-                                        text = item.fromDisplayName,
-                                        fontWeight = FontWeight.SemiBold
+                                        text = "@${item.fromUsername}",
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = Color.Gray
                                     )
-                                    if (item.fromUsername.isNotBlank()) {
-                                        Text(
-                                            text = "@${item.fromUsername}",
-                                            color = Color.Gray,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
                                 }
 
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    OutlinedButton(
-                                        onClick = { viewModel.reject(item.fromUserId) },
-                                        enabled = !isHandling,
-                                        shape = RoundedCornerShape(10.dp)
-                                    ) {
-                                        Text("Tu choi")
-                                    }
+                                Spacer(modifier = Modifier.height(12.dp))
 
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
                                     Button(
                                         onClick = { viewModel.accept(item.fromUserId) },
                                         enabled = !isHandling,
-                                        shape = RoundedCornerShape(10.dp)
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = OrangePrimary,
+                                            contentColor = Color.White
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                                        modifier = Modifier.weight(1f).height(36.dp)
                                     ) {
-                                        Text("Dong y")
+                                        Text(
+                                            text = "Chấp nhận",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    }
+
+                                    Button(
+                                        onClick = { viewModel.reject(item.fromUserId) },
+                                        enabled = !isHandling,
+                                        colors = ButtonDefaults.buttonColors(
+                                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                            contentColor = MaterialTheme.colorScheme.onSurface
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 6.dp),
+                                        modifier = Modifier.weight(1f).height(36.dp)
+                                    ) {
+                                        Text(
+                                            text = "Từ chối",
+                                            fontSize = 13.sp,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
                                     }
                                 }
                             }
                         }
+
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
                     }
                 }
             }
