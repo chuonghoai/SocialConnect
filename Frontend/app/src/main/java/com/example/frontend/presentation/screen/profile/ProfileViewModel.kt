@@ -36,7 +36,6 @@ class ProfileViewModel @Inject constructor(
     private val deletePostUseCase: DeletePostUseCase,
     private val getShareFriendsUseCase: GetShareFriendsUseCase,
     private val updatePostUseCase: UpdatePostUseCase,
-    private val deletePostUseCase: DeletePostUseCase,
     private val notificationManager: AppNotificationManager,
     private val logoutUseCase: LogoutUseCase
 ) : ViewModel() {
@@ -267,37 +266,6 @@ class ProfileViewModel @Inject constructor(
                     notificationManager.showMessage(
                         message = result.message.ifBlank { "Không thể chia sẻ bài viết" },
                         type = NotificationType.ERROR
-                    )
-                }
-            }
-        }
-    }
-
-    fun deletePost(postId: String) {
-        val currentState = _uiState.value as? ProfileUiState.Success ?: return
-        val previousPosts = currentState.posts
-        val previousSavedPosts = currentState.savedPosts
-
-        _uiState.value = currentState.copy(
-            posts = previousPosts.filterNot { it.id == postId },
-            savedPosts = previousSavedPosts.filterNot { it.id == postId }
-        )
-
-        viewModelScope.launch {
-            when (val result = deletePostUseCase(postId)) {
-                is ApiResult.Success -> {
-                    notificationManager.showMessage("Đã xóa bài viết", NotificationType.SUCCESS)
-                }
-
-                is ApiResult.Error -> {
-                    val latest = _uiState.value as? ProfileUiState.Success ?: return@launch
-                    _uiState.value = latest.copy(
-                        posts = previousPosts,
-                        savedPosts = previousSavedPosts
-                    )
-                    notificationManager.showMessage(
-                        result.message.ifBlank { "Không thể xóa bài viết" },
-                        NotificationType.ERROR
                     )
                 }
             }

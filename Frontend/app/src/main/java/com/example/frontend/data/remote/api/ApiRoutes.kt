@@ -1,7 +1,7 @@
 ﻿package com.example.frontend.data.remote.api
 
 object ApiRoutes {
-    const val ME = "api/auth/me"
+    const val ME = "api/users/me"
     const val USER_PROFILE = "api/users/{userId}"
     const val LOGIN = "api/auth/login"
     const val LOGOUT = "api/auth/logout"
