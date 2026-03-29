@@ -9,7 +9,14 @@ data class NotificationDto(
     val url: String? = null,
     val metadata: Map<String, Any?>? = null,
     val isRead: Boolean,
-    val createAt: String
+    val createAt: String,
+    val user: NotificationUserDto? = null
+)
+
+data class NotificationUserDto(
+    val id: String,
+    val displayName: String,
+    val avatarUrl: String?
 )
 
 data class NotificationsResponseDto(

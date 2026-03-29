@@ -3,6 +3,7 @@ package com.example.frontend.data.repository
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.remote.api.NotificationApi
 import com.example.frontend.domain.model.NotificationItem
+import com.example.frontend.domain.model.NotificationUser
 import com.example.frontend.domain.model.NotificationsPage
 import com.example.frontend.domain.repository.NotiRepository
 import retrofit2.HttpException
@@ -34,7 +35,10 @@ class NotiRepositoryImpl @Inject constructor(
                         url = dto.url,
                         metadata = dto.metadata,
                         isRead = dto.isRead,
-                        createAt = dto.createAt
+                        createAt = dto.createAt,
+                        user = dto.user?.let {
+                            NotificationUser(it.id, it.displayName, it.avatarUrl)
+                        }
                     )
                 }
             )

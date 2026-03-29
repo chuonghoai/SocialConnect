@@ -9,7 +9,14 @@ data class NotificationItem(
     val url: String?,
     val metadata: Map<String, Any?>?,
     val isRead: Boolean,
-    val createAt: String
+    val createAt: String,
+    val user: NotificationUser? = null
+)
+
+data class NotificationUser(
+    val id: String,
+    val displayName: String,
+    val avatarUrl: String?
 )
 
 data class NotificationsPage(
