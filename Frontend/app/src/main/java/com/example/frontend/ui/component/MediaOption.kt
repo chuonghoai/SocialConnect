@@ -102,20 +102,20 @@ fun MediaOptionBottomSheet(
                     }
                 }
             )
-
-            // Share
-            MediaOptionItem(
-                icon = Icons.Outlined.Share,
-                title = "Chia sẻ",
-                onClick = {
-                    coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
-                        if (!sheetState.isVisible) {
-                            onDismissRequest()
-                        }
-                    }
-                    onShareClick()
-                }
-            )
+//
+//            // Share
+//            MediaOptionItem(
+//                icon = Icons.Outlined.Share,
+//                title = "Chia sẻ",
+//                onClick = {
+//                    coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
+//                        if (!sheetState.isVisible) {
+//                            onDismissRequest()
+//                        }
+//                    }
+//                    onShareClick()
+//                }
+//            )
         }
     }
 }

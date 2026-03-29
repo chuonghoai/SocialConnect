@@ -203,11 +203,21 @@ fun ProfileScreen(
                                             shareTargetPost = post
                                             viewModel.loadShareFriends(currentUser?.id.orEmpty())
                                         },
-                                        onEditPostRequest = { onEditPostClick(post.id) },
+                                        onEditPostRequest = {
+                                            onEditPostClick(post.id)
+                                        },
                                         onChangeVisibility = { visibility ->
                                             viewModel.changePostVisibility(post.id, visibility)
                                         },
-                                        onDeletePost = { viewModel.deletePost(post.id) }
+                                        onDeletePost = {
+                                            viewModel.deletePost(post.id)
+                                        },
+                                        onHidePost = {
+                                            viewModel.hidePost(post.id)
+                                        },
+                                        onReportPost = { postId, reason ->
+                                            viewModel.reportPost(postId, reason)
+                                        }
                                     )
                                     Spacer(modifier = Modifier.height(8.dp))
                                 }

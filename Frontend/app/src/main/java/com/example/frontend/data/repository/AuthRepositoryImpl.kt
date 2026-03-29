@@ -56,6 +56,12 @@ class AuthRepositoryImpl @Inject constructor(
                 throwable = e
             )
         } catch (e: HttpException) {
+            if (!isRefresh && e.code() == 429) {
+                val localUser = userDao.getUser()
+                if (localUser != null) {
+                    return ApiResult.Success(localUser.toDomain())
+                }
+            }
             ApiResult.Error(
                 code = e.code(),
                 message = "Lỗi máy chủ (${e.code()}). Vui lòng thử lại sau.",

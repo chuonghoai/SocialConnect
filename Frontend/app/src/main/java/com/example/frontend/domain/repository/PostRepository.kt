@@ -31,6 +31,7 @@ interface PostRepository {
     suspend fun likePost(postId: String, isLiked: Boolean, likeCount: Int): ApiResult<Unit>
 
     suspend fun savePost(postId: String): ApiResult<Boolean>
+    suspend fun reportPost(postId: String, reason: String): ApiResult<Unit>
     suspend fun sharePost(
         postId: String,
         content: String? = null,
