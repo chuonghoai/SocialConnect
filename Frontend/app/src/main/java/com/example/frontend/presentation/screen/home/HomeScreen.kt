@@ -240,8 +240,8 @@ fun HomeScreen(
                                     onHidePost = {
                                         viewModel.hidePost(post.id)
                                     },
-                                    onReportPost = {
-                                        viewModel.reportPost()
+                                    onReportPost = { postId, reason ->
+                                        viewModel.reportPost(postId, reason)
                                     }
                                 )
                             }

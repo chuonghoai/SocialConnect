@@ -14,6 +14,7 @@ import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetNewsFeedUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.ReportPostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.UpdatePostUseCase
@@ -37,6 +38,7 @@ class HomeViewModel @Inject constructor(
     private val likePostUseCase: LikePostUseCase,
     private val savePostUseCase: SavePostUseCase,
     private val sharePostUseCase: SharePostUseCase,
+    private val reportPostUseCase: ReportPostUseCase,
     private val uploadMediaUseCase: UploadMediaUseCase,
     private val updatePostUseCase: UpdatePostUseCase,
     private val deletePostUseCase: DeletePostUseCase,
@@ -421,8 +423,23 @@ class HomeViewModel @Inject constructor(
         notificationManager.showMessage("Đã ẩn bài viết", NotificationType.SUCCESS)
     }
 
-    fun reportPost() {
-        notificationManager.showMessage("Đã gửi báo cáo bài viết", NotificationType.SUCCESS)
+    fun reportPost(postId: String, reason: String) {
+        viewModelScope.launch {
+            when (val result = reportPostUseCase(postId, reason)) {
+                is ApiResult.Success -> {
+                    notificationManager.showMessage("Đã gửi báo cáo bài viết", NotificationType.SUCCESS)
+                }
+
+                is ApiResult.Error -> {
+                    val message = if (result.code == 404 || result.code == 501) {
+                        "BE chưa hỗ trợ API báo cáo bài viết"
+                    } else {
+                        result.message.ifBlank { "Không thể báo cáo bài viết" }
+                    }
+                    notificationManager.showMessage(message, NotificationType.ERROR)
+                }
+            }
+        }
     }
 
     fun selectPost(post: Post) {

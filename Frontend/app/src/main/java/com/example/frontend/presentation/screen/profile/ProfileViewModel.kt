@@ -7,8 +7,10 @@ import com.example.frontend.core.util.AppNotificationManager
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.AuthUseCase.LogoutUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.GetShareFriendsUseCase
+import com.example.frontend.domain.usecase.PostUseCase.DeletePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetSavedPostsUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetUserPostsUseCase
+import com.example.frontend.domain.usecase.PostUseCase.ReportPostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SavePostUseCase
 import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
@@ -29,6 +31,8 @@ class ProfileViewModel @Inject constructor(
     private val getSavedPostsUseCase: GetSavedPostsUseCase,
     private val savePostUseCase: SavePostUseCase,
     private val sharePostUseCase: SharePostUseCase,
+    private val reportPostUseCase: ReportPostUseCase,
+    private val deletePostUseCase: DeletePostUseCase,
     private val getShareFriendsUseCase: GetShareFriendsUseCase,
     private val notificationManager: AppNotificationManager,
     private val logoutUseCase: LogoutUseCase
@@ -261,6 +265,65 @@ class ProfileViewModel @Inject constructor(
                         message = result.message.ifBlank { "Không thể chia sẻ bài viết" },
                         type = NotificationType.ERROR
                     )
+                }
+            }
+        }
+    }
+
+    fun deletePost(postId: String) {
+        val currentState = _uiState.value as? ProfileUiState.Success ?: return
+        val previousPosts = currentState.posts
+        val previousSavedPosts = currentState.savedPosts
+
+        _uiState.value = currentState.copy(
+            posts = previousPosts.filterNot { it.id == postId },
+            savedPosts = previousSavedPosts.filterNot { it.id == postId }
+        )
+
+        viewModelScope.launch {
+            when (val result = deletePostUseCase(postId)) {
+                is ApiResult.Success -> {
+                    notificationManager.showMessage("Đã xóa bài viết", NotificationType.SUCCESS)
+                }
+
+                is ApiResult.Error -> {
+                    val latest = _uiState.value as? ProfileUiState.Success ?: return@launch
+                    _uiState.value = latest.copy(
+                        posts = previousPosts,
+                        savedPosts = previousSavedPosts
+                    )
+                    notificationManager.showMessage(
+                        result.message.ifBlank { "Không thể xóa bài viết" },
+                        NotificationType.ERROR
+                    )
+                }
+            }
+        }
+    }
+
+    fun hidePost(postId: String) {
+        val currentState = _uiState.value as? ProfileUiState.Success ?: return
+        _uiState.value = currentState.copy(
+            posts = currentState.posts.filterNot { it.id == postId },
+            savedPosts = currentState.savedPosts.filterNot { it.id == postId }
+        )
+        notificationManager.showMessage("Đã ẩn bài viết", NotificationType.SUCCESS)
+    }
+
+    fun reportPost(postId: String, reason: String) {
+        viewModelScope.launch {
+            when (val result = reportPostUseCase(postId, reason)) {
+                is ApiResult.Success -> {
+                    notificationManager.showMessage("Đã gửi báo cáo bài viết", NotificationType.SUCCESS)
+                }
+
+                is ApiResult.Error -> {
+                    val message = if (result.code == 404 || result.code == 501) {
+                        "BE chưa hỗ trợ API báo cáo bài viết"
+                    } else {
+                        result.message.ifBlank { "Không thể báo cáo bài viết" }
+                    }
+                    notificationManager.showMessage(message, NotificationType.ERROR)
                 }
             }
         }

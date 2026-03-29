@@ -1,4 +1,4 @@
-package com.example.frontend.ui.component
+﻿package com.example.frontend.ui.component
 
 import android.annotation.SuppressLint
 import android.net.Uri
@@ -25,8 +25,10 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.MoreHoriz
@@ -52,13 +54,18 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material3.*
 import androidx.compose.animation.animateContentSize
 import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.Forward5
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Replay5
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
 import androidx.compose.runtime.DisposableEffect
@@ -73,6 +80,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.RectangleShape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.geometry.Offset
@@ -103,6 +111,7 @@ import java.time.LocalDateTime
 import kotlinx.coroutines.delay
 
 @Composable
+@OptIn(ExperimentalMaterial3Api::class)
 fun PostCard(
     post: Post,
     isOwnPost: Boolean = false,
@@ -110,17 +119,19 @@ fun PostCard(
     onCommentClick: () -> Unit = {},
     onVideoClick: (() -> Unit)? = null,
     onSaveClick: (() -> Unit)? = null,
-    saveMenuLabel: String = "Lưu bài viết",
+    saveMenuLabel: String = "LÆ°u bÃ i viáº¿t",
     onShareClick: (() -> Unit)? = null,
     onEditPostRequest: (() -> Unit)? = null,
     onDeletePost: (() -> Unit)? = null,
     onChangeVisibility: ((String) -> Unit)? = null,
     onHidePost: (() -> Unit)? = null,
-    onReportPost: (() -> Unit)? = null,
+    onReportPost: ((postId: String, reason: String) -> Unit)? = null,
     onAvatarClick: ((String) -> Unit)? = null
 ) {
-    var isMoreMenuExpanded by remember { mutableStateOf(false) }
-    var showVisibilityDialog by remember { mutableStateOf(false) }
+    var showMoreSheet by remember { mutableStateOf(false) }
+    var showDeleteConfirmDialog by remember { mutableStateOf(false) }
+    var showReportReasonDialog by remember { mutableStateOf(false) }
+    var selectedReportReason by remember { mutableStateOf(REPORT_REASONS.first()) }
 
     val isSharedPost = post.type.equals("SHARED", ignoreCase = true)
     val originalPost = post.originalPost
@@ -185,77 +196,12 @@ fun PostCard(
                     }
                 }
 
-                Box {
-                    IconButton(onClick = { isMoreMenuExpanded = true }) {
-                        Icon(
-                            Icons.Default.MoreHoriz,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.onSurface
-                        )
-                    }
-
-                    DropdownMenu(
-                        expanded = isMoreMenuExpanded,
-                        onDismissRequest = { isMoreMenuExpanded = false }
-                    ) {
-                        if (isOwnPost) {
-                            DropdownMenuItem(
-                                text = { Text("Sửa bài viết") },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    onEditPostRequest?.invoke()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Đổi quyền bài viết") },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    showVisibilityDialog = true
-                                },
-                                enabled = onChangeVisibility != null
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Xóa bài viết") },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    onDeletePost?.invoke()
-                                },
-                                enabled = onDeletePost != null
-                            )
-                        } else {
-                            DropdownMenuItem(
-                                text = { Text("Ẩn bài viết") },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    onHidePost?.invoke()
-                                },
-                                enabled = onHidePost != null
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Báo cáo bài viết") },
-                                onClick = {
-                                    isMoreMenuExpanded = false
-                                    onReportPost?.invoke()
-                                },
-                                enabled = onReportPost != null
-                            )
-                        }
-                        DropdownMenuItem(
-                            text = { Text("Chia sẻ bài viết") },
-                            enabled = onShareClick != null,
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                onShareClick?.invoke()
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Sao chép liên kết") },
-                            onClick = {
-                                isMoreMenuExpanded = false
-                                clipboardManager.setText(AnnotatedString("https://socialconnect.app/posts/${post.id}"))
-                            }
-                        )
-                    }
+                IconButton(onClick = { showMoreSheet = true }) {
+                    Icon(
+                        Icons.Default.MoreHoriz,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurface
+                    )
                 }
             }
 
@@ -321,34 +267,267 @@ fun PostCard(
         }
     }
 
-    if (showVisibilityDialog) {
+    if (showMoreSheet) {
+        PostActionBottomSheet(
+            isOwnPost = isOwnPost,
+            onDismiss = { showMoreSheet = false },
+            onEditPost = onEditPostRequest,
+            onDeletePost = {
+                showDeleteConfirmDialog = true
+            },
+            onHidePost = onHidePost,
+            onReportPost = {
+                showReportReasonDialog = true
+            },
+            onCopyLink = {
+                clipboardManager.setText(AnnotatedString("https://socialconnect.app/posts/${post.id}"))
+            }
+        )
+    }
+
+    if (showDeleteConfirmDialog) {
         AlertDialog(
-            onDismissRequest = { showVisibilityDialog = false },
-            title = { Text("Đổi quyền bài viết") },
+            onDismissRequest = { showDeleteConfirmDialog = false },
+            title = { Text("Xóa bài viết") },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf("Công khai", "Bạn bè", "Riêng tư").forEach { option ->
-                        Text(
-                            text = option,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .clickable {
-                                    showVisibilityDialog = false
-                                    onChangeVisibility?.invoke(option)
-                                }
-                                .padding(horizontal = 12.dp, vertical = 10.dp)
-                        )
+                Text("Bạn có chắc muốn xóa bài viết này không?")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showDeleteConfirmDialog = false
+                        onDeletePost?.invoke()
                     }
+                ) {
+                    Text("Xóa", color = MaterialTheme.colorScheme.error)
                 }
             },
-            confirmButton = {},
             dismissButton = {
-                TextButton(onClick = { showVisibilityDialog = false }) {
-                    Text("Đóng")
+                TextButton(onClick = { showDeleteConfirmDialog = false }) {
+                    Text("Hủy")
                 }
             }
         )
+    }
+
+    if (showReportReasonDialog) {
+        ReportReasonBottomSheet(
+            reasons = REPORT_REASONS,
+            selectedReason = selectedReportReason,
+            onSelectReason = { selectedReportReason = it },
+            onDismiss = { showReportReasonDialog = false },
+            onConfirm = {
+                showReportReasonDialog = false
+                onReportPost?.invoke(post.id, selectedReportReason)
+            }
+        )
+    }
+}
+
+private val REPORT_REASONS = listOf(
+    "Vấn đề liên quan đến người dưới 18 tuổi",
+    "Bắt nạt, quấy rối hoặc lăng mạ/lạm dụng/ngược đãi",
+    "Tự tử hoặc tự hại bản thân",
+    "Nội dung mang tính bạo lực, thù ghét hoặc gây phiền toái",
+    "Bán hoặc quảng bá mặt hàng bị hạn chế",
+    "Nội dung người lớn",
+    "Thông tin sai sự thật, lừa đảo hoặc gian lận",
+    "Quyền sở hữu trí tuệ",
+    "Tôi không muốn xem nội dung này"
+)
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun PostActionBottomSheet(
+    isOwnPost: Boolean,
+    onDismiss: () -> Unit,
+    onEditPost: (() -> Unit)?,
+    onDeletePost: (() -> Unit)?,
+    onHidePost: (() -> Unit)?,
+    onReportPost: (() -> Unit)?,
+    onCopyLink: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp)
+        ) {
+            if (isOwnPost) {
+                PostActionRow(
+                    icon = Icons.Default.Edit,
+                    label = "Chỉnh sửa bài viết",
+                    enabled = onEditPost != null,
+                    onClick = {
+                        onDismiss()
+                        onEditPost?.invoke()
+                    }
+                )
+                PostActionRow(
+                    icon = Icons.Default.Delete,
+                    label = "Xóa bài viết",
+                    enabled = onDeletePost != null,
+                    isDestructive = true,
+                    onClick = {
+                        onDismiss()
+                        onDeletePost?.invoke()
+                    }
+                )
+            }
+
+            PostActionRow(
+                icon = Icons.Default.VisibilityOff,
+                label = "Ẩn bài viết",
+                enabled = onHidePost != null,
+                onClick = {
+                    onDismiss()
+                    onHidePost?.invoke()
+                }
+            )
+
+            PostActionRow(
+                icon = Icons.Default.Link,
+                label = "Sao chép liên kết",
+                onClick = {
+                    onDismiss()
+                    onCopyLink()
+                }
+            )
+
+            if (!isOwnPost) {
+                PostActionRow(
+                    icon = Icons.Default.Flag,
+                    label = "Báo cáo bài viết",
+                    enabled = onReportPost != null,
+                    onClick = {
+                        onDismiss()
+                        onReportPost?.invoke()
+                    }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun PostActionRow(
+    icon: ImageVector,
+    label: String,
+    enabled: Boolean = true,
+    isDestructive: Boolean = false,
+    onClick: () -> Unit
+) {
+    val contentColor = when {
+        !enabled -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.45f)
+        isDestructive -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurface
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = contentColor
+        )
+        Spacer(modifier = Modifier.width(14.dp))
+        Text(
+            text = label,
+            color = contentColor,
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = if (isDestructive) FontWeight.SemiBold else FontWeight.Medium
+        )
+    }
+}
+
+@Composable
+@OptIn(ExperimentalMaterial3Api::class)
+private fun ReportReasonBottomSheet(
+    reasons: List<String>,
+    selectedReason: String,
+    onSelectReason: (String) -> Unit,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        dragHandle = { BottomSheetDefaults.DragHandle() }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "Báo cáo bài viết",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 360.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                reasons.forEach { reason ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable { onSelectReason(reason) }
+                            .padding(vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedReason == reason,
+                            onClick = { onSelectReason(reason) }
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = reason,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Hủy")
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                Button(onClick = onConfirm) {
+                    Text("Gửi báo cáo")
+                }
+            }
+            Spacer(modifier = Modifier.height(12.dp))
+        }
     }
 }
 
@@ -811,7 +990,7 @@ private fun FullscreenVideo(url: String?) {
                 },
                 modifier = Modifier.align(Alignment.Center)
             ) {
-                Text("Xem lại", textAlign = TextAlign.Center)
+                Text("Xem láº¡i", textAlign = TextAlign.Center)
             }
         }
     }
@@ -992,7 +1171,7 @@ private fun SaveInteractionItem(
     ) {
         Icon(
             imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-            contentDescription = "Lưu bài viết",
+            contentDescription = "LÆ°u bÃ i viáº¿t",
             modifier = Modifier.size(22.dp),
             tint = iconTint
         )
@@ -1377,7 +1556,7 @@ fun FeedVideoPlayer(
                     }) {
                         Icon(
                             imageVector = Icons.Default.Replay5,
-                            contentDescription = "Lùi 5 giây",
+                            contentDescription = "LÃ¹i 5 giÃ¢y",
                             tint = Color.White,
                             modifier = Modifier.size(36.dp)
                         )
@@ -1397,7 +1576,7 @@ fun FeedVideoPlayer(
                     ) {
                         Icon(
                             imageVector = if (isPlaying) Icons.Default.Pause else Icons.Default.PlayArrow,
-                            contentDescription = "Phát/Tạm dừng",
+                            contentDescription = "PhÃ¡t/Táº¡m dá»«ng",
                             tint = Color.White,
                             modifier = Modifier.size(56.dp)
                         )
@@ -1410,7 +1589,7 @@ fun FeedVideoPlayer(
                     }) {
                         Icon(
                             imageVector = Icons.Default.Forward5,
-                            contentDescription = "Tới 5 giây",
+                            contentDescription = "Tá»›i 5 giÃ¢y",
                             tint = Color.White,
                             modifier = Modifier.size(36.dp)
                         )
@@ -1464,7 +1643,7 @@ fun FeedVideoPlayer(
                     ) {
                         Icon(
                             imageVector = if (isMuted) Icons.Default.VolumeOff else Icons.Default.VolumeUp,
-                            contentDescription = "Âm lượng",
+                            contentDescription = "Ã‚m lÆ°á»£ng",
                             tint = Color.White
                         )
                     }
@@ -1492,12 +1671,12 @@ fun FeedVideoPlayer(
                     ) {
                         Icon(
                             imageVector = Icons.Default.Replay,
-                            contentDescription = "Xem lại",
+                            contentDescription = "Xem láº¡i",
                             tint = Color.White,
                             modifier = Modifier.size(48.dp)
                         )
                     }
-                    Text("Xem lại", color = Color.White, fontSize = 14.sp)
+                    Text("Xem láº¡i", color = Color.White, fontSize = 14.sp)
                 }
             }
         }
@@ -1556,11 +1735,11 @@ fun MediaViewerDialog(
                     sheetState = sheetState,
                     coroutineScope = coroutineScope,
                     onDismissRequest = {
-                        // Tắt modal khi người dùng bấm ra ngoài hoặc vuốt xuống
+                        // Táº¯t modal khi ngÆ°á»i dÃ¹ng báº¥m ra ngoÃ i hoáº·c vuá»‘t xuá»‘ng
                         showOptions = false
                     },
                     onShareClick = {
-                        // Xử lý share
+                        // Xá»­ lÃ½ share
                     }
                 )
             }
@@ -1712,7 +1891,7 @@ fun formatTimeAgo(timeString: String): String {
     return try {
         timeString.substring(0, 10)
     } catch (_: Exception) {
-        "Vừa xong"
+        "Vá»«a xong"
     }
 }
 
@@ -1724,3 +1903,4 @@ private fun formatVideoDuration(durationMillis: Int): String {
     val seconds = totalSeconds % 60
     return String.format("%02d:%02d", minutes, seconds)
 }
+

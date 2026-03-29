@@ -1,7 +1,7 @@
 ﻿package com.example.frontend.data.remote.api
 
 object ApiRoutes {
-    const val ME = "api/users/me"
+    const val ME = "api/auth/me"
     const val USER_PROFILE = "api/users/{userId}"
     const val LOGIN = "api/auth/login"
     const val LOGOUT = "api/auth/logout"
@@ -14,6 +14,7 @@ object ApiRoutes {
     const val SHARE_POST = "api/posts/{postId}/share"
     const val LIKE_POST = "api/posts/{postId}/like"
     const val SAVE_POST = "api/posts/{postId}/save"
+    const val REPORT_POST = "api/posts/{postId}/report"
     const val UPDATE_POST = "api/posts/{postId}"
     const val DELETE_POST = "api/posts/{postId}"
     const val LIKE_VIDEO = "api/videos/{videoId}/like"

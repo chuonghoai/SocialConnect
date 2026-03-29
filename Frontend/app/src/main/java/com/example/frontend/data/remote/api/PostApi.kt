@@ -3,6 +3,7 @@
 import com.example.frontend.data.remote.dto.CommentResponseDto
 import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.remote.dto.CreatePostRequest
+import com.example.frontend.data.remote.dto.ReportPostRequest
 import com.example.frontend.data.remote.dto.SharePostRequest
 import com.example.frontend.data.remote.dto.UpdatePostRequest
 import com.example.frontend.domain.model.Post
@@ -58,6 +59,12 @@ interface PostApi {
 
     @POST(ApiRoutes.SAVE_POST)
     suspend fun savePost(@Path("postId") postId: String): Map<String, Boolean>
+
+    @POST(ApiRoutes.REPORT_POST)
+    suspend fun reportPost(
+        @Path("postId") postId: String,
+        @Body request: ReportPostRequest
+    ): Response<Unit>
 
     @POST(ApiRoutes.SAVE_VIDEO)
     suspend fun saveVideo(@Path("videoId") videoId: String): Map<String, Boolean>
