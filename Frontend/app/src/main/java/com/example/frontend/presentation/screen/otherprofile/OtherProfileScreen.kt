@@ -26,17 +26,23 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -57,6 +63,7 @@ import com.example.frontend.ui.component.ScrollToTopButton
 import com.example.frontend.ui.theme.OrangePrimary
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OtherProfileScreen(
     userId: String,
@@ -68,11 +75,11 @@ fun OtherProfileScreen(
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
+    var showBottomSheet by remember { mutableStateOf(false) }
 
     val showScrollToTop by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 1 }
     }
-
     val shouldLoadMore by remember {
         derivedStateOf {
             val totalItems = listState.layoutInfo.totalItemsCount
@@ -135,9 +142,16 @@ fun OtherProfileScreen(
                         item {
                             OtherProfileInfoSection(
                                 user = state.user,
-                                onFriendAction = { viewModel.onFriendAction() },
-                                onNavigateToFriends = onNavigateToFriends,
-                                onDeleteFriend = { viewModel.onDeleteFriend() }
+                                onAccept = { viewModel.acceptRequest() },
+                                onReject = { viewModel.rejectRequest() },
+                                onFriendButtonClick = {
+                                    if (state.user.friendshipStatus == "NONE") {
+                                        viewModel.addFriend()
+                                    } else {
+                                        showBottomSheet = true
+                                    }
+                                },
+                                onNavigateToFriends = onNavigateToFriends
                             )
                             Divider(
                                 thickness = 8.dp,
@@ -217,6 +231,48 @@ fun OtherProfileScreen(
                     .padding(16.dp)
             )
         }
+
+        if (showBottomSheet && uiState is OtherProfileUiState.Success) {
+            val user = (uiState as OtherProfileUiState.Success).user
+
+            ModalBottomSheet(
+                onDismissRequest = { showBottomSheet = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp, top = 8.dp)
+                ) {
+                    Text(
+                        text = "Tùy chọn với ${user.displayName}",
+                        style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                    HorizontalDivider()
+
+                    when (user.friendshipStatus) {
+                        "FRIEND" -> {
+                            ListItem(
+                                headlineContent = { Text("Hủy kết bạn", color = Color.Red) },
+                                modifier = Modifier.clickable {
+                                    viewModel.unfriend()
+                                    showBottomSheet = false
+                                }
+                            )
+                        }
+                        "REQUEST_SENT" -> {
+                            ListItem(
+                                headlineContent = { Text("Thu hồi lời mời") },
+                                modifier = Modifier.clickable {
+                                    viewModel.cancelRequest()
+                                    showBottomSheet = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -241,7 +297,13 @@ private fun OtherProfileTopBar(onBackClick: () -> Unit) {
 }
 
 @Composable
-private fun OtherProfileInfoSection(user: User, onFriendAction: () -> Unit, onNavigateToFriends: (String) -> Unit, onDeleteFriend: () -> Unit) {
+private fun OtherProfileInfoSection(
+    user: User,
+    onAccept: () -> Unit,
+    onReject: () -> Unit,
+    onFriendButtonClick: () -> Unit,
+    onNavigateToFriends: (String) -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -306,42 +368,50 @@ private fun OtherProfileInfoSection(user: User, onFriendAction: () -> Unit, onNa
             Spacer(Modifier.height(16.dp))
         }
 
-        val buttonText = when (user.friendshipStatus) {
-            "FRIEND" -> "Bạn bè"
-            "REQUEST_SENT" -> "Đã gửi lời mời"
-            "REQUEST_RECEIVED" -> "Chấp nhận lời mời"
-            else -> "Kết bạn"
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(0.8f),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            Button(
-                onClick = onFriendAction,
-                modifier = Modifier.weight(1f),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = if (user.friendshipStatus == "NONE") {
-                        OrangePrimary
-                    } else {
-                        MaterialTheme.colorScheme.surfaceVariant
-                    },
-                    contentColor = if (user.friendshipStatus == "NONE") {
-                        Color.White
-                    } else {
-                        MaterialTheme.colorScheme.onSurface
-                    }
-                )
+        if (user.friendshipStatus == "REQUEST_RECEIVED") {
+            Row(
+                modifier = Modifier.fillMaxWidth(0.9f),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(buttonText)
+                Button(
+                    onClick = onAccept,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = OrangePrimary)
+                ) {
+                    Text("Chấp nhận")
+                }
+                Button(
+                    onClick = onReject,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
+                    Text("Từ chối")
+                }
+            }
+        } else {
+            val buttonText = when (user.friendshipStatus) {
+                "FRIEND" -> "Bạn bè"
+                "REQUEST_SENT" -> "Đã gửi lời mời"
+                else -> "Kết bạn"
             }
 
-            if (user.friendshipStatus == "FRIEND") {
-                OutlinedButton(
-                    onClick = onDeleteFriend,
-                    modifier = Modifier.height(48.dp)
+            Row(
+                modifier = Modifier.fillMaxWidth(0.8f),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                Button(
+                    onClick = onFriendButtonClick,
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (user.friendshipStatus == "NONE") OrangePrimary else MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = if (user.friendshipStatus == "NONE") Color.White else MaterialTheme.colorScheme.onSurface
+                    )
                 ) {
-                    Text("Xóa bạn")
+                    Text(buttonText)
                 }
             }
         }

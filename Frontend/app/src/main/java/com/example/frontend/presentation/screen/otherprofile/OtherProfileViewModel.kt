@@ -7,7 +7,9 @@ import com.example.frontend.core.network.ApiResult
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.usecase.FriendUseCase.AcceptFriendRequestUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.AddFriendUseCase
+import com.example.frontend.domain.usecase.FriendUseCase.CancelFriendRequestUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.DeleteFriendUseCase
+import com.example.frontend.domain.usecase.FriendUseCase.RejectFriendRequestUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetUserPostsUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetUserProfileUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -21,10 +23,12 @@ import javax.inject.Inject
 class OtherProfileViewModel @Inject constructor(
     savedStateHandle: SavedStateHandle,
     private val getUserProfileUseCase: GetUserProfileUseCase,
-    private val getUserPostsUseCase: GetUserPostsUseCase, 
+    private val getUserPostsUseCase: GetUserPostsUseCase,
     private val addFriendUseCase: AddFriendUseCase,
     private val acceptFriendRequestUseCase: AcceptFriendRequestUseCase,
-    private val deleteFriendUseCase: DeleteFriendUseCase
+    private val deleteFriendUseCase: DeleteFriendUseCase,
+    private val cancelFriendRequestUseCase: CancelFriendRequestUseCase,
+    private val rejectFriendRequestUseCase: RejectFriendRequestUseCase
 ) : ViewModel() {
 
     private val targetUserId: String = savedStateHandle.get<String>("userId").orEmpty()
@@ -128,34 +132,55 @@ class OtherProfileViewModel @Inject constructor(
         }
     }
 
-
-    fun onFriendAction() {
-        val currentState = _uiState.value as? OtherProfileUiState.Success ?: return
-        val status = currentState.user.friendshipStatus
-
-        viewModelScope.launch{
-            when (status) {
-                "NONE" -> addFriendUseCase(targetUserId)
-                "REQUEST_RECEIVED" -> acceptFriendRequestUseCase(targetUserId)
-                else -> return@launch
+    fun addFriend() {
+        viewModelScope.launch {
+            when (addFriendUseCase(targetUserId)) {
+                is ApiResult.Success -> updateFriendshipStatusLocal("REQUEST_SENT")
+                is ApiResult.Error -> { /* Xử lý lỗi nếu cần */ }
             }
-            load(isRefresh = true)
         }
     }
 
-    fun onDeleteFriend() {
-        val currentState = _uiState.value as? OtherProfileUiState.Success ?: return
-        val friendId = currentState.user.id
-
+    fun acceptRequest() {
         viewModelScope.launch {
-            when (val result = deleteFriendUseCase(friendId)) {
-                is ApiResult.Success -> {
-                    load(isRefresh = true)
-                }
-                is ApiResult.Error -> {
-                    _uiState.value = currentState.copy(error = result.message)
-                }
+            when (acceptFriendRequestUseCase(targetUserId)) {
+                is ApiResult.Success -> updateFriendshipStatusLocal("FRIEND")
+                is ApiResult.Error -> { /* Xử lý lỗi nếu cần */ }
             }
         }
+    }
+
+    fun rejectRequest() {
+        viewModelScope.launch {
+            when (rejectFriendRequestUseCase(targetUserId)) {
+                is ApiResult.Success -> updateFriendshipStatusLocal("NONE")
+                is ApiResult.Error -> { /* Xử lý lỗi nếu cần */ }
+            }
+        }
+    }
+
+    fun cancelRequest() {
+        viewModelScope.launch {
+            when (cancelFriendRequestUseCase(targetUserId)) {
+                is ApiResult.Success -> updateFriendshipStatusLocal("NONE")
+                is ApiResult.Error -> { /* Xử lý lỗi nếu cần */ }
+            }
+        }
+    }
+
+    fun unfriend() {
+        viewModelScope.launch {
+            when (deleteFriendUseCase(targetUserId)) {
+                is ApiResult.Success -> updateFriendshipStatusLocal("NONE")
+                is ApiResult.Error -> { /* Xử lý lỗi nếu cần */ }
+            }
+        }
+    }
+
+    private fun updateFriendshipStatusLocal(newStatus: String) {
+        val currentState = _uiState.value as? OtherProfileUiState.Success ?: return
+        _uiState.value = currentState.copy(
+            user = currentState.user.copy(friendshipStatus = newStatus)
+        )
     }
 }
