@@ -186,9 +186,16 @@ fun PostCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     Row(verticalAlignment = Alignment.CenterVertically) {
+                        val normalizedVisibility = PostVisibility.normalize(post.visibility)
+                        val visibilityIcon = when (normalizedVisibility) {
+                            PostVisibility.FRIENDS -> painterResource(id = R.drawable.icon_friends)
+                            PostVisibility.PRIVATE -> painterResource(id = R.drawable.icon_lock)
+                            else -> painterResource(id = R.drawable.icon_earth)
+                        }
+
                         Icon(
-                            painter = painterResource(id = R.drawable.icon_earth),
-                            contentDescription = null,
+                            painter = visibilityIcon,
+                            contentDescription = PostVisibility.label(normalizedVisibility),
                             modifier = Modifier.size(12.dp),
                             tint = MaterialTheme.colorScheme.onSurfaceVariant
                         )
