@@ -4,8 +4,11 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import android.util.Log
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.domain.usecase.FriendUseCase.AcceptFriendRequestUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.AddFriendUseCase
+import com.example.frontend.domain.usecase.FriendUseCase.CancelFriendRequestUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.DeleteFriendUseCase
+import com.example.frontend.domain.usecase.FriendUseCase.RejectFriendRequestUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.AddSearchHistoryUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.ClearSearchHistoryUseCase
 import com.example.frontend.domain.usecase.SearchUseCase.DeleteSearchHistoryUseCase
@@ -23,7 +26,10 @@ import javax.inject.Inject
 class SearchViewModel @Inject constructor(
     private val searchUseCase: SearchUseCase,
     private val addFriendUseCase: AddFriendUseCase,
+    private val acceptFriendRequestUseCase: AcceptFriendRequestUseCase,
+    private val cancelFriendRequestUseCase: CancelFriendRequestUseCase,
     private val deleteFriendUseCase: DeleteFriendUseCase,
+    private val rejectFriendRequestUseCase: RejectFriendRequestUseCase,
     private val getSearchHistoryUseCase: GetSearchHistoryUseCase,
     private val addSearchHistoryUseCase: AddSearchHistoryUseCase,
     private val deleteSearchHistoryUseCase: DeleteSearchHistoryUseCase,
@@ -35,6 +41,13 @@ class SearchViewModel @Inject constructor(
 
     private companion object {
         const val TAG = "SearchViewModel"
+        private val FRIEND_STATUSES = setOf("FRIEND", "FRIENDS", "ACCEPTED")
+        private val SENT_PENDING_STATUSES = setOf("PENDING", "REQUEST_SENT", "OUTGOING_PENDING")
+        private val INCOMING_PENDING_STATUSES = setOf("REQUEST_RECEIVED", "INCOMING_PENDING")
+    }
+
+    private fun normalizeFriendshipStatus(raw: String?): String {
+        return raw.orEmpty().trim().uppercase()
     }
 
     init {
@@ -125,7 +138,20 @@ class SearchViewModel @Inject constructor(
             when (val result = addFriendUseCase(friendId)) {
                 is ApiResult.Success -> {
                     _uiState.update { state ->
+                        val updatedResults = state.results?.let { res ->
+                            res.copy(
+                                users = res.users.map { user ->
+                                    if (user.id == friendId) {
+                                        user.copy(isFriend = false, friendshipStatus = "REQUEST_SENT")
+                                    } else {
+                                        user
+                                    }
+                                }
+                            )
+                        }
+
                         state.copy(
+                            results = updatedResults,
                             addingFriendIds = state.addingFriendIds - friendId,
                             pendingSentFriendIds = state.pendingSentFriendIds + friendId,
                             pendingIncomingFriendIds = state.pendingIncomingFriendIds - friendId
@@ -139,8 +165,22 @@ class SearchViewModel @Inject constructor(
                         val msg = result.message.lowercase()
                         val hasIncoming = msg.contains("incoming friend request already exists")
                         val hasSent = msg.contains("friend request already exists") && !hasIncoming
+                        val updatedResults = state.results?.let { res ->
+                            res.copy(
+                                users = res.users.map { user ->
+                                    if (user.id != friendId) return@map user
+
+                                    when {
+                                        hasIncoming -> user.copy(isFriend = false, friendshipStatus = "REQUEST_RECEIVED")
+                                        hasSent -> user.copy(isFriend = false, friendshipStatus = "REQUEST_SENT")
+                                        else -> user
+                                    }
+                                }
+                            )
+                        }
 
                         state.copy(
+                            results = updatedResults,
                             addingFriendIds = state.addingFriendIds - friendId,
                             pendingIncomingFriendIds = if (hasIncoming) {
                                 state.pendingIncomingFriendIds + friendId
@@ -155,6 +195,60 @@ class SearchViewModel @Inject constructor(
                         )
                     }
                 }
+            }
+        }
+    }
+
+    fun rejectRequest(userId: String) {
+        viewModelScope.launch {
+            when (rejectFriendRequestUseCase(userId)) {
+                is ApiResult.Success -> {
+                    updateFriendshipStatusLocal(userId, "NONE")
+                    // Xóa user khỏi danh sách pending
+                    _uiState.update {
+                        it.copy(pendingIncomingFriendIds = it.pendingIncomingFriendIds - userId)
+                    }
+                }
+                is ApiResult.Error -> { /* Xử lý hiển thị lỗi nếu cần */ }
+            }
+        }
+    }
+
+    fun acceptRequest(userId: String) {
+        viewModelScope.launch {
+            when (acceptFriendRequestUseCase(userId)) {
+                is ApiResult.Success -> {
+                    // Chấp nhận thành công, cập nhật isFriend = true và status = FRIEND
+                    _uiState.update { state ->
+                        val updatedResults = state.results?.copy(
+                            users = state.results.users.map { user ->
+                                if (user.id == userId) {
+                                    user.copy(isFriend = true, friendshipStatus = "FRIEND")
+                                } else user
+                            }
+                        )
+                        state.copy(
+                            results = updatedResults,
+                            pendingIncomingFriendIds = state.pendingIncomingFriendIds - userId
+                        )
+                    }
+                }
+                is ApiResult.Error -> { /* Xử lý hiển thị lỗi nếu cần */ }
+            }
+        }
+    }
+
+    fun cancelRequest(userId: String) {
+        viewModelScope.launch {
+            when (cancelFriendRequestUseCase(userId)) {
+                is ApiResult.Success -> {
+                    updateFriendshipStatusLocal(userId, "NONE")
+                    // Xóa user khỏi danh sách đã gửi
+                    _uiState.update {
+                        it.copy(pendingSentFriendIds = it.pendingSentFriendIds - userId)
+                    }
+                }
+                is ApiResult.Error -> { /* Xử lý hiển thị lỗi nếu cần */ }
             }
         }
     }
@@ -174,7 +268,15 @@ class SearchViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     _uiState.update { state ->
                         val updatedResults = state.results?.let { res ->
-                            res.copy(users = res.users.map { u -> if (u.id == friendId) u.copy(isFriend = false) else u })
+                            res.copy(
+                                users = res.users.map { user ->
+                                    if (user.id == friendId) {
+                                        user.copy(isFriend = false, friendshipStatus = "NONE")
+                                    } else {
+                                        user
+                                    }
+                                }
+                            )
                         }
 
                         state.copy(
@@ -213,18 +315,56 @@ class SearchViewModel @Inject constructor(
 
             when (val result = searchUseCase(keyword, _uiState.value.scope.value)) {
                 is ApiResult.Success -> _uiState.update {
-                    val friendIds = result.data.users.filter { user -> user.isFriend }.map { user -> user.id }.toSet()
+                    val normalizedUsers = result.data.users.map { user ->
+                        val status = normalizeFriendshipStatus(user.friendshipStatus)
+                        if (status in FRIEND_STATUSES && !user.isFriend) {
+                            user.copy(isFriend = true)
+                        } else {
+                            user
+                        }
+                    }
+                    val normalizedResult = result.data.copy(users = normalizedUsers)
+                    val friendIds = normalizedUsers
+                        .filter { user ->
+                            user.isFriend || normalizeFriendshipStatus(user.friendshipStatus) in FRIEND_STATUSES
+                        }
+                        .map { user -> user.id }
+                        .toSet()
+                    val pendingSentIds = normalizedUsers
+                        .filter { user ->
+                            normalizeFriendshipStatus(user.friendshipStatus) in SENT_PENDING_STATUSES
+                        }
+                        .map { user -> user.id }
+                        .toSet()
+                    val pendingIncomingIds = normalizedUsers
+                        .filter { user ->
+                            normalizeFriendshipStatus(user.friendshipStatus) in INCOMING_PENDING_STATUSES
+                        }
+                        .map { user -> user.id }
+                        .toSet()
+
                     it.copy(
                         isLoading = false,
-                        results = result.data,
-                        pendingSentFriendIds = it.pendingSentFriendIds - friendIds,
-                        pendingIncomingFriendIds = it.pendingIncomingFriendIds - friendIds
+                        results = normalizedResult,
+                        pendingSentFriendIds = pendingSentIds - friendIds,
+                        pendingIncomingFriendIds = pendingIncomingIds - friendIds
                     )
                 }
                 is ApiResult.Error -> _uiState.update {
                     it.copy(isLoading = false, error = result.message)
                 }
             }
+        }
+    }
+
+    private fun updateFriendshipStatusLocal(userId: String, newStatus: String) {
+        _uiState.update { state ->
+            val updatedResults = state.results?.copy(
+                users = state.results.users.map { user ->
+                    if (user.id == userId) user.copy(friendshipStatus = newStatus) else user
+                }
+            )
+            state.copy(results = updatedResults)
         }
     }
 }

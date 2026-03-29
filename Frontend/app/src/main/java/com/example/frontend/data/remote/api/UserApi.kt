@@ -1,7 +1,6 @@
 package com.example.frontend.data.remote.api
 
 import com.example.frontend.data.remote.dto.AddFriendRequestDto
-import com.example.frontend.data.remote.dto.FriendListItem
 import com.example.frontend.data.remote.dto.FriendRequestDto
 import com.example.frontend.data.remote.dto.FriendListResponseDto
 import retrofit2.Response
@@ -33,4 +32,7 @@ interface UserApi {
 
     @DELETE(ApiRoutes.DELETE_FRIEND)
     suspend fun deleteFriend(@Path("friendId") friendId: String): Response<Unit>
+
+    @DELETE(ApiRoutes.CANCEL_FRIEND_REQUEST)
+    suspend fun cancelFriendRequest(@Path("friendId") friendId: String): Response<Unit>
 }

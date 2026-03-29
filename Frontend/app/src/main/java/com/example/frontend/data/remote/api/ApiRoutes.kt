@@ -43,6 +43,7 @@ object ApiRoutes {
     const val MARK_NOTIFICATION_READ = "api/notifications/{notificationId}/read"
     const val GET_MY_FRIENDS = "api/users/me/friends"
     const val ADD_FRIEND = "api/users/me/friends"
+    const val CANCEL_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/cancel"
     const val GET_FRIEND_REQUESTS = "api/users/me/friends/requests"
     const val ACCEPT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/accept"
     const val REJECT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/reject"

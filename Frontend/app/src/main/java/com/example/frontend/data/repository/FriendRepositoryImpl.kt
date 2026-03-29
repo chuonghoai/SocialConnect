@@ -338,4 +338,34 @@ class FriendRepositoryImpl @Inject constructor(
             )
         }
     }
+
+    override suspend fun cancelFriendRequest(friendId: String): ApiResult<Unit> {
+        return try {
+            val response = userApi.cancelFriendRequest(friendId)
+            if (response.isSuccessful) {
+                ApiResult.Success(Unit)
+            } else {
+                ApiResult.Error(
+                    code = response.code(),
+                    message = "Không thể thu hồi lời mời: (${response.code()})"
+                )
+            }
+        } catch (e: HttpException) {
+            ApiResult.Error(
+                code = e.code(),
+                message = "Khong the thu hoi loi moi (${e.code()})",
+                throwable = e
+            )
+        } catch (e: IOException) {
+            ApiResult.Error(
+                message = "Loi mang: khong the thu hoi loi moi",
+                throwable = e
+            )
+        } catch (e: Exception) {
+            ApiResult.Error(
+                message = "Khong the thu hoi loi moi",
+                throwable = e
+            )
+        }
+    }
 }
