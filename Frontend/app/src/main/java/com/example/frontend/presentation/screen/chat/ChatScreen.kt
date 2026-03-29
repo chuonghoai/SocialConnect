@@ -141,6 +141,19 @@ fun ChatScreen(
 
     val isPartnerOnline = uiState.onlineUsers.contains(partnerId)
 
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index >= uiState.messages.size - 5
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore && uiState.hasMoreMessages && !uiState.isLoadingMore) {
+            viewModel.loadMoreMessages()
+        }
+    }
+
     LaunchedEffect(conversationId) {
         viewModel.loadMessages(conversationId)
     }
@@ -260,6 +273,23 @@ fun ChatScreen(
                                         onRepliedMessageClick = { repliedId ->
                                             viewModel.onRepliedMessageClick(repliedId)
                                         }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (uiState.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = OrangePrimary,
+                                        strokeWidth = 2.dp
                                     )
                                 }
                             }

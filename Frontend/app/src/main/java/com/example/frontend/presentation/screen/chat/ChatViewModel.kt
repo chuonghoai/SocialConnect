@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
@@ -50,13 +51,14 @@ data class ChatUiState(
     val isPartnerTyping: Boolean = false,
     val selectedMedia: List<Uri> = emptyList(),
     val isUploadingMedia: Boolean = false,
-    
-    // Voice recording states
     val isRecording: Boolean = false,
     val recordingDuration: Long = 0,
     val recordingFileUri: Uri? = null,
     val showVoiceRecorder: Boolean = false,
-    val recordingAmplitude: Float = 0f
+    val recordingAmplitude: Float = 0f,
+    val currentPage: Int = 1,
+    val hasMoreMessages: Boolean = true,
+    val isLoadingMore: Boolean = false,
 )
 
 @HiltViewModel
@@ -232,20 +234,61 @@ class ChatViewModel @Inject constructor(
     fun loadMessages(conversationId: String) {
         currentConversationId = conversationId
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = getMessagesUseCase(conversationId)) {
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    error = null,
+                    currentPage = 1,
+                    hasMoreMessages = true
+                )
+            }
+
+            when (val result = getMessagesUseCase(conversationId, page = 1)) {
                 is ApiResult.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        messages = result.data?.messages ?: emptyList()
-                    )
+                    val response = result.data
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            messages = response?.messages ?: emptyList(),
+                            hasMoreMessages = (response?.meta?.currentPage ?: 1) < (response?.meta?.totalPages ?: 1)
+                        )
+                    }
                     webSocketManager.markRead(conversationId)
                 }
                 is ApiResult.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = result.message
-                    )
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
+                }
+            }
+        }
+    }
+
+    fun loadMoreMessages() {
+        val state = _uiState.value
+        val convId = currentConversationId ?: return
+
+        if (state.isLoadingMore || !state.hasMoreMessages || state.isLoading) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMore = true) }
+            val nextPage = state.currentPage + 1
+
+            when (val result = getMessagesUseCase(convId, page = nextPage)) {
+                is ApiResult.Success -> {
+                    val response = result.data
+                    val newMessages = response?.messages ?: emptyList()
+
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            isLoadingMore = false,
+                            currentPage = nextPage,
+                            messages = currentState.messages + newMessages,
+                            hasMoreMessages = (response?.meta?.currentPage ?: 1) < (response?.meta?.totalPages ?: 1)
+                        )
+                    }
+                }
+                is ApiResult.Error -> {
+                    _uiState.update { it.copy(isLoadingMore = false) }
+                    Log.e("ChatViewModel", "Lỗi tải thêm tin nhắn: ${result.message}")
                 }
             }
         }
