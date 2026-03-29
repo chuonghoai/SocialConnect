@@ -14,18 +14,21 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import coil.compose.AsyncImage
 import com.example.frontend.domain.model.NotificationItem
 import java.time.Duration
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeParseException
+import androidx.compose.ui.draw.clip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -39,6 +42,7 @@ fun NotificationScreen(
 
     LaunchedEffect(refreshKey) {
         viewModel.loadNotifications(onUpdated = onItemsUpdated)
+        viewModel.markAllAsSeen(onComplete = onItemsUpdated)
     }
 
     Column(
@@ -126,7 +130,7 @@ private fun NotificationRow(
     onClick: () -> Unit
 ) {
     val backgroundColor = if (!notification.isRead) Color(0xFFFDF0E3) else Color.White
-    val initial = notification.content.trim().firstOrNull()?.uppercaseChar()?.toString() ?: "N"
+    val initial = notification.user?.displayName?.trim()?.firstOrNull()?.uppercaseChar()?.toString() ?: "N"
 
     Row(
         modifier = Modifier
@@ -136,23 +140,46 @@ private fun NotificationRow(
             .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(50.dp)
-                .background(Color(0xFFE88B4A), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Text(
-                text = initial,
-                color = Color.White,
-                fontSize = 22.sp,
-                fontWeight = FontWeight.Normal
+        if (!notification.user?.avatarUrl.isNullOrEmpty()) {
+            AsyncImage(
+                model = notification.user?.avatarUrl,
+                contentDescription = "Avatar",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier
+                    .size(50.dp)
+                    .clip(CircleShape)
             )
+        } else {
+            Box(
+                modifier = Modifier
+                    .size(50.dp)
+                    .background(Color(0xFFE88B4A), CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = initial,
+                    color = Color.White,
+                    fontSize = 22.sp,
+                    fontWeight = FontWeight.Normal
+                )
+            }
         }
 
         Spacer(modifier = Modifier.width(12.dp))
 
         Column(modifier = Modifier.weight(1f)) {
+            if (!notification.user?.displayName.isNullOrBlank()) {
+                Text(
+                    text = notification.user!!.displayName,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.Black,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+            }
+
             Text(
                 text = notification.content,
                 fontSize = 14.sp,

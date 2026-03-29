@@ -1,5 +1,6 @@
 package com.example.frontend.presentation.screen.friend
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -20,14 +21,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontWeight
 import com.example.frontend.R
 import com.example.frontend.domain.model.FriendRecipient
+import com.example.frontend.ui.theme.OrangePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OtherFriendScreen(
-    onBack: () -> Unit,
-    onAvatarClick: ((String) -> Unit)? = null,
+    onBack: () -> Unit,    onAvatarClick: ((String) -> Unit)? = null,
     onNavigateToChat: (String, String, String, String?) -> Unit,
     viewModel: OtherFriendViewModel = hiltViewModel()
 ) {
@@ -44,21 +46,36 @@ fun OtherFriendScreen(
         }
     }
 
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = { Text("Bạn bè") },
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back")
-                    }
-                }
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp)
+                .padding(horizontal = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBack) {
+                Icon(Icons.Default.ArrowBack, contentDescription = "Back")
+            }
+            Text(
+                text = "Bạn bè",
+                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
             )
         }
-    ) { paddingValues ->
-        Box(modifier = Modifier.padding(paddingValues)) {
+        HorizontalDivider(thickness = 0.5.dp, color = MaterialTheme.colorScheme.outlineVariant)
+
+        Box(modifier = Modifier
+            .weight(1f)
+            .fillMaxWidth()) {
             if (uiState.isLoading) {
-                CircularProgressIndicator(modifier = Modifier.align(Alignment.Center))
+                CircularProgressIndicator(
+                    modifier = Modifier.align(Alignment.Center),
+                    color = OrangePrimary
+                )
             } else if (uiState.error != null) {
                 Text(
                     text = "Lỗi: ${uiState.error}",
@@ -68,8 +85,7 @@ fun OtherFriendScreen(
             } else {
                 LazyColumn(
                     modifier = Modifier.fillMaxSize(),
-                    contentPadding = PaddingValues(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                    contentPadding = PaddingValues(bottom = 16.dp)
                 ) {
                     items(uiState.friends) { friend ->
                         FriendListItem(
@@ -77,11 +93,14 @@ fun OtherFriendScreen(
                             onAvatarClick = onAvatarClick,
                             onChatClick = { viewModel.startChatWithFriend(friend) }
                         )
+                        HorizontalDivider(
+                            modifier = Modifier.padding(horizontal = 16.dp),
+                            thickness = 0.5.dp,
+                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)
+                        )
                     }
                 }
             }
         }
     }
 }
-
-// Reuse `FriendListItem` defined in MyFriendScreen.kt to avoid duplicate symbols

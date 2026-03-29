@@ -3,6 +3,7 @@ package com.example.frontend.data.repository
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.remote.api.NotificationApi
 import com.example.frontend.domain.model.NotificationItem
+import com.example.frontend.domain.model.NotificationUser
 import com.example.frontend.domain.model.NotificationsPage
 import com.example.frontend.domain.repository.NotiRepository
 import retrofit2.HttpException
@@ -34,7 +35,10 @@ class NotiRepositoryImpl @Inject constructor(
                         url = dto.url,
                         metadata = dto.metadata,
                         isRead = dto.isRead,
-                        createAt = dto.createAt
+                        createAt = dto.createAt,
+                        user = dto.user?.let {
+                            NotificationUser(it.id, it.displayName, it.avatarUrl)
+                        }
                     )
                 }
             )
@@ -62,6 +66,25 @@ class NotiRepositoryImpl @Inject constructor(
             ApiResult.Error(code = e.code(), message = "Loi may chu (${e.code()})", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Khong the danh dau thong bao", throwable = e)
+        }
+    }
+
+    override suspend fun getUnseenNotificationsCount(): ApiResult<Int> {
+        return try {
+            val response = api.getUnseenNotificationsCount()
+            ApiResult.Success(response.unseenCount)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể tải số lượng thông báo", throwable = e)
+        }
+    }
+
+    override suspend fun markAllAsSeen(): ApiResult<Unit> {
+        return try {
+            val response = api.markAllAsSeen()
+            if (response.success) ApiResult.Success(Unit)
+            else ApiResult.Error(message = "Lỗi khi đánh dấu đã xem")
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Lỗi kết nối", throwable = e)
         }
     }
 }

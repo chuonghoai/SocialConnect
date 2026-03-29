@@ -41,6 +41,8 @@ object ApiRoutes {
     const val CHANGE_PASSWORD = "api/users/me/change-password"
     const val GET_NOTIFICATIONS_ME = "api/notifications/me"
     const val MARK_NOTIFICATION_READ = "api/notifications/{notificationId}/read"
+    const val GET_UNSEEN_NOTIFICATIONS_COUNT = "api/notifications/unseen-count"
+    const val MARK_ALL_NOTIFICATIONS_READ = "api/notifications/seen"
     const val GET_MY_FRIENDS = "api/users/me/friends"
     const val ADD_FRIEND = "api/users/me/friends"
     const val CANCEL_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/cancel"

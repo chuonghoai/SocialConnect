@@ -11,4 +11,6 @@ interface NotiRepository {
     ): ApiResult<NotificationsPage>
 
     suspend fun markAsRead(notificationId: Int): ApiResult<Unit>
+    suspend fun getUnseenNotificationsCount(): ApiResult<Int>
+    suspend fun markAllAsSeen(): ApiResult<Unit>
 }
