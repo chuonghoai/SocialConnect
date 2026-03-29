@@ -11,12 +11,15 @@ import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.network.WebSocketManager
 import com.example.frontend.core.util.AppNotificationManager
 import com.example.frontend.domain.model.User
+import com.example.frontend.domain.usecase.ConversationUseCase.GetMessageContextUseCase
 import com.example.frontend.domain.usecase.ConversationUseCase.GetMessagesUseCase
 import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
@@ -28,6 +31,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
@@ -58,6 +62,7 @@ data class ChatUiState(
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val getMessagesUseCase: GetMessagesUseCase,
+    private val getMessageContextUseCase: GetMessageContextUseCase,
     private val getMeUseCase: GetMeUseCase,
     private val uploadMediaUseCase: UploadMediaUseCase,
     private val webSocketManager: WebSocketManager,
@@ -77,6 +82,11 @@ class ChatViewModel @Inject constructor(
     private var recordingFile: File? = null
     private var recordingJob: Job? = null
     private var isSuccessfullyStarted = false
+
+    var highlightedMessageId by androidx.compose.runtime.mutableStateOf<String?>(null)
+        private set
+    private val _scrollEvent = kotlinx.coroutines.flow.MutableSharedFlow<Int>()
+    val scrollEvent = _scrollEvent.asSharedFlow()
 
     init {
         fetchCurrentUser()
@@ -466,7 +476,6 @@ class ChatViewModel @Inject constructor(
                 release()
             }
         } catch (e: Exception) {
-            // Có thể xảy ra nếu chưa kịp start đã stop
         }
         mediaRecorder = null
         recordingJob?.cancel()
@@ -550,5 +559,47 @@ class ChatViewModel @Inject constructor(
 
     fun notifyMessageCopied() {
         appNotificationManager.showMessage("Đã sao chép tin nhắn", NotificationType.SUCCESS)
+    }
+
+    fun onRepliedMessageClick(messageId: String) {
+        val convId = currentConversationId ?: return
+
+        viewModelScope.launch {
+            val index = uiState.value.messages.indexOfFirst { it.id == messageId }
+
+            if (index != -1) {
+                triggerHighlightAndScroll(index, messageId)
+            } else {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                when (val result = getMessageContextUseCase(convId, messageId)) {
+                    is ApiResult.Success -> {
+                        val contextMessages = result.data?.messages ?: emptyList()
+                        _uiState.value = _uiState.value.copy(
+                            messages = contextMessages,
+                            isLoading = false
+                        )
+
+                        delay(200)
+                        val newIndex = _uiState.value.messages.indexOfFirst { it.id == messageId }
+                        if (newIndex != -1) {
+                            triggerHighlightAndScroll(newIndex, messageId)
+                        }
+                    }
+                    is ApiResult.Error -> {
+                        _uiState.value = _uiState.value.copy(isLoading = false)
+                        Log.e("ChatViewModel", "Lỗi tải context: ${result.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun triggerHighlightAndScroll(index: Int, messageId: String) {
+        _scrollEvent.emit(index)
+        highlightedMessageId = messageId
+        delay(1500)
+        if (highlightedMessageId == messageId) {
+            highlightedMessageId = null
+        }
     }
 }

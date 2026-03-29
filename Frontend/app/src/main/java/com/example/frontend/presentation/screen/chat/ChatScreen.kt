@@ -10,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -150,6 +151,12 @@ fun ChatScreen(
         }
     }
 
+    LaunchedEffect(Unit) {
+        viewModel.scrollEvent.collect { index ->
+            listState.animateScrollToItem(index)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -213,33 +220,48 @@ fun ChatScreen(
                                 }
                             } else null
 
-                            SwipeToReplyWrapper(
-                                isMine = isMine,
-                                swipeEnabled = !msg.isRecall,
-                                onReply = {
-                                    replyingToMessage = msg
-                                }
+                            val isHighlighted = viewModel.highlightedMessageId == msg.id
+                            val highlightColor by animateColorAsState(
+                                targetValue = if (isHighlighted) OrangePrimary.copy(alpha = 0.25f) else Color.Transparent,
+                                animationSpec = tween(durationMillis = 500)
+                            )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(highlightColor)
                             ) {
-                                MessageBubble(
-                                    message = msg,
+                                SwipeToReplyWrapper(
                                     isMine = isMine,
-                                    incomingAvatarUrl = conversationAvatarUrl,
-                                    statusText = statusText,
-                                    onMediaClick = { selectedMedia ->
-                                        viewerMediaList = listOf(selectedMedia)
-                                        viewerInitialPage = 0
-                                    },
-                                    onRevokeClick = { messageId ->
-                                        viewModel.revokeMessage(messageId)
-                                    },
-                                    onCopyClick = { textToCopy ->
-                                        clipboardManager.setText(AnnotatedString(textToCopy))
-                                        viewModel.notifyMessageCopied()
-                                    },
-                                    onReplyClick = {
+                                    swipeEnabled = !msg.isRecall,
+                                    onReply = {
                                         replyingToMessage = msg
                                     }
-                                )
+                                ) {
+                                    MessageBubble(
+                                        message = msg,
+                                        isMine = isMine,
+                                        incomingAvatarUrl = conversationAvatarUrl,
+                                        statusText = statusText,
+                                        onMediaClick = { selectedMedia ->
+                                            viewerMediaList = listOf(selectedMedia)
+                                            viewerInitialPage = 0
+                                        },
+                                        onRevokeClick = { messageId ->
+                                            viewModel.revokeMessage(messageId)
+                                        },
+                                        onCopyClick = { textToCopy ->
+                                            clipboardManager.setText(AnnotatedString(textToCopy))
+                                            viewModel.notifyMessageCopied()
+                                        },
+                                        onReplyClick = {
+                                            replyingToMessage = msg
+                                        },
+                                        onRepliedMessageClick = { repliedId ->
+                                            viewModel.onRepliedMessageClick(repliedId)
+                                        }
+                                    )
+                                }
                             }
                         }
                     }
@@ -585,6 +607,7 @@ private fun MessageBubble(
     onRevokeClick: (String) -> Unit,
     onCopyClick: (String) -> Unit,
     onReplyClick: () -> Unit,
+    onRepliedMessageClick: (String) -> Unit
 ) {
     val isUploading = message.id.startsWith("temp_")
     var showMenu by remember { mutableStateOf(false) }
@@ -646,6 +669,7 @@ private fun MessageBubble(
                             .padding(bottom = 6.dp)
                             .clip(RoundedCornerShape(8.dp))
                             .background(Color.Black.copy(alpha = 0.05f))
+                            .clickable { onRepliedMessageClick(message.replyToMessage.id) }
                             .padding(8.dp)
                     ) {
                         Text(

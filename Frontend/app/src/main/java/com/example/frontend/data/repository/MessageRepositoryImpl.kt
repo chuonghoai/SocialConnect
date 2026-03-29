@@ -1,6 +1,7 @@
 package com.example.frontend.data.repository
 
 import GetMessagesResponse
+import MessageContextResponse
 import android.util.Log
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.data.remote.api.MessageApi
@@ -42,6 +43,20 @@ class MessageRepositoryImpl @Inject constructor(
             ApiResult.Error(code = e.code(), message = "Lỗi máy chủ khi lấy ảnh/video", throwable = e)
         } catch (e: Exception) {
             ApiResult.Error(message = "Đã xảy ra lỗi không xác định", throwable = e)
+        }
+    }
+
+    override suspend fun getMessageContext(conversationId: String, messageId: String, limit: Int): ApiResult<MessageContextResponse> {
+        return try {
+            val response = messageApi.getMessageContext(conversationId, messageId, limit)
+            ApiResult.Success(response)
+        } catch (e: java.io.IOException) {
+            ApiResult.Error(message = "Lỗi kết nối mạng.", throwable = e)
+        } catch (e: retrofit2.HttpException) {
+            ApiResult.Error(code = e.code(), message = "Lỗi máy chủ khi lấy context.", throwable = e)
+        } catch (e: Exception) {
+            android.util.Log.e("MessageRepo", "getMessageContext error", e)
+            ApiResult.Error(message = "Đã xảy ra lỗi không xác định.", throwable = e)
         }
     }
 }
