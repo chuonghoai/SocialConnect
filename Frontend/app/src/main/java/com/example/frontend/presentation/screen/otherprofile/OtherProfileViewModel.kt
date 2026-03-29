@@ -1,10 +1,12 @@
 package com.example.frontend.presentation.screen.otherprofile
 
+import android.widget.Toast
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.domain.model.Post
+import com.example.frontend.domain.usecase.ConversationUseCase.CreateConversationUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.AcceptFriendRequestUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.AddFriendUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.CancelFriendRequestUseCase
@@ -12,12 +14,22 @@ import com.example.frontend.domain.usecase.FriendUseCase.DeleteFriendUseCase
 import com.example.frontend.domain.usecase.FriendUseCase.RejectFriendRequestUseCase
 import com.example.frontend.domain.usecase.PostUseCase.GetUserPostsUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetUserProfileUseCase
+import com.example.frontend.presentation.screen.friend.ChatNavigationEvent
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+
+data class ChatNavigationEvent(
+    val conversationId: String,
+    val partnerId: String,
+    val partnerName: String,
+    val partnerAvatarUrl: String?
+)
 
 @HiltViewModel
 class OtherProfileViewModel @Inject constructor(
@@ -28,13 +40,17 @@ class OtherProfileViewModel @Inject constructor(
     private val acceptFriendRequestUseCase: AcceptFriendRequestUseCase,
     private val deleteFriendUseCase: DeleteFriendUseCase,
     private val cancelFriendRequestUseCase: CancelFriendRequestUseCase,
-    private val rejectFriendRequestUseCase: RejectFriendRequestUseCase
+    private val rejectFriendRequestUseCase: RejectFriendRequestUseCase,
+    private val createConversationUseCase: CreateConversationUseCase
 ) : ViewModel() {
 
     private val targetUserId: String = savedStateHandle.get<String>("userId").orEmpty()
 
     private val _uiState = MutableStateFlow<OtherProfileUiState>(OtherProfileUiState.Loading)
     val uiState: StateFlow<OtherProfileUiState> = _uiState.asStateFlow()
+
+    private val _navigateToChatEvent = MutableSharedFlow<ChatNavigationEvent>()
+    val navigateToChatEvent = _navigateToChatEvent.asSharedFlow()
 
     private var currentPosts = emptyList<Post>()
     private var isLastPage = false
@@ -182,5 +198,30 @@ class OtherProfileViewModel @Inject constructor(
         _uiState.value = currentState.copy(
             user = currentState.user.copy(friendshipStatus = newStatus)
         )
+    }
+
+    fun startChat() {
+        val currentState = _uiState.value as? OtherProfileUiState.Success ?: return
+        val user = currentState.user
+
+        viewModelScope.launch {
+            when (val result = createConversationUseCase(user.id)) {
+                is ApiResult.Success -> {
+                    result.data?.id?.let { convId ->
+                        _navigateToChatEvent.emit(
+                            ChatNavigationEvent(
+                                conversationId = convId,
+                                partnerId = user.id,
+                                partnerName = user.displayName,
+                                partnerAvatarUrl = user.avatarUrl
+                            )
+                        )
+                    }
+                }
+                is ApiResult.Error -> {
+                    // TODO
+                }
+            }
+        }
     }
 }

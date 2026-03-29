@@ -21,6 +21,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedButton
@@ -61,6 +63,7 @@ import com.example.frontend.domain.model.User
 import com.example.frontend.ui.component.PostCard
 import com.example.frontend.ui.component.ScrollToTopButton
 import com.example.frontend.ui.theme.OrangePrimary
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -70,12 +73,14 @@ fun OtherProfileScreen(
     onBackClick: () -> Unit,
     onPostClick: (Post) -> Unit = {},
     onNavigateToFriends: (String) -> Unit = {},
+    onNavigateToChat: (String, String, String, String?) -> Unit,
     viewModel: OtherProfileViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
     var showBottomSheet by remember { mutableStateOf(false) }
+    var showMoreBottomSheet by remember { mutableStateOf(false) }
 
     val showScrollToTop by remember {
         derivedStateOf { listState.firstVisibleItemIndex > 1 }
@@ -85,6 +90,17 @@ fun OtherProfileScreen(
             val totalItems = listState.layoutInfo.totalItemsCount
             val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
             totalItems > 0 && lastVisibleItem >= totalItems - 3
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.navigateToChatEvent.collectLatest { event ->
+            onNavigateToChat(
+                event.conversationId,
+                event.partnerId,
+                event.partnerName,
+                event.partnerAvatarUrl
+            )
         }
     }
 
@@ -103,7 +119,7 @@ fun OtherProfileScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        OtherProfileTopBar(onBackClick = onBackClick)
+        OtherProfileTopBar(onBackClick = onBackClick, onMoreClick = { showMoreBottomSheet = true })
 
         Box(modifier = Modifier.weight(1f).fillMaxWidth()) {
             when (val state = uiState) {
@@ -273,17 +289,48 @@ fun OtherProfileScreen(
                 }
             }
         }
+
+        if (showMoreBottomSheet && uiState is OtherProfileUiState.Success) {
+            ModalBottomSheet(
+                onDismissRequest = { showMoreBottomSheet = false }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp, top = 8.dp)
+                ) {
+                    ListItem(
+                        headlineContent = { Text("Nhắn tin") },
+                        leadingContent = {
+                            Icon(
+                                imageVector = Icons.Outlined.ChatBubbleOutline,
+                                contentDescription = "Nhắn tin",
+                                tint = MaterialTheme.colorScheme.onSurface
+                            )
+                        },
+                        modifier = Modifier.clickable {
+                            showMoreBottomSheet = false
+                            viewModel.startChat()
+                        }
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun OtherProfileTopBar(onBackClick: () -> Unit) {
+private fun OtherProfileTopBar(
+    onBackClick: () -> Unit,
+    onMoreClick: () -> Unit
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .height(56.dp)
             .padding(horizontal = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
     ) {
         IconButton(onClick = onBackClick) {
             Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
@@ -292,6 +339,9 @@ private fun OtherProfileTopBar(onBackClick: () -> Unit) {
             text = "Trang cá nhân",
             style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold)
         )
+        IconButton(onClick = onMoreClick) {
+            Icon(Icons.Default.MoreVert, contentDescription = "More options")
+        }
     }
     Divider(thickness = 0.5.dp)
 }

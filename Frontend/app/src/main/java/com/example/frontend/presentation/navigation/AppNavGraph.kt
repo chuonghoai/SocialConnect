@@ -552,6 +552,11 @@ fun AppNavGraph(
                     OtherProfileScreen(
                         userId = targetUserId,
                         onBackClick = { navController.popBackStack() },
+                        onNavigateToChat = { conversationId, partnerId, conversationName, conversationAvatar ->
+                            val encodedName = Uri.encode(conversationName)
+                            val encodedAvatar = Uri.encode(conversationAvatar ?: "")
+                            navController.navigate("${Routes.CHAT_BASE}/$conversationId?partnerId=$partnerId&name=$encodedName&avatar=$encodedAvatar")
+                        },
                         onNavigateToFriends = { clickedUserId ->
                             if (clickedUserId.isNotBlank()) {
                                 val encoded = Uri.encode(clickedUserId)
