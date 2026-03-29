@@ -7,6 +7,8 @@ import retrofit2.http.PATCH
 import retrofit2.http.Path
 import retrofit2.http.Query
 
+data class UnseenCountResponseDto(val unseenCount: Int)
+
 interface NotificationApi {
     @GET(ApiRoutes.GET_NOTIFICATIONS_ME)
     suspend fun getMyNotifications(
@@ -19,4 +21,10 @@ interface NotificationApi {
     suspend fun markAsRead(
         @Path("notificationId") notificationId: Int
     ): MarkAsReadResponseDto
+
+    @GET(ApiRoutes.GET_UNSEEN_NOTIFICATIONS_COUNT)
+    suspend fun getUnseenNotificationsCount(): UnseenCountResponseDto
+
+    @PATCH(ApiRoutes.MARK_ALL_NOTIFICATIONS_READ)
+    suspend fun markAllAsSeen(): MarkAsReadResponseDto
 }

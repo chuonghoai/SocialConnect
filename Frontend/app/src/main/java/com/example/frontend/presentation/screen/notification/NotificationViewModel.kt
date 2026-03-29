@@ -4,6 +4,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.domain.model.NotificationItem
+import com.example.frontend.domain.usecase.ConversationUseCase.MarkAllAsSeenUseCase
 import com.example.frontend.domain.usecase.NotificationUseCase.GetMyNotificationsUseCase
 import com.example.frontend.domain.usecase.NotificationUseCase.MarkAsReadUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -23,7 +24,8 @@ data class NotificationUiState(
 @HiltViewModel
 class NotificationViewModel @Inject constructor(
     private val getMyNotificationsUseCase: GetMyNotificationsUseCase,
-    private val markAsReadUseCase: MarkAsReadUseCase
+    private val markAsReadUseCase: MarkAsReadUseCase,
+    private val markAllAsSeenUseCase: MarkAllAsSeenUseCase
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(NotificationUiState(isLoading = true))
@@ -80,6 +82,13 @@ class NotificationViewModel @Inject constructor(
 
                 is ApiResult.Error -> Unit
             }
+        }
+    }
+
+    fun markAllAsSeen(onComplete: () -> Unit) {
+        viewModelScope.launch {
+            markAllAsSeenUseCase()
+            onComplete()
         }
     }
 }

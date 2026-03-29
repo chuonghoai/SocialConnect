@@ -64,4 +64,23 @@ class NotiRepositoryImpl @Inject constructor(
             ApiResult.Error(message = "Khong the danh dau thong bao", throwable = e)
         }
     }
+
+    override suspend fun getUnseenNotificationsCount(): ApiResult<Int> {
+        return try {
+            val response = api.getUnseenNotificationsCount()
+            ApiResult.Success(response.unseenCount)
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Không thể tải số lượng thông báo", throwable = e)
+        }
+    }
+
+    override suspend fun markAllAsSeen(): ApiResult<Unit> {
+        return try {
+            val response = api.markAllAsSeen()
+            if (response.success) ApiResult.Success(Unit)
+            else ApiResult.Error(message = "Lỗi khi đánh dấu đã xem")
+        } catch (e: Exception) {
+            ApiResult.Error(message = "Lỗi kết nối", throwable = e)
+        }
+    }
 }

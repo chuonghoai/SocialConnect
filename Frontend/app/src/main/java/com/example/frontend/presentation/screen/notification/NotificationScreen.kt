@@ -39,6 +39,7 @@ fun NotificationScreen(
 
     LaunchedEffect(refreshKey) {
         viewModel.loadNotifications(onUpdated = onItemsUpdated)
+        viewModel.markAllAsSeen(onComplete = onItemsUpdated)
     }
 
     Column(

@@ -104,16 +104,14 @@ fun AppNavGraph(
     LaunchedEffect(Unit) {
         while (true) {
             notificationBadgeViewModel.refreshUnreadCount()
-            delay(15000) // Tự động cập nhật số thông báo mỗi 15 giây
+            delay(15000)
         }
     }
 
     LaunchedEffect(currentBaseRoute) {
         if (currentBaseRoute == Routes.NOTIFICATION) {
-            notificationRefreshKey++
+            notificationBadgeViewModel.refreshUnreadCount()
         }
-        // Gọi lại để tự cập nhật mỗi khi chuyển màn hình
-        notificationBadgeViewModel.refreshUnreadCount()
     }
 
     LaunchedEffect(Unit) {
