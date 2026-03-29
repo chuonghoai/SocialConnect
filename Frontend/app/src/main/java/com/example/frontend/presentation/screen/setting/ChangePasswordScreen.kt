@@ -1,12 +1,13 @@
-package com.example.frontend.presentation.screen.setting
+﻿package com.example.frontend.presentation.screen.setting
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -23,13 +24,14 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.frontend.ui.theme.OrangePrimary
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -38,6 +40,8 @@ fun ChangePasswordScreen(
     onBackClick: () -> Unit,
     viewModel: ChangePasswordViewModel = hiltViewModel()
 ) {
+    val context = LocalContext.current
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -96,7 +100,18 @@ fun ChangePasswordScreen(
             Spacer(modifier = Modifier.height(32.dp))
 
             Button(
-                onClick = { viewModel.submit(onSuccess = onBackClick) },
+                onClick = {
+                    viewModel.submit(
+                        onSuccess = {
+                            Toast.makeText(
+                                context,
+                                "\u0110\u1ED5i m\u1EADt kh\u1EA9u th\u00E0nh c\u00F4ng",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                            onBackClick()
+                        }
+                    )
+                },
                 enabled = !viewModel.isLoading,
                 modifier = Modifier
                     .fillMaxWidth()

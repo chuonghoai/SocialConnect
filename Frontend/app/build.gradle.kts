@@ -156,7 +156,7 @@ dependencies {
     implementation("io.socket:socket.io-client:2.1.1")
 
     // WebRTC
-     implementation("io.getstream:stream-webrtc-android:1.1.1")
+     implementation("io.getstream:stream-webrtc-android:1.3.10")
 
     // Handle media's metadata
     implementation("androidx.exifinterface:exifinterface:1.3.7")

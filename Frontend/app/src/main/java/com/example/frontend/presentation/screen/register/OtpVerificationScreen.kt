@@ -16,12 +16,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
+import android.widget.Toast
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,10 +33,16 @@ fun OtpVerificationScreen(
     viewModel: RegisterViewModel = hiltViewModel()
 ) {
     val state by viewModel.uiState.collectAsState()
+    val context = LocalContext.current
+
+    val handleRegisterSuccess: () -> Unit = {
+        Toast.makeText(context, "X\u00E1c th\u1EF1c OTP th\u00E0nh c\u00F4ng", Toast.LENGTH_SHORT).show()
+        onRegisterClick()
+    }
 
     LaunchedEffect(state.otp) {
         if (state.otp.length == 6) {
-            viewModel.register(onRegisterClick)
+            viewModel.register(handleRegisterSuccess)
         }
     }
 
@@ -75,7 +83,7 @@ fun OtpVerificationScreen(
             Spacer(Modifier.height(40.dp))
 
             Text(
-                text = "Xác thực OTP",
+                text = "X\u00E1c nh\u1EADn",
                 style = MaterialTheme.typography.headlineSmall.copy(
                     fontWeight = FontWeight.ExtraBold
                 ),
@@ -117,11 +125,10 @@ fun OtpVerificationScreen(
             Spacer(modifier = Modifier.weight(1f))
 
             Button(
-                onClick = { viewModel.register(onRegisterClick) },
+                onClick = { viewModel.register(handleRegisterSuccess) },
                 enabled = state.otp.length == 6 && !state.loading,
                 modifier = Modifier
                     .fillMaxWidth(0.78f)
-                    .height(52.dp)
                     .padding(bottom = 32.dp),
                 shape = RoundedCornerShape(28.dp),
                 colors = ButtonDefaults.buttonColors(
@@ -140,7 +147,8 @@ fun OtpVerificationScreen(
                     )
                 } else {
                     Text(
-                        text = "Xác nhận",
+                        text = "X\u00E1c nh\u1EADn",
+                        modifier = Modifier.padding(vertical = 2.dp),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold
                         )
