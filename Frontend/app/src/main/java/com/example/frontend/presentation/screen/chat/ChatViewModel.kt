@@ -4,19 +4,26 @@ import MessageItem
 import MessageMedia
 import MessageSender
 import NewMessageEvent
+import RepliedMessageInfo
+import android.app.NotificationManager
 import android.content.Context
 import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
 import com.example.frontend.core.network.WebSocketManager
+import com.example.frontend.core.util.AppNotificationManager
 import com.example.frontend.domain.model.User
+import com.example.frontend.domain.usecase.ConversationUseCase.GetMessageContextUseCase
 import com.example.frontend.domain.usecase.ConversationUseCase.GetMessagesUseCase
 import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
 import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
+import com.example.frontend.ui.component.NotificationType
 import com.google.gson.Gson
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -24,7 +31,9 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
@@ -42,21 +51,24 @@ data class ChatUiState(
     val isPartnerTyping: Boolean = false,
     val selectedMedia: List<Uri> = emptyList(),
     val isUploadingMedia: Boolean = false,
-    
-    // Voice recording states
     val isRecording: Boolean = false,
     val recordingDuration: Long = 0,
     val recordingFileUri: Uri? = null,
     val showVoiceRecorder: Boolean = false,
-    val recordingAmplitude: Float = 0f
+    val recordingAmplitude: Float = 0f,
+    val currentPage: Int = 1,
+    val hasMoreMessages: Boolean = true,
+    val isLoadingMore: Boolean = false,
 )
 
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val getMessagesUseCase: GetMessagesUseCase,
+    private val getMessageContextUseCase: GetMessageContextUseCase,
     private val getMeUseCase: GetMeUseCase,
     private val uploadMediaUseCase: UploadMediaUseCase,
     private val webSocketManager: WebSocketManager,
+    private val appNotificationManager: AppNotificationManager,
     private val gson: Gson,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
@@ -73,6 +85,11 @@ class ChatViewModel @Inject constructor(
     private var recordingJob: Job? = null
     private var isSuccessfullyStarted = false
 
+    var highlightedMessageId by androidx.compose.runtime.mutableStateOf<String?>(null)
+        private set
+    private val _scrollEvent = kotlinx.coroutines.flow.MutableSharedFlow<Int>()
+    val scrollEvent = _scrollEvent.asSharedFlow()
+
     init {
         fetchCurrentUser()
         observeSocketStatus()
@@ -81,6 +98,7 @@ class ChatViewModel @Inject constructor(
         observeMessagesRead()
         observeOnlineUsers()
         observeTypingEvents()
+        observeRevokedMessages()
     }
 
     private fun fetchCurrentUser() {
@@ -175,6 +193,19 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private fun observeRevokedMessages() {
+        viewModelScope.launch {
+            webSocketManager.messageRevokedFlow.collect { payload ->
+                val evtConversationId = payload.optString("conversationId")
+                val evtMessageId = payload.optString("messageId")
+
+                if (evtConversationId == currentConversationId) {
+                    updateMessageToRecalled(evtMessageId)
+                }
+            }
+        }
+    }
+
     private fun observeMessagesRead() {
         viewModelScope.launch {
             webSocketManager.messagesReadEvent.collect { json ->
@@ -203,20 +234,61 @@ class ChatViewModel @Inject constructor(
     fun loadMessages(conversationId: String) {
         currentConversationId = conversationId
         viewModelScope.launch {
-            _uiState.value = _uiState.value.copy(isLoading = true, error = null)
-            when (val result = getMessagesUseCase(conversationId)) {
+            _uiState.update {
+                it.copy(
+                    isLoading = true,
+                    error = null,
+                    currentPage = 1,
+                    hasMoreMessages = true
+                )
+            }
+
+            when (val result = getMessagesUseCase(conversationId, page = 1)) {
                 is ApiResult.Success -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        messages = result.data?.messages ?: emptyList()
-                    )
+                    val response = result.data
+                    _uiState.update { state ->
+                        state.copy(
+                            isLoading = false,
+                            messages = response?.messages ?: emptyList(),
+                            hasMoreMessages = (response?.meta?.currentPage ?: 1) < (response?.meta?.totalPages ?: 1)
+                        )
+                    }
                     webSocketManager.markRead(conversationId)
                 }
                 is ApiResult.Error -> {
-                    _uiState.value = _uiState.value.copy(
-                        isLoading = false,
-                        error = result.message
-                    )
+                    _uiState.update { it.copy(isLoading = false, error = result.message) }
+                }
+            }
+        }
+    }
+
+    fun loadMoreMessages() {
+        val state = _uiState.value
+        val convId = currentConversationId ?: return
+
+        if (state.isLoadingMore || !state.hasMoreMessages || state.isLoading) return
+
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoadingMore = true) }
+            val nextPage = state.currentPage + 1
+
+            when (val result = getMessagesUseCase(convId, page = nextPage)) {
+                is ApiResult.Success -> {
+                    val response = result.data
+                    val newMessages = response?.messages ?: emptyList()
+
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            isLoadingMore = false,
+                            currentPage = nextPage,
+                            messages = currentState.messages + newMessages,
+                            hasMoreMessages = (response?.meta?.currentPage ?: 1) < (response?.meta?.totalPages ?: 1)
+                        )
+                    }
+                }
+                is ApiResult.Error -> {
+                    _uiState.update { it.copy(isLoadingMore = false) }
+                    Log.e("ChatViewModel", "Lỗi tải thêm tin nhắn: ${result.message}")
                 }
             }
         }
@@ -232,7 +304,12 @@ class ChatViewModel @Inject constructor(
         _uiState.value = _uiState.value.copy(selectedMedia = current)
     }
 
-    fun sendChatWithMedia(conversationId: String, content: String?) {
+    fun sendChatWithMedia(
+        conversationId: String,
+        content: String?,
+        replyToId: String? = null,
+        replyToMessageInfo: RepliedMessageInfo? = null
+    ) {
         val currentUser = _uiState.value.currentUser ?: return
         val selectedMedia = _uiState.value.selectedMedia.toList() // Copy list
         
@@ -240,7 +317,7 @@ class ChatViewModel @Inject constructor(
 
         viewModelScope.launch {
             if (!content.isNullOrBlank()) {
-                sendChatMessage(conversationId, content)
+                sendChatMessage(conversationId, content, replyToId = replyToId , replyToMessageInfo = replyToMessageInfo)
             }
 
             if (selectedMedia.isNotEmpty()) {
@@ -254,7 +331,7 @@ class ChatViewModel @Inject constructor(
                         text = "",
                         isRecall = false,
                         createAt = java.time.ZonedDateTime.now().toString(),
-                        replyToMessageId = null,
+                        replyToMessage = null,
                         sender = MessageSender(
                             id = currentUser.id,
                             displayName = currentUser.displayName ?: currentUser.username,
@@ -294,7 +371,13 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    fun sendChatMessage(conversationId: String, content: String, type: String = "TEXT") {
+    fun sendChatMessage(
+        conversationId: String,
+        content: String,
+        type: String = "TEXT",
+        replyToId: String? = null,
+        replyToMessageInfo: RepliedMessageInfo? = null
+    ) {
         if (content.isBlank()) return
         
         val currentUser = _uiState.value.currentUser ?: return
@@ -306,7 +389,7 @@ class ChatViewModel @Inject constructor(
             text = content,
             isRecall = false,
             createAt = java.time.ZonedDateTime.now().toString(),
-            replyToMessageId = null,
+            replyToMessage = replyToMessageInfo,
             sender = MessageSender(
                 id = currentUser.id,
                 displayName = currentUser.displayName ?: currentUser.username,
@@ -326,7 +409,8 @@ class ChatViewModel @Inject constructor(
                     conversationId = conversationId,
                     content = content,
                     type = type,
-                    temporaryId = tempId
+                    temporaryId = tempId,
+                    replyToId = replyToId
                 )
                 true
             }
@@ -435,7 +519,6 @@ class ChatViewModel @Inject constructor(
                 release()
             }
         } catch (e: Exception) {
-            // Có thể xảy ra nếu chưa kịp start đã stop
         }
         mediaRecorder = null
         recordingJob?.cancel()
@@ -463,7 +546,7 @@ class ChatViewModel @Inject constructor(
                 text = "",
                 isRecall = false,
                 createAt = java.time.ZonedDateTime.now().toString(),
-                replyToMessageId = null,
+                replyToMessage = null,
                 sender = MessageSender(
                     id = currentUser.id,
                     displayName = currentUser.displayName ?: currentUser.username,
@@ -496,6 +579,70 @@ class ChatViewModel @Inject constructor(
                 }
             }
             _uiState.value = _uiState.value.copy(isUploadingMedia = false, recordingFileUri = null)
+        }
+    }
+
+    fun revokeMessage(messageId: String) {
+        webSocketManager.revokeMessage(messageId, currentConversationId)
+
+        updateMessageToRecalled(messageId)
+    }
+
+    private fun updateMessageToRecalled(messageId: String) {
+        val currentMessages = _uiState.value.messages
+        val updatedMessages = currentMessages.map { msg ->
+            if (msg.id == messageId) {
+                msg.copy(isRecall = true, text = "", media = emptyList())
+            } else {
+                msg
+            }
+        }
+        _uiState.value = _uiState.value.copy(messages = updatedMessages)
+    }
+
+    fun notifyMessageCopied() {
+        appNotificationManager.showMessage("Đã sao chép tin nhắn", NotificationType.SUCCESS)
+    }
+
+    fun onRepliedMessageClick(messageId: String) {
+        val convId = currentConversationId ?: return
+
+        viewModelScope.launch {
+            val index = uiState.value.messages.indexOfFirst { it.id == messageId }
+
+            if (index != -1) {
+                triggerHighlightAndScroll(index, messageId)
+            } else {
+                _uiState.value = _uiState.value.copy(isLoading = true)
+                when (val result = getMessageContextUseCase(convId, messageId)) {
+                    is ApiResult.Success -> {
+                        val contextMessages = result.data?.messages ?: emptyList()
+                        _uiState.value = _uiState.value.copy(
+                            messages = contextMessages,
+                            isLoading = false
+                        )
+
+                        delay(200)
+                        val newIndex = _uiState.value.messages.indexOfFirst { it.id == messageId }
+                        if (newIndex != -1) {
+                            triggerHighlightAndScroll(newIndex, messageId)
+                        }
+                    }
+                    is ApiResult.Error -> {
+                        _uiState.value = _uiState.value.copy(isLoading = false)
+                        Log.e("ChatViewModel", "Lỗi tải context: ${result.message}")
+                    }
+                }
+            }
+        }
+    }
+
+    private suspend fun triggerHighlightAndScroll(index: Int, messageId: String) {
+        _scrollEvent.emit(index)
+        highlightedMessageId = messageId
+        delay(1500)
+        if (highlightedMessageId == messageId) {
+            highlightedMessageId = null
         }
     }
 }

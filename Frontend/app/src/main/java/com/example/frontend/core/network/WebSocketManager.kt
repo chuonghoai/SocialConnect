@@ -7,6 +7,7 @@ import io.socket.client.Socket
 import io.socket.engineio.client.transports.WebSocket
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharedFlow
@@ -52,6 +53,9 @@ class WebSocketManager @Inject constructor(
 
     private val _messagesReadEvent = MutableSharedFlow<String?>(extraBufferCapacity = 1)
     val messagesReadEvent: SharedFlow<String?> = _messagesReadEvent.asSharedFlow()
+
+    private val _messageRevokedFlow = MutableSharedFlow<JSONObject>()
+    val messageRevokedFlow = _messageRevokedFlow.asSharedFlow()
 
     fun connect() {
         scope.launch {
@@ -134,6 +138,20 @@ class WebSocketManager @Inject constructor(
             val data = args.getOrNull(0)?.toString()
             _messageSentSuccess.value = data
             Log.d("WebSocket", "Gửi tin nhắn thành công: $data")
+        }
+
+        mSocket?.on("message_revoked") { args ->
+            try {
+                val data = args.getOrNull(0) as? JSONObject
+                if (data != null) {
+                    Log.d("WebSocket", "<<< Nhận event 'message_revoked': $data")
+                    scope.launch {
+                        _messageRevokedFlow.emit(data)
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("WebSocket", "Lỗi parse message_revoked: ${e.message}")
+            }
         }
 
         mSocket?.on("online_users_list") { args ->
@@ -267,5 +285,13 @@ class WebSocketManager @Inject constructor(
             put("conversationId", conversationId)
         }
         emit("mark_read", payload)
+    }
+
+    fun revokeMessage(messageId: String, conversationId: String?) {
+        val payload = JSONObject().apply {
+            put("messageId", messageId)
+            put("conversationId", conversationId)
+        }
+        emit("revoke_message", payload)
     }
 }

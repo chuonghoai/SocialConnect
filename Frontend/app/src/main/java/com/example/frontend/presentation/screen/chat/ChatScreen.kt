@@ -1,6 +1,7 @@
 package com.example.frontend.presentation.screen.chat
 
 import MessageItem
+import RepliedMessageInfo
 import android.Manifest
 import android.content.pm.PackageManager
 import android.media.MediaPlayer
@@ -9,6 +10,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.*
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -47,6 +49,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -67,6 +70,25 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.ui.PlayerView
 import com.example.frontend.domain.model.PostMedia
 import com.example.frontend.ui.component.MediaViewerDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
+import androidx.compose.material3.BottomSheetDefaults
+import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Reply
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.unit.IntOffset
+import kotlinx.coroutines.launch
+import kotlin.math.roundToInt
 
 @Composable
 fun ChatScreen(
@@ -87,6 +109,9 @@ fun ChatScreen(
 
     var viewerMediaList by remember { mutableStateOf<List<PostMedia>?>(null) }
     var viewerInitialPage by remember { mutableIntStateOf(0) }
+    val clipboardManager = LocalClipboardManager.current
+    var replyingToMessage by remember { mutableStateOf<MessageItem?>(null) }
+
     if (viewerMediaList != null) {
         MediaViewerDialog(
             mediaItems = viewerMediaList!!,
@@ -116,6 +141,19 @@ fun ChatScreen(
 
     val isPartnerOnline = uiState.onlineUsers.contains(partnerId)
 
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val lastVisibleItem = listState.layoutInfo.visibleItemsInfo.lastOrNull()
+            lastVisibleItem != null && lastVisibleItem.index >= uiState.messages.size - 5
+        }
+    }
+
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore && uiState.hasMoreMessages && !uiState.isLoadingMore) {
+            viewModel.loadMoreMessages()
+        }
+    }
+
     LaunchedEffect(conversationId) {
         viewModel.loadMessages(conversationId)
     }
@@ -123,6 +161,12 @@ fun ChatScreen(
     LaunchedEffect(uiState.messages.size) {
         if (uiState.messages.isNotEmpty()) {
             listState.animateScrollToItem(0)
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.scrollEvent.collect { index ->
+            listState.animateScrollToItem(index)
         }
     }
 
@@ -189,22 +233,71 @@ fun ChatScreen(
                                 }
                             } else null
 
-                            MessageBubble(
-                                message = msg,
-                                isMine = isMine,
-                                incomingAvatarUrl = conversationAvatarUrl,
-                                statusText = statusText,
-                                onMediaClick = { selectedMedia ->
-                                    viewerMediaList = listOf(selectedMedia)
-                                    viewerInitialPage = 0
-                                }
+                            val isHighlighted = viewModel.highlightedMessageId == msg.id
+                            val highlightColor by animateColorAsState(
+                                targetValue = if (isHighlighted) OrangePrimary.copy(alpha = 0.25f) else Color.Transparent,
+                                animationSpec = tween(durationMillis = 500)
                             )
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(highlightColor)
+                            ) {
+                                SwipeToReplyWrapper(
+                                    isMine = isMine,
+                                    swipeEnabled = !msg.isRecall,
+                                    onReply = {
+                                        replyingToMessage = msg
+                                    }
+                                ) {
+                                    MessageBubble(
+                                        message = msg,
+                                        isMine = isMine,
+                                        incomingAvatarUrl = conversationAvatarUrl,
+                                        statusText = statusText,
+                                        onMediaClick = { selectedMedia ->
+                                            viewerMediaList = listOf(selectedMedia)
+                                            viewerInitialPage = 0
+                                        },
+                                        onRevokeClick = { messageId ->
+                                            viewModel.revokeMessage(messageId)
+                                        },
+                                        onCopyClick = { textToCopy ->
+                                            clipboardManager.setText(AnnotatedString(textToCopy))
+                                            viewModel.notifyMessageCopied()
+                                        },
+                                        onReplyClick = {
+                                            replyingToMessage = msg
+                                        },
+                                        onRepliedMessageClick = { repliedId ->
+                                            viewModel.onRepliedMessageClick(repliedId)
+                                        }
+                                    )
+                                }
+                            }
+                        }
+
+                        if (uiState.isLoadingMore) {
+                            item {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(16.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(24.dp),
+                                        color = OrangePrimary,
+                                        strokeWidth = 2.dp
+                                    )
+                                }
+                            }
                         }
                     }
                 }
             }
 
-            // Thanh preview media đã chọn
             if (uiState.selectedMedia.isNotEmpty() && !uiState.showVoiceRecorder) {
                 LazyRow(
                     modifier = Modifier
@@ -268,32 +361,72 @@ fun ChatScreen(
                     }
                 )
             } else {
-                ChatInputBar(
-                    value = messageText,
-                    onValueChange = {
-                        messageText = it
-                        viewModel.onTyping(it)
-                    },
-                    onSendClick = {
-                        if (messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()) {
-                            viewModel.sendChatWithMedia(conversationId, messageText)
-                            messageText = ""
+                Column(modifier = Modifier.fillMaxWidth().background(Color.White)) {
+                    AnimatedVisibility(visible = replyingToMessage != null) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .background(Color(0xFFF5F5F5))
+                                .padding(horizontal = 16.dp, vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Box(modifier = Modifier.width(4.dp).height(32.dp).background(OrangePrimary, RoundedCornerShape(2.dp)))
+                            Spacer(Modifier.width(8.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Đang trả lời ${replyingToMessage?.sender?.displayName}", fontWeight = FontWeight.Bold, fontSize = 13.sp, color = OrangePrimary)
+                                Text(
+                                    text = if (replyingToMessage?.isRecall == true) "Tin nhắn đã bị thu hồi" else (replyingToMessage?.text?.ifBlank { "[Đa phương tiện]" } ?: ""),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    color = Color.Gray,
+                                    fontSize = 13.sp
+                                )
+                            }
+                            IconButton(onClick = { replyingToMessage = null }) {
+                                Icon(Icons.Default.Close, contentDescription = "Hủy trả lời", tint = Color.Gray)
+                            }
                         }
-                    },
-                    onAddClick = {
-                        launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
-                    },
-                    onVoiceClick = { 
-                        Log.d("ChatFlow", "Bấm icon micro -> Kiểm tra quyền")
-                        val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
-                        if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
-                            viewModel.toggleVoiceRecorder(true)
-                        } else {
-                            permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
-                        }
-                    },
-                    isSendEnabled = messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()
-                )
+                    }
+
+                    ChatInputBar(
+                        value = messageText,
+                        onValueChange = {
+                            messageText = it
+                            viewModel.onTyping(it)
+                        },
+                        onSendClick = {
+                            val replyInfo = replyingToMessage?.let {
+                                RepliedMessageInfo(
+                                    id = it.id, type = it.type, text = it.text,
+                                    isRecall = it.isRecall, sender = it.sender
+                                )
+                            }
+                            if (messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()) {
+                                viewModel.sendChatWithMedia(
+                                    conversationId,
+                                    messageText,
+                                    replyToId = replyingToMessage?.id,
+                                    replyToMessageInfo = replyInfo
+                                )
+                                messageText = ""
+                            }
+                            replyingToMessage = null
+                        },
+                        onAddClick = {
+                            launcher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo))
+                        },
+                        onVoiceClick = {
+                            Log.d("ChatFlow", "Bấm icon micro -> Kiểm tra quyền")
+                            val permissionCheck = ContextCompat.checkSelfPermission(context, Manifest.permission.RECORD_AUDIO)
+                            if (permissionCheck == PackageManager.PERMISSION_GRANTED) {
+                                viewModel.toggleVoiceRecorder(true)
+                            } else {
+                                permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+                            }
+                        },
+                        isSendEnabled = messageText.isNotBlank() || uiState.selectedMedia.isNotEmpty()
+                    )
+                }
             }
         }
 
@@ -312,6 +445,7 @@ fun ChatScreen(
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun VoiceRecorderUI(
     uiState: ChatUiState,
@@ -492,22 +626,40 @@ fun formatDuration(ms: Long): String {
     return String.format("%02d:%02d", minutes, seconds)
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun MessageBubble(
     message: MessageItem,
     isMine: Boolean,
     incomingAvatarUrl: String?,
     statusText: String? = null,
-    onMediaClick: (PostMedia) -> Unit
+    onMediaClick: (PostMedia) -> Unit,
+    onRevokeClick: (String) -> Unit,
+    onCopyClick: (String) -> Unit,
+    onReplyClick: () -> Unit,
+    onRepliedMessageClick: (String) -> Unit
 ) {
     val isUploading = message.id.startsWith("temp_")
+    var showMenu by remember { mutableStateOf(false) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
     Column(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onLongPress = {
+                        if (!message.isRecall) {
+                            showMenu = true
+                        }
+                    }
+                )
+            },
         horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth(),
             horizontalArrangement = if (isMine) Arrangement.End else Arrangement.Start,
             verticalAlignment = Alignment.Bottom
         ) {
@@ -526,66 +678,123 @@ private fun MessageBubble(
                 Spacer(Modifier.width(8.dp))
             }
 
-            Column(
-                modifier = Modifier.widthIn(max = 240.dp),
-                horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
-            ) {
-                val isAudioMessage = message.type == "AUDIO" || message.media.firstOrNull()?.type == "AUDIO"
-                if (isAudioMessage) {
-                    AudioMessageBubble(message, isMine, isUploading)
-                } else {
-                    message.media.forEach { media ->
-                        val postMedia = PostMedia(
-                            cdnUrl = media.secureUrl,
-                            kind = if (media.type == "VIDEO") "VIDEO" else "IMAGE"
+            if (message.isRecall) {
+                Box(
+                    modifier = Modifier
+                        .background(Color.Transparent, RoundedCornerShape(12.dp))
+                        .border(1.dp, Color.Gray, RoundedCornerShape(12.dp))
+                        .padding(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(
+                        text = "Tin nhắn đã bị thu hồi",
+                        color = Color.Gray,
+                        fontStyle = FontStyle.Italic,
+                        fontSize = 14.sp
+                    )
+                }
+            } else {
+                if (message.replyToMessage != null) {
+                    Column(
+                        modifier = Modifier
+                            .padding(bottom = 6.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(Color.Black.copy(alpha = 0.05f))
+                            .clickable { onRepliedMessageClick(message.replyToMessage.id) }
+                            .padding(8.dp)
+                    ) {
+                        Text(
+                            text = message.replyToMessage.sender.displayName,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            color = if (isMine) Color.DarkGray else OrangePrimary
                         )
+                        Text(
+                            text = if (message.replyToMessage.isRecall) "Đã thu hồi" else message.replyToMessage.text.ifBlank { "[Đa phương tiện]" },
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            color = if (isMine) Color.DarkGray.copy(alpha = 0.8f) else Color.Gray
+                        )
+                    }
+                }
 
-                        if (media.type == "VIDEO") {
-                            Box(modifier = Modifier.clickable { onMediaClick(postMedia) }) {
-                                VideoMessageBubble(media.secureUrl, isUploading)
-                            }
-                        } else if (media.type == "IMAGE") {
-                            Box(
-                                modifier = Modifier
-                                    .padding(bottom = 4.dp)
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .background(Color.LightGray)
-                                    .clickable { onMediaClick(postMedia) }
-                            ) {
-                                AsyncImage(
-                                    model = media.secureUrl,
-                                    contentDescription = null,
-                                    modifier = Modifier
-                                        .width(200.dp)
-                                        .heightIn(max = 300.dp)
-                                        .alpha(if (isUploading) 0.5f else 1f),
-                                    contentScale = ContentScale.Crop
-                                )
-                                if (isUploading) {
-                                    CircularProgressIndicator(
-                                        modifier = Modifier
-                                            .size(30.dp)
-                                            .align(Alignment.Center),
-                                        color = OrangePrimary,
-                                        strokeWidth = 2.dp
+                Column(
+                    modifier = Modifier.widthIn(max = 240.dp),
+                    horizontalAlignment = if (isMine) Alignment.End else Alignment.Start
+                ) {
+                    val isAudioMessage = message.type == "AUDIO" || message.media.firstOrNull()?.type == "AUDIO"
+                    if (isAudioMessage) {
+                        Box(modifier = Modifier.pointerInput(Unit) {
+                            detectTapGestures(
+                                onLongPress = { if (!message.isRecall) showMenu = true }
+                            )
+                        }) {
+                            AudioMessageBubble(message, isMine, isUploading)
+                        }
+                    } else {
+                        message.media.forEach { media ->
+                            val postMedia = PostMedia(
+                                cdnUrl = media.secureUrl,
+                                kind = if (media.type == "VIDEO") "VIDEO" else "IMAGE"
+                            )
+
+                            if (media.type == "VIDEO") {
+                                Box(modifier = Modifier.pointerInput(Unit) {
+                                    detectTapGestures(
+                                        onTap = { onMediaClick(postMedia) },
+                                        onLongPress = { if (!message.isRecall) showMenu = true }
                                     )
+                                }) {
+                                    VideoMessageBubble(media.secureUrl, isUploading)
+                                }
+                            } else if (media.type == "IMAGE") {
+                                Box(
+                                    modifier = Modifier
+                                        .padding(bottom = 4.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(Color.LightGray)
+                                        .pointerInput(Unit) {
+                                            detectTapGestures(
+                                                onTap = { onMediaClick(postMedia) },
+                                                onLongPress = { if (!message.isRecall) showMenu = true }
+                                            )
+                                        }
+                                ) {
+                                    AsyncImage(
+                                        model = media.secureUrl,
+                                        contentDescription = null,
+                                        modifier = Modifier
+                                            .width(200.dp)
+                                            .heightIn(max = 300.dp)
+                                            .alpha(if (isUploading) 0.5f else 1f),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                    if (isUploading) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier
+                                                .size(30.dp)
+                                                .align(Alignment.Center),
+                                            color = OrangePrimary,
+                                            strokeWidth = 2.dp
+                                        )
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (message.text.isNotEmpty()) {
-                        Surface(
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
-                            shadowElevation = 1.dp
-                        ) {
-                            Text(
-                                text = message.text,
-                                color = Color(0xFF1F1F1F),
-                                fontSize = 16.sp,
-                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
-                            )
+                        if (message.text.isNotEmpty()) {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = if (isMine) Color(0xFFE8A46F) else Color(0xFFF4F4F4),
+                                shadowElevation = 1.dp
+                            ) {
+                                Text(
+                                    text = message.text,
+                                    color = Color(0xFF1F1F1F),
+                                    fontSize = 16.sp,
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -617,6 +826,72 @@ private fun MessageBubble(
                     color = if (statusText.contains("Đang") || statusText.contains("Lỗi")) Color.Gray else OrangePrimary,
                     fontSize = 10.sp
                 )
+            }
+        }
+
+        // Bottom sheet
+        if (showMenu) {
+            ModalBottomSheet(
+                onDismissRequest = { showMenu = false },
+                sheetState = sheetState,
+                containerColor = Color.White,
+                dragHandle = { BottomSheetDefaults.DragHandle() }
+            ) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 32.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                showMenu = false
+                                onReplyClick()
+                            }
+                            .padding(vertical = 16.dp, horizontal = 24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(Icons.Default.Reply, contentDescription = "Reply", tint = Color(0xFF333333))
+                        Spacer(Modifier.width(16.dp))
+                        Text("Trả lời", color = Color(0xFF333333), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                    }
+
+                    if (message.text.isNotBlank() && !message.isRecall) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showMenu = false
+                                    onCopyClick(message.text)
+                                }
+                                .padding(vertical = 16.dp, horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy", tint = Color(0xFF333333))
+                            Spacer(Modifier.width(16.dp))
+                            Text("Sao chép", color = Color(0xFF333333), fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        }
+
+                    }
+
+                    if (isMine && !message.isRecall) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    showMenu = false
+                                    onRevokeClick(message.id)
+                                }
+                                .padding(vertical = 16.dp, horizontal = 24.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Default.Delete, contentDescription = "Revoke", tint = Color.Red)
+                            Spacer(Modifier.width(16.dp))
+                            Text("Thu hồi tin nhắn", color = Color.Red, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
             }
         }
     }
@@ -814,7 +1089,7 @@ private fun ChatTopBar(
     onBackClick: () -> Unit,
     onVoiceCallClick: () -> Unit,
     onVideoCallClick: () -> Unit,
-    onProfileClick: () -> Unit, // THÊM CALLBACK
+    onProfileClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Row(
@@ -971,6 +1246,108 @@ private fun ChatInputBar(
                 tint = if (isSendEnabled) OrangePrimary else Color.Gray,
                 modifier = Modifier.size(20.dp)
             )
+        }
+    }
+}
+
+@Composable
+fun SwipeToReplyWrapper(
+    isMine: Boolean,
+    swipeEnabled: Boolean = true,
+    onReply: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    val offsetX = remember { Animatable(0f) }
+    val scope = rememberCoroutineScope()
+    val density = LocalDensity.current
+    val haptic = LocalHapticFeedback.current
+
+    val maxSwipePx = with(density) { 60.dp.toPx() }
+    val thresholdPx = with(density) { 40.dp.toPx() }
+
+    var hasTriggeredHaptic by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .pointerInput(swipeEnabled) {
+                if (!swipeEnabled) return@pointerInput
+
+                detectHorizontalDragGestures(
+                    onDragEnd = {
+                        scope.launch {
+                            if (kotlin.math.abs(offsetX.value) >= thresholdPx) {
+                                onReply()
+                            }
+                            hasTriggeredHaptic = false
+                            offsetX.animateTo(
+                                targetValue = 0f,
+                                animationSpec = spring(
+                                    dampingRatio = Spring.DampingRatioMediumBouncy,
+                                    stiffness = Spring.StiffnessMedium
+                                )
+                            )
+                        }
+                    },
+                    onDragCancel = {
+                        scope.launch {
+                            hasTriggeredHaptic = false
+                            offsetX.animateTo(0f)
+                        }
+                    },
+                    onHorizontalDrag = { change, dragAmount ->
+                        change.consume()
+                        scope.launch {
+                            val newOffset = offsetX.value + dragAmount
+
+                            val clampedOffset = if (isMine) {
+                                newOffset.coerceIn(-maxSwipePx, 0f)
+                            } else {
+                                newOffset.coerceIn(0f, maxSwipePx)
+                            }
+
+                            if (kotlin.math.abs(clampedOffset) >= thresholdPx && !hasTriggeredHaptic) {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                hasTriggeredHaptic = true
+                            } else if (kotlin.math.abs(clampedOffset) < thresholdPx) {
+                                hasTriggeredHaptic = false
+                            }
+
+                            offsetX.snapTo(clampedOffset)
+                        }
+                    }
+                )
+            }
+    ) {
+        val iconAlpha = (kotlin.math.abs(offsetX.value) / maxSwipePx).coerceIn(0f, 1f)
+        val iconScale = 0.5f + 0.5f * iconAlpha
+
+        if (offsetX.value != 0f) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .padding(horizontal = 16.dp),
+                contentAlignment = if (isMine) Alignment.CenterEnd else Alignment.CenterStart
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Reply,
+                    contentDescription = "Reply",
+                    tint = OrangePrimary.copy(alpha = iconAlpha),
+                    modifier = Modifier
+                        .size(24.dp)
+                        .graphicsLayer {
+                            scaleX = iconScale
+                            scaleY = iconScale
+                            alpha = iconAlpha
+                        }
+                )
+            }
+        }
+
+        Box(
+            modifier = Modifier.offset { IntOffset(offsetX.value.roundToInt(), 0) }
+        ) {
+            content()
         }
     }
 }
