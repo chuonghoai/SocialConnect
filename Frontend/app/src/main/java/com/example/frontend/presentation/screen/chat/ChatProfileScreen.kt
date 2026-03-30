@@ -98,7 +98,6 @@ fun ChatProfileScreen(
         ) {
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Avatar
             AsyncImage(
                 model = partnerAvatarUrl,
                 contentDescription = "Avatar",
@@ -113,7 +112,6 @@ fun ChatProfileScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Tên
             Text(
                 text = partnerName,
                 style = MaterialTheme.typography.titleLarge,
@@ -123,7 +121,6 @@ fun ChatProfileScreen(
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Row các nút thao tác
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
@@ -148,7 +145,6 @@ fun ChatProfileScreen(
             Spacer(modifier = Modifier.height(24.dp))
             HorizontalDivider(thickness = 8.dp, color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f))
 
-            // Lịch sử đa phương tiện (UI tạm thời)
             Column(
                 modifier = Modifier
                     .fillMaxWidth()

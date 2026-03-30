@@ -45,14 +45,11 @@ fun SettingScreen(
         )
         Divider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
-//        Spacer(modifier = Modifier.height(24.dp))
-
         SettingMenuItem(text = "Chỉnh sửa hồ sơ", onClick = onEditProfileClick)
         SettingMenuItem(text = "Thay đổi mật khẩu", onClick = onChangePasswordClick)
 
         Spacer(modifier = Modifier.weight(1f))
 
-        // Đăng xuất
         Button(
             onClick = { viewModel.logout(onLoggedOut) },
             modifier = Modifier

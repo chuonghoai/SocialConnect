@@ -275,7 +275,6 @@ fun ProfileScreen(
                                 "selectedFriendIds=${shareData.selectedFriendIds.joinToString()}, " +
                                 "currentUserId=${shareData.currentUserId}"
                         )
-                        // TODO(BE): hỗ trợ gửi caption + selectedFriendIds trong endpoint share/message để FE nối payload đầy đủ.
                         viewModel.sharePost(shareData)
                         shareTargetPost = null
                     }

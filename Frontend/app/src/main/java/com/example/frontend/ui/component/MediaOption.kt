@@ -40,7 +40,6 @@ import com.example.frontend.core.util.MediaDownloadManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-// Định nghĩa màu đen và trắng chuyên biệt
 private val BlackColor = Color(0xFF000000)
 private val WhiteColor = Color(0xFFFFFFFF)
 private val SeparatorColor = Color(0xFF222222)
@@ -102,20 +101,6 @@ fun MediaOptionBottomSheet(
                     }
                 }
             )
-//
-//            // Share
-//            MediaOptionItem(
-//                icon = Icons.Outlined.Share,
-//                title = "Chia sẻ",
-//                onClick = {
-//                    coroutineScope.launch { sheetState.hide() }.invokeOnCompletion {
-//                        if (!sheetState.isVisible) {
-//                            onDismissRequest()
-//                        }
-//                    }
-//                    onShareClick()
-//                }
-//            )
         }
     }
 }

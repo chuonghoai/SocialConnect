@@ -127,7 +127,7 @@ fun AppNavGraph(
             }
         }
     }
-    // Lắng nghe cuộc gọi đến toàn cục
+
     LaunchedEffect(callViewModel) {
         callViewModel.uiEvent.collect { event ->
             if (event is CallUiEvent.IncomingCall) {
@@ -724,7 +724,6 @@ fun AppNavGraph(
 
                     val formattedDuration = String.format("%02d:%02d", callDuration / 60, callDuration % 60)
 
-                    // Khởi tạo cuộc gọi (Chỉ dành cho người GỌI)
                     LaunchedEffect(Unit) {
                         if (!isIncoming && uiState.status == "idle") {
                             callViewModel.startCall(targetUserId, isVideoCall, fullname, avatarUrl)

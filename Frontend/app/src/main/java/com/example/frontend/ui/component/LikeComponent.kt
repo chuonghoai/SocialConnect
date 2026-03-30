@@ -103,7 +103,6 @@ fun LikeComponent(
         }
     }
 
-    // Layout vertical handle
     if (isVertical) {
         Column(
             modifier = modifier.clickable(

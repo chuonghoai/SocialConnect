@@ -460,7 +460,6 @@ private fun buildCommentTree(comments: List<Comment>): List<CommentUiItem> {
 
     roots.forEach { root -> dfs(root, 0) }
 
-    // Keep orphan replies visible even if parent not in current page.
     val rootIds = roots.map { it.id }.toSet()
     val orphans = comments.filter { it.parentCommentId != null && it.parentCommentId !in rootIds && it !in roots }
     orphans.sortedBy { it.createdAt }.forEach { orphan ->

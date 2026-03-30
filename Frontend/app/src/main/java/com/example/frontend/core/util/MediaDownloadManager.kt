@@ -28,7 +28,6 @@ class MediaDownloadManager(private val context: Context) {
                 }
             }
 
-            // Xử lý metaData cho file tạm trước khi đẩy vào hệ thống
             if (!isVideo) {
                 updateExifDateToCurrent(tempFile)
             }
@@ -52,16 +51,13 @@ class MediaDownloadManager(private val context: Context) {
         try {
             val exif = ExifInterface(file.absolutePath)
 
-            // EXIF yêu cầu định dạng ngày giờ cụ thể: "YYYY:MM:DD HH:MM:SS"
             val sdf = SimpleDateFormat("yyyy:MM:dd HH:mm:ss", Locale.US)
             val currentDateStr = sdf.format(Date())
 
-            // Ghi đè ngày hiện tại vào metaData thay vì để null
             exif.setAttribute(ExifInterface.TAG_DATETIME, currentDateStr)
             exif.setAttribute(ExifInterface.TAG_DATETIME_ORIGINAL, currentDateStr)
             exif.setAttribute(ExifInterface.TAG_DATETIME_DIGITIZED, currentDateStr)
 
-            // Vẫn xóa vị trí GPS để bảo vệ quyền riêng tư nếu muốn
             exif.setAttribute(ExifInterface.TAG_GPS_LATITUDE, null)
             exif.setAttribute(ExifInterface.TAG_GPS_LONGITUDE, null)
 
@@ -84,7 +80,6 @@ class MediaDownloadManager(private val context: Context) {
             else MediaStore.Images.Media.EXTERNAL_CONTENT_URI
         }
 
-        // SỬA Ở ĐÂY: Dùng chung 1 thư mục DCIM/SocialConnect cho cả ảnh và video
         val directoryName = "SocialConnect"
         val directoryPath = Environment.DIRECTORY_DCIM + "/" + directoryName
 
@@ -104,12 +99,9 @@ class MediaDownloadManager(private val context: Context) {
             }
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                // CHO ANDROID 10 TRỞ LÊN
                 put(MediaStore.MediaColumns.RELATIVE_PATH, directoryPath)
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             } else {
-                // SỬA Ở ĐÂY: CHO ANDROID 9 TRỞ XUỐNG
-                // Cần khai báo rõ đường dẫn vật lý (DATA) để gom chung vào 1 folder
                 val publicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM)
                 val socialConnectDir = File(publicDir, directoryName)
                 if (!socialConnectDir.exists()) {

@@ -38,7 +38,7 @@ class EditProfileViewModel @Inject constructor(
         if (user != null && !isInitialized) {
             displayName = user.displayName
             email = user.email
-            dob = "01/01/2000" // temporary mock
+            dob = "01/01/2000"
             currentAvatarUrl = user.avatarUrl
             isInitialized = true
         }
@@ -66,7 +66,6 @@ class EditProfileViewModel @Inject constructor(
 
             when (val result = updateProfileUseCase(displayName, dob, email, finalAvatarToSubmit)) {
                 is ApiResult.Success -> {
-                    // Force refresh user session to update local DB and global state
                     sessionManager.fetchCurrentUser(isRefresh = true)
                     isInitialized = false
                     selectedAvatarUri = null

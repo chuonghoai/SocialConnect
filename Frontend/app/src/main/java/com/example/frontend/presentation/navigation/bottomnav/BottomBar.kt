@@ -77,7 +77,6 @@ fun BottomBar(
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     indicatorColor = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f)
                 )
-//                label = { Text(item.label) }
             )
         }
     }

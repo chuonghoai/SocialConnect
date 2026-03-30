@@ -51,7 +51,6 @@ fun SearchScreen(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // ─────────────────────── Search Bar ───────────────────────
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -94,7 +93,6 @@ fun SearchScreen(
             )
         }
 
-        // ─────────────────────── Scope Filter Chips ───────────────────────
         if (uiState.query.isNotEmpty() || uiState.hasSearched) {
             Row(
                 modifier = Modifier
@@ -119,10 +117,8 @@ fun SearchScreen(
 
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 0.5.dp)
 
-        // ─────────────────────── Main Content ───────────────────────
         Box(modifier = Modifier.fillMaxSize()) {
             when {
-                // 1. Đang tải
                 uiState.isLoading -> {
                     CircularProgressIndicator(
                         modifier = Modifier.align(Alignment.Center),
@@ -130,7 +126,6 @@ fun SearchScreen(
                     )
                 }
 
-                // 2. Đã tìm kiếm → hiển thị kết quả hoặc lỗi
                 uiState.hasSearched -> {
                     when {
                         uiState.error != null -> {
@@ -207,7 +202,6 @@ fun SearchScreen(
                     }
                 }
 
-                // 3. Query rỗng → hiển thị lịch sử tìm kiếm
                 uiState.query.isEmpty() -> {
                     SearchHistorySection(
                         history = uiState.searchHistory,
@@ -217,7 +211,6 @@ fun SearchScreen(
                     )
                 }
 
-                // 4. Đang gõ, chưa nhấn Search
                 else -> {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Text(
@@ -291,8 +284,6 @@ fun SearchScreen(
         }
     }
 }
-
-// ─────────────────────── History Section ───────────────────────
 
 @Composable
 private fun SearchHistorySection(
@@ -378,8 +369,6 @@ private fun SearchHistorySection(
         }
     }
 }
-
-// ─────────────────────── Reusable Composables ───────────────────────
 
 @Composable
 private fun SearchSectionHeader(title: String) {

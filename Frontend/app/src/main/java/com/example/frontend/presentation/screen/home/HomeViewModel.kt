@@ -171,7 +171,7 @@ class HomeViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = likePostUseCase(postId, targetIsLiked, targetLikeCount)) {
                 is ApiResult.Success -> {
-                    // no-op
+                    // TODO
                 }
 
                 is ApiResult.Error -> {

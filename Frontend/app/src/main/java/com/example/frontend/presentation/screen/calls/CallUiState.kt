@@ -3,7 +3,7 @@ package com.example.frontend.presentation.screen.calls
 import org.webrtc.VideoTrack
 
 data class CallUiState(
-    val status: String = "idle", // "connecting", "ringing", "accepted", "rejected", "ended"
+    val status: String = "idle",
     val isCalling: Boolean = false,
     val targetUserId: String = "",
     val callerName: String = "",

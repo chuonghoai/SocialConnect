@@ -52,7 +52,6 @@ class PostDetailViewModel @Inject constructor(
     private var currentCommentPage: Int = 0
     private var loadedShareFriendsForUserId: String? = null
 
-    // ── Load post + comments ───────────────────────────────────────────────────
     fun loadPostDetail(postId: String? = null) {
         viewModelScope.launch {
             val selected = postDetailStore.selectedPost
@@ -154,7 +153,6 @@ class PostDetailViewModel @Inject constructor(
         }
     }
 
-    // ── Actions ───────────────────────────────────────────────────────────────
     fun toggleLike() {
         val state = _uiState.value
         val post = state.post ?: return
@@ -166,11 +164,9 @@ class PostDetailViewModel @Inject constructor(
         viewModelScope.launch {
             when (val result = likePostUseCase(post.id, nowLiked, nowLikeCount)) {
                 is ApiResult.Success -> {
-                    // Update store to sync with main feed
                     postDetailStore.selectedPost = post.copy(isLiked = nowLiked, likeCount = nowLikeCount)
                 }
                 is ApiResult.Error -> {
-                    // Rollback on error
                     _uiState.update { it.copy(isLiked = !nowLiked, likeCount = state.likeCount) }
                     notificationManager.showMessage(result.message, NotificationType.ERROR)
                 }
@@ -219,7 +215,6 @@ class PostDetailViewModel @Inject constructor(
                 is ApiResult.Success -> {
                     _uiState.update { it.copy(post = it.post?.copy(shareCount = (it.post?.shareCount ?: 0) + 1)) }
                     
-                    // Sync with store
                     _uiState.value.post?.let { postDetailStore.selectedPost = it }
 
                     notificationManager.showMessage("Chia sẻ bài viết thành công", NotificationType.SUCCESS)

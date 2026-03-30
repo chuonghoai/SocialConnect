@@ -51,8 +51,6 @@ object ApiRoutes {
     const val REJECT_FRIEND_REQUEST = "api/users/me/friends/requests/{friendId}/reject"
     const val GET_USER_FRIENDS = "api/users/{userId}/friends"
     const val DELETE_FRIEND = "api/users/me/friends/{friendId}"
-
-    // Conversation
     const val CONVERSATIONS = "api/conversations"
     const val CONVERSATIONS_SEARCH = "api/conversations/search/{keyword}"
     const val MESSAGES = "api/messages/{conversationId}"

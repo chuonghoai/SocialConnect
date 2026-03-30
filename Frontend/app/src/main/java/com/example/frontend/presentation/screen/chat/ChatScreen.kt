@@ -127,7 +127,6 @@ fun ChatScreen(
         }
     )
 
-    // Permission launcher for Recording
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
         onResult = { isGranted ->
@@ -534,7 +533,6 @@ fun VoiceRecorderUI(
                 Icon(Icons.Default.Close, null, tint = Color.Gray)
             }
         } else {
-            // Hiệu ứng Review sau khi thu xong
             LaunchedEffect(uiState.recordingFileUri) {
                 if (uiState.recordingFileUri != null) {
                     try {
@@ -829,7 +827,6 @@ private fun MessageBubble(
             }
         }
 
-        // Bottom sheet
         if (showMenu) {
             ModalBottomSheet(
                 onDismissRequest = { showMenu = false },

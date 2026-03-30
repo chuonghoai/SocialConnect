@@ -311,7 +311,7 @@ class ChatViewModel @Inject constructor(
         replyToMessageInfo: RepliedMessageInfo? = null
     ) {
         val currentUser = _uiState.value.currentUser ?: return
-        val selectedMedia = _uiState.value.selectedMedia.toList() // Copy list
+        val selectedMedia = _uiState.value.selectedMedia.toList()
         
         _uiState.value = _uiState.value.copy(selectedMedia = emptyList())
 
@@ -448,7 +448,6 @@ class ChatViewModel @Inject constructor(
         }
     }
 
-    // Voice Recording Logic
     fun toggleVoiceRecorder(show: Boolean) {
         _uiState.value = _uiState.value.copy(showVoiceRecorder = show)
         if (!show) {

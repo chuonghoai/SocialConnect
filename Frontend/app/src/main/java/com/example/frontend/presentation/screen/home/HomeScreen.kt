@@ -103,7 +103,6 @@ fun HomeScreen(
 
     val isConnected by webSocketViewModel.isConnected.collectAsState()
     
-    // Chỉ gọi kết nối khi màn hình được khởi tạo và chưa có kết nối
     LaunchedEffect(Unit) {
         if (!isConnected) {
             webSocketViewModel.connect()
@@ -311,7 +310,6 @@ fun HomeScreen(
                                 "selectedFriendIds=${shareData.selectedFriendIds.joinToString()}, " +
                                 "currentUserId=${shareData.currentUserId}"
                         )
-                        // TODO(BE): hỗ trợ gửi caption + selectedFriendIds trong endpoint share/message để FE nối payload đầy đủ.
                         viewModel.sharePost(shareData)
                         shareTargetPost = null
                     }
@@ -341,7 +339,7 @@ fun HomeHeader(
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
             Text(
-                text = "AliceApp",
+                text = "Aura",
                 fontSize = 26.sp,
                 fontWeight = FontWeight.Bold,
                 color = OrangePrimary,

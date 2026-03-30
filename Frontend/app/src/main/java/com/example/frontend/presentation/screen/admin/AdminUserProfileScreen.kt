@@ -89,7 +89,6 @@ fun AdminUserProfileScreen(
         if (shouldLoadMore) viewModel.loadMorePosts()
     }
 
-    // Sử dụng Scaffold để bao bọc và xử lý Double Padding chuẩn nhất
     Scaffold(
         containerColor = Color(0xFFF8F9FA),
         topBar = { AdminUserProfileTopBar(onBackClick = onBackClick) }
@@ -249,7 +248,7 @@ fun AdminUserProfileScreen(
 @Composable
 private fun AdminUserProfileTopBar(onBackClick: () -> Unit) {
     TopAppBar(
-        windowInsets = WindowInsets(0.dp), // CHẶN DOUBLE PADDING TOP
+        windowInsets = WindowInsets(0.dp),
         title = {
             Text(
                 text = "Chi tiết user",
@@ -270,7 +269,7 @@ private fun AdminUserProfileTopBar(onBackClick: () -> Unit) {
         colors = TopAppBarDefaults.topAppBarColors(
             containerColor = Color.White
         ),
-        modifier = Modifier.shadow(1.dp) // Thêm tí viền đổ bóng nhẹ để tách biệt với nền xám
+        modifier = Modifier.shadow(1.dp)
     )
 }
 
