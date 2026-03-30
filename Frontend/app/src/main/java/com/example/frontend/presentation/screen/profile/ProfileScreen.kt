@@ -98,9 +98,7 @@ fun ProfileScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (uiState is ProfileUiState.Loading) {
-            viewModel.load()
-        }
+        viewModel.load(isRefresh = true)
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
