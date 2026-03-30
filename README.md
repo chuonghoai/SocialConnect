@@ -63,7 +63,7 @@
 ### Các bước thực hiện
 1. **Clone repository:**
    ```bash
-   git clone https://github.com/your-repo/SocialConnect.git
+   git clone https://github.com/chuonghoai/SocialConnect.git
    ```
 2. **Mở project:**
    Mở Android Studio và chọn thư mục `Frontend`.
@@ -84,8 +84,6 @@ Dự án sử dụng tệp `local.properties` (hoặc `gradle/local.properties`)
 # Endpoint của Server Backend (Mặc định 10.0.2.2 cho Android Emulator)
 BASE_URL="http://10.0.2.2:8081/"
 
-# API Key cho dịch vụ Multimedia (nếu có)
-CLOUDINARY_API_KEY="your_api_key_here"
 ```
 
 ---
