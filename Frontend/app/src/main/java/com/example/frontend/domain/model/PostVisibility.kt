@@ -37,3 +37,4 @@ object PostVisibility {
     }
 }
 
+fun String?.normalizeVisibility(): String = PostVisibility.normalize(this)

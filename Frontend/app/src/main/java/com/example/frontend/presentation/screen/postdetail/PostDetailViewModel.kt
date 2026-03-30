@@ -13,7 +13,13 @@ import com.example.frontend.data.remote.dto.CreateCommentRequest
 import com.example.frontend.data.store.PostDetailStore
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUseCase
+import com.example.frontend.domain.usecase.PostUseCase.LikePostUseCase
+import com.example.frontend.domain.usecase.PostUseCase.SharePostUseCase
+import com.example.frontend.domain.usecase.FriendUseCase.GetShareFriendsUseCase
+import com.example.frontend.presentation.screen.share.ShareFriendsUiState
+import com.example.frontend.presentation.screen.share.SharePostSubmitData
 import com.example.frontend.ui.component.NotificationType
+import com.example.frontend.domain.model.normalizeVisibility
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -27,6 +33,9 @@ class PostDetailViewModel @Inject constructor(
     private val postDetailStore: PostDetailStore,
     private val postApi: PostApi,
     private val uploadMediaUseCase: UploadMediaUseCase,
+    private val likePostUseCase: LikePostUseCase,
+    private val sharePostUseCase: SharePostUseCase,
+    private val getShareFriendsUseCase: GetShareFriendsUseCase,
     private val notificationManager: AppNotificationManager
 ) : ViewModel() {
 
@@ -37,7 +46,11 @@ class PostDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow(PostDetailUiState())
     val uiState: StateFlow<PostDetailUiState> = _uiState.asStateFlow()
 
+    private val _shareFriendsState = MutableStateFlow(ShareFriendsUiState())
+    val shareFriendsState: StateFlow<ShareFriendsUiState> = _shareFriendsState.asStateFlow()
+
     private var currentCommentPage: Int = 0
+    private var loadedShareFriendsForUserId: String? = null
 
     // ── Load post + comments ───────────────────────────────────────────────────
     fun loadPostDetail(postId: String? = null) {
@@ -62,6 +75,7 @@ class PostDetailViewModel @Inject constructor(
             _uiState.update {
                 it.copy(
                     post = targetPost,
+                    isLiked = targetPost.isLiked,
                     likeCount = targetPost.likeCount,
                     commentCount = targetPost.commentCount,
                     isLoadingComments = true,
@@ -142,12 +156,78 @@ class PostDetailViewModel @Inject constructor(
 
     // ── Actions ───────────────────────────────────────────────────────────────
     fun toggleLike() {
-        _uiState.update { state ->
-            val nowLiked = !state.isLiked
-            state.copy(
-                isLiked = nowLiked,
-                likeCount = if (nowLiked) state.likeCount + 1 else state.likeCount - 1
-            )
+        val state = _uiState.value
+        val post = state.post ?: return
+        val nowLiked = !state.isLiked
+        val nowLikeCount = if (nowLiked) state.likeCount + 1 else (state.likeCount - 1).coerceAtLeast(0)
+
+        _uiState.update { it.copy(isLiked = nowLiked, likeCount = nowLikeCount) }
+
+        viewModelScope.launch {
+            when (val result = likePostUseCase(post.id, nowLiked, nowLikeCount)) {
+                is ApiResult.Success -> {
+                    // Update store to sync with main feed
+                    postDetailStore.selectedPost = post.copy(isLiked = nowLiked, likeCount = nowLikeCount)
+                }
+                is ApiResult.Error -> {
+                    // Rollback on error
+                    _uiState.update { it.copy(isLiked = !nowLiked, likeCount = state.likeCount) }
+                    notificationManager.showMessage(result.message, NotificationType.ERROR)
+                }
+            }
+        }
+    }
+
+    fun loadShareFriends(currentUserId: String, forceRefresh: Boolean = false) {
+        if (currentUserId.isBlank()) return
+
+        val current = _shareFriendsState.value
+        if (loadedShareFriendsForUserId == currentUserId && !current.isLoading && current.error == null && !forceRefresh) return
+
+        _shareFriendsState.value = current.copy(isLoading = true, error = null)
+
+        viewModelScope.launch {
+            when (val result = getShareFriendsUseCase(currentUserId)) {
+                is ApiResult.Success -> {
+                    loadedShareFriendsForUserId = currentUserId
+                    _shareFriendsState.value = ShareFriendsUiState(
+                        friends = result.data,
+                        isLoading = false,
+                        error = null
+                    )
+                }
+                is ApiResult.Error -> {
+                    _shareFriendsState.value = current.copy(
+                        isLoading = false,
+                        error = result.message.ifBlank { "Không thể tải danh sách bạn bè" }
+                    )
+                }
+            }
+        }
+    }
+
+    fun sharePost(payload: SharePostSubmitData) {
+        val postId = payload.postId
+        viewModelScope.launch {
+            val visibility = payload.privacy.normalizeVisibility()
+
+            when (val result = sharePostUseCase(
+                postId = postId,
+                content = payload.shareText.trim().ifBlank { null },
+                visibility = visibility
+            )) {
+                is ApiResult.Success -> {
+                    _uiState.update { it.copy(post = it.post?.copy(shareCount = (it.post?.shareCount ?: 0) + 1)) }
+                    
+                    // Sync with store
+                    _uiState.value.post?.let { postDetailStore.selectedPost = it }
+
+                    notificationManager.showMessage("Chia sẻ bài viết thành công", NotificationType.SUCCESS)
+                }
+                is ApiResult.Error -> {
+                    notificationManager.showMessage(result.message, NotificationType.ERROR)
+                }
+            }
         }
     }
 
@@ -223,7 +303,11 @@ class PostDetailViewModel @Inject constructor(
                 }
 
                 _uiState.update {
+                    val updatedPost = it.post?.copy(commentCount = it.commentCount + 1)
+                    if (updatedPost != null) postDetailStore.selectedPost = updatedPost
+                    
                     it.copy(
+                        post = updatedPost,
                         isSendingComment = false,
                         commentInput = "",
                         selectedMediaUris = emptyList(),
