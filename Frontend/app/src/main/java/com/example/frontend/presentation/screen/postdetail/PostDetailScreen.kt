@@ -40,6 +40,7 @@ import com.example.frontend.R
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.domain.model.User
 import com.example.frontend.ui.component.PostMediaPreview
 import com.example.frontend.ui.component.ShareDropdownOption
 import com.example.frontend.ui.component.ShareFriendItem
@@ -54,6 +55,7 @@ import kotlinx.coroutines.flow.map
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailScreen(
+    currentUser: User? = null,
     postId: String? = null,
     onBack: () -> Unit,
     viewModel: PostDetailViewModel = hiltViewModel()
@@ -127,7 +129,7 @@ fun PostDetailScreen(
         },
         bottomBar = {
             CommentInputBar(
-                avatarUrl = "",
+                avatarUrl = currentUser?.avatarUrl.orEmpty(),
                 input = uiState.commentInput,
                 onInputChange = { viewModel.onCommentInputChange(it) },
                 selectedMediaUris = uiState.selectedMediaUris,
@@ -162,7 +164,7 @@ fun PostDetailScreen(
                             onLikeClick = { viewModel.toggleLike() },
                             onShareClick = {
                                 shareTargetPost = post
-                                viewModel.loadShareFriends(post.userId)
+                                viewModel.loadShareFriends(currentUser?.id.orEmpty())
                             }
                         )
                     }
@@ -302,9 +304,9 @@ fun PostDetailScreen(
             shareTargetPost?.let { post ->
                 SharePostCaptionDialog(
                     post = post,
-                    currentUserId = post.userId, // Note: Should ideally be currentUser.id
-                    currentUserName = "Người dùng",
-                    currentUserAvatarUrl = null,
+                    currentUserId = currentUser?.id.orEmpty(),
+                    currentUserName = currentUser?.displayName ?: "Người dùng",
+                    currentUserAvatarUrl = currentUser?.avatarUrl,
                     postTargets = postTargets,
                     privacyOptions = privacyOptions,
                     friends = shareFriendsState.friends.map { friend ->
@@ -317,7 +319,7 @@ fun PostDetailScreen(
                     isFriendsLoading = shareFriendsState.isLoading,
                     friendsError = shareFriendsState.error,
                     onRetryLoadFriends = {
-                        viewModel.loadShareFriends(post.userId, forceRefresh = true)
+                        viewModel.loadShareFriends(currentUser?.id.orEmpty(), forceRefresh = true)
                     },
                     onDismiss = { shareTargetPost = null },
                     onConfirmShare = { shareData ->
