@@ -50,7 +50,9 @@ fun RegisterScreen(
 ) {
     val state by viewModel.uiState.collectAsState()
     val focusManager = LocalFocusManager.current
+    val usernameFocusRequester = remember { FocusRequester() }
     val passwordFocusRequester = remember { FocusRequester() }
+    val confirmPasswordFocusRequester = remember { FocusRequester() }
 
     Box(
         modifier = Modifier
@@ -59,13 +61,10 @@ fun RegisterScreen(
     ) {
         TopWaveDecoration()
 
-        Spacer(Modifier.height(18.dp))
-
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(horizontal = 24.dp)
-                .statusBarsPadding(),
+                .padding(horizontal = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
@@ -95,11 +94,11 @@ fun RegisterScreen(
 
             Spacer(Modifier.height(6.dp))
 
-            // Username
+            // Email
             RoundedInputField(
                 value = state.email,
                 onValueChange = viewModel::setEmail,
-                placeholder = "Tên đăng nhập",
+                placeholder = "Email",
                 leadingIcon = { Icon(Icons.Outlined.Person, contentDescription = null) },
                 enabled = !state.loading,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
@@ -118,7 +117,7 @@ fun RegisterScreen(
                 enabled = !state.loading,
                 modifier = Modifier.focusRequester(passwordFocusRequester),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() })
+                keyboardActions = KeyboardActions(onNext = { confirmPasswordFocusRequester.requestFocus() })
             )
 
             Spacer(Modifier.height(14.dp))
@@ -131,7 +130,7 @@ fun RegisterScreen(
                 leadingIcon = { Icon(Icons.Outlined.Lock, contentDescription = null) },
                 isPassword = true,
                 enabled = !state.loading,
-                modifier = Modifier.focusRequester(passwordFocusRequester),
+                modifier = Modifier.focusRequester(confirmPasswordFocusRequester),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = {
                     focusManager.clearFocus()
@@ -151,7 +150,6 @@ fun RegisterScreen(
                 Spacer(Modifier.height(10.dp))
             }
 
-            // "Bạn đã có tài khoản? Đăng nhập"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -204,29 +202,6 @@ fun RegisterScreen(
             }
 
             Spacer(Modifier.height(22.dp))
-
-            // Social register (Google)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Nút tròn nền trắng sau icon Google
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .border(1.dp, Color(0xFFEDEDED), CircleShape)
-                        .clickable { /* ... */ },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.icon_google),
-                        contentDescription = "Google",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
         }
     }
 }

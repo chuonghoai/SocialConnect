@@ -54,17 +54,15 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFFF6ED)) // nền kem
+            .background(Color(0xFFFFF6ED))
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 onClick = { focusManager.clearFocus() }
             )
     ) {
-        // Trang trí background
         TopWaveDecoration()
 
-        // Giao diện chính
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -72,13 +70,9 @@ fun LoginScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(Modifier.height(56.dp))
-
-            // Ảnh app icon
             IconImage()
             Spacer(Modifier.height(58.dp))
 
-            // Title screen
             Text(
                 text = "Đăng nhập",
                 style = MaterialTheme.typography.headlineSmall.copy(
@@ -91,7 +85,6 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(6.dp))
 
-            // Username
             RoundedInputField(
                 value = state.username,
                 onValueChange = viewModel::setUsername,
@@ -103,7 +96,6 @@ fun LoginScreen(
             )
             Spacer(Modifier.height(14.dp))
 
-            // Password
             RoundedInputField(
                 value = state.password,
                 onValueChange = viewModel::setPassword,
@@ -157,7 +149,6 @@ fun LoginScreen(
             }
             Spacer(Modifier.height(18.dp))
 
-            // Error message
             if (state.error != null) {
                 Text(
                     text = state.error!!,
@@ -168,7 +159,6 @@ fun LoginScreen(
                 Spacer(Modifier.height(10.dp))
             }
 
-            // Login button
             Button(
                 onClick = { viewModel.login(onLoggedIn) },
                 enabled = !state.loading,
@@ -199,27 +189,6 @@ fun LoginScreen(
             }
 
             Spacer(Modifier.height(26.dp))
-
-            // Social login
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .clickable { /* onGoogleLoginClick() */ },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.icon_google),
-                        contentDescription = "Google",
-                        modifier = Modifier.size(25.dp)
-                    )
-                }
-            }
         }
     }
 }

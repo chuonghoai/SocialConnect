@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -5,10 +7,27 @@ plugins {
     id("com.google.dagger.hilt.android")
 }
 
+val envProperties = Properties()
+val envFiles = listOf(
+    // Load generated file first, then let local.properties override.
+    // This helps when emulator needs BASE_URL = 10.0.2.2.
+    rootProject.file("gradle/local.properties"),
+    rootProject.file("local.properties")
+)
+envFiles.forEach { file ->
+    if (file.exists()) {
+        envProperties.load(file.inputStream())
+    }
+}
+
 android {
     namespace = "com.example.frontend"
     compileSdk {
         version = release(36)
+    }
+
+    buildFeatures {
+        buildConfig = true
     }
 
     defaultConfig {
@@ -19,6 +38,17 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        buildConfigField(
+            "String",
+            "BASE_URL",
+            envProperties.getProperty("BASE_URL") ?: "\"http://10.0.2.2:8081/\""
+        )
+        buildConfigField(
+            "String",
+            "CLOUDINARY_API_KEY",
+            envProperties.getProperty("CLOUDINARY_API_KEY") ?: "\"\""
+        )
     }
 
     buildTypes {
@@ -33,6 +63,11 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+    }
+    kotlin {
+        compilerOptions {
+            freeCompilerArgs.add("-Xannotation-default-target=param-property")
+        }
     }
     buildFeatures {
         compose = true
@@ -66,7 +101,6 @@ dependencies {
     val room_version = "2.8.4"
     implementation("androidx.room:room-runtime:$room_version")
     ksp("androidx.room:room-compiler:$room_version")
-    annotationProcessor("androidx.room:room-compiler:$room_version")
     implementation("androidx.room:room-ktx:$room_version")
     implementation("androidx.room:room-rxjava2:$room_version")
     implementation("androidx.room:room-rxjava3:$room_version")
@@ -115,4 +149,15 @@ dependencies {
 
     // Icons Media
     implementation("androidx.compose.material:material-icons-extended:1.6.0")
+
+    implementation("io.coil-kt:coil-video:2.6.0")
+
+    // socket.io
+    implementation("io.socket:socket.io-client:2.1.1")
+
+    // WebRTC
+     implementation("io.getstream:stream-webrtc-android:1.3.10")
+
+    // Handle media's metadata
+    implementation("androidx.exifinterface:exifinterface:1.3.7")
 }

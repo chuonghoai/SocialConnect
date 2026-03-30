@@ -20,23 +20,32 @@ class TokenDataStore @Inject constructor(
 
     private val KEY_ACCESS_TOKEN = stringPreferencesKey("access_token")
 
+    @Volatile
+    private var memoryCache: String? = null
+
     override suspend fun getAccessToken(): String? {
+        memoryCache?.let { return it }
         return context.dataStore.data
             .map { it[KEY_ACCESS_TOKEN] }
             .first()
+            .also { memoryCache = it }
     }
 
+    override fun getCachedToken(): String? = memoryCache
+
     suspend fun saveAccessToken(token: String) {
+        memoryCache = token
         context.dataStore.edit { prefs ->
             prefs[KEY_ACCESS_TOKEN] = token
         }
     }
 
     suspend fun clear() {
+        memoryCache = null
         context.dataStore.edit { it.remove(KEY_ACCESS_TOKEN) }
     }
 
-    suspend fun clearAccessToken() {
+    override suspend fun clearAccessToken() {
         clear()
     }
 }

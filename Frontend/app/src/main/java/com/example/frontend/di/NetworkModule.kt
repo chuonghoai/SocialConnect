@@ -1,26 +1,60 @@
 package com.example.frontend.di
 
 import com.example.frontend.core.config.AppConfig
+import com.example.frontend.core.network.AuthSessionManager
 import com.example.frontend.core.network.JwtInterceptor
 import com.example.frontend.core.network.TokenProvider
+import com.example.frontend.data.datastore.TokenDataStore
+import com.example.frontend.data.local.dao.PostDao
+import com.example.frontend.data.local.dao.SearchHistoryDao
+import com.example.frontend.data.local.dao.UserDao
 import com.example.frontend.data.remote.api.AuthApi
+import com.example.frontend.data.remote.api.ConversationApi
+import com.example.frontend.data.remote.api.MediaApi
+import com.example.frontend.data.remote.api.NotificationApi
 import com.example.frontend.data.remote.api.PostApi
+import com.example.frontend.data.remote.api.SearchApi
+import com.example.frontend.data.remote.api.UserApi
 import com.example.frontend.data.repository.AuthRepositoryImpl
+import com.example.frontend.data.repository.FriendRepositoryImpl
+import com.example.frontend.data.repository.MediaRepositoryImpl
+import com.example.frontend.data.repository.NotiRepositoryImpl
+import com.example.frontend.data.repository.PostRepositoryImpl
+import com.example.frontend.data.repository.SearchRepositoryImpl
 import com.example.frontend.domain.repository.AuthRepository
+import com.example.frontend.domain.repository.FriendRepository
+import com.example.frontend.domain.repository.MediaRepository
+import com.example.frontend.domain.repository.NotiRepository
 import com.example.frontend.domain.repository.PostRepository
+import com.example.frontend.domain.repository.SearchRepository
+import android.content.Context
 import dagger.Module
 import dagger.Provides
+import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.InstallIn
 import dagger.hilt.components.SingletonComponent
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
+import com.example.frontend.data.repository.ConversationRepositoryImpl
+import com.example.frontend.domain.repository.ConversationRepository
+import com.example.frontend.data.remote.api.MessageApi
+import com.example.frontend.data.repository.MessageRepositoryImpl
+import com.example.frontend.domain.repository.MessageRepository
+import com.google.gson.Gson
 
 @Module
 @InstallIn(SingletonComponent::class)
 object NetworkModule {
+
+    @Provides
+    @Singleton
+    fun provideGson(): Gson {
+        return Gson()
+    }
 
     @Provides
     @Singleton
@@ -34,23 +68,28 @@ object NetworkModule {
     @Singleton
     fun provideOkHttpClient(
         tokenProvider: TokenProvider,
+        authSessionManager: AuthSessionManager,
         loggingInterceptor: HttpLoggingInterceptor
     ): OkHttpClient {
         return OkHttpClient.Builder()
-            .addInterceptor(JwtInterceptor(tokenProvider))
+            .addInterceptor(JwtInterceptor(tokenProvider, authSessionManager))
             .addInterceptor(loggingInterceptor)
+            .connectTimeout(15, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .build()
     }
 
     @Provides
     @Singleton
     fun provideRetrofit(
-        okHttpClient: OkHttpClient
+        okHttpClient: OkHttpClient,
+        gson: Gson
     ): Retrofit {
         return Retrofit.Builder()
             .baseUrl(AppConfig.BASE_URL)
             .client(okHttpClient)
-            .addConverterFactory(GsonConverterFactory.create())
+            .addConverterFactory(GsonConverterFactory.create(gson))
             .build()
     }
 
@@ -64,9 +103,11 @@ object NetworkModule {
     @Singleton
     fun provideAuthRepository(
         authApi: AuthApi,
-        tokenDataStore: com.example.frontend.data.datastore.TokenDataStore
+        tokenDataStore: TokenDataStore,
+        userDao: UserDao,
+        postDao: PostDao
     ): AuthRepository {
-        return AuthRepositoryImpl(authApi, tokenDataStore)
+        return AuthRepositoryImpl(authApi, tokenDataStore, userDao, postDao)
     }
 
     @Provides
@@ -78,8 +119,95 @@ object NetworkModule {
     @Provides
     @Singleton
     fun providePostRepository(
-        postApi: PostApi
+        postApi: PostApi,
+        postDao: PostDao
     ): PostRepository {
-        return com.example.frontend.data.repository.PostRepositoryImpl(postApi)
+        return PostRepositoryImpl(postApi, postDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSearchApi(retrofit: Retrofit): SearchApi {
+        return retrofit.create(SearchApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideSearchRepository(
+        searchApi: SearchApi,
+        searchHistoryDao: SearchHistoryDao
+    ): SearchRepository {
+        return SearchRepositoryImpl(searchApi, searchHistoryDao)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMediaApi(retrofit: Retrofit): MediaApi {
+        return  retrofit.create(MediaApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMediaRepository(
+        mediaApi: MediaApi,
+        @ApplicationContext context: Context
+    ): MediaRepository {
+        return MediaRepositoryImpl(mediaApi, context)
+    }
+
+    @Provides
+    @Singleton
+    fun provideConversationApi(retrofit: Retrofit): ConversationApi {
+        return retrofit.create(ConversationApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideConversationRepository(
+        conversationApi: ConversationApi
+    ): ConversationRepository {
+        return ConversationRepositoryImpl(conversationApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMessageApi(retrofit: Retrofit): MessageApi {
+        return retrofit.create(MessageApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideMessageRepository(
+        messageApi: MessageApi
+    ): MessageRepository {
+        return MessageRepositoryImpl(messageApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideUserApi(retrofit: Retrofit): UserApi {
+        return retrofit.create(UserApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideFriendRepository(
+        userApi: UserApi
+    ): FriendRepository {
+        return FriendRepositoryImpl(userApi)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNotificationApi(retrofit: Retrofit): NotificationApi {
+        return retrofit.create(NotificationApi::class.java)
+    }
+
+    @Provides
+    @Singleton
+    fun provideNotiRepository(
+        notificationApi: NotificationApi
+    ): NotiRepository {
+        return NotiRepositoryImpl(notificationApi)
     }
 }
