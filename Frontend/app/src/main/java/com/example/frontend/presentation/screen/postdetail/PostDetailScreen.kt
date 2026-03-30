@@ -1,5 +1,6 @@
 package com.example.frontend.presentation.screen.postdetail
 
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -39,7 +40,11 @@ import com.example.frontend.R
 import com.example.frontend.domain.model.Comment
 import com.example.frontend.domain.model.Post
 import com.example.frontend.domain.model.PostMedia
+import com.example.frontend.domain.model.User
 import com.example.frontend.ui.component.PostMediaPreview
+import com.example.frontend.ui.component.ShareDropdownOption
+import com.example.frontend.ui.component.ShareFriendItem
+import com.example.frontend.ui.component.SharePostCaptionDialog
 import com.example.frontend.ui.component.formatTimeAgo
 import com.example.frontend.ui.component.toMediaItems
 import com.example.frontend.ui.theme.OrangePrimary
@@ -50,13 +55,27 @@ import kotlinx.coroutines.flow.map
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PostDetailScreen(
+    currentUser: User? = null,
     postId: String? = null,
     onBack: () -> Unit,
     viewModel: PostDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsState()
+    val shareFriendsState by viewModel.shareFriendsState.collectAsState()
     val listState = rememberLazyListState()
     val commentItems = remember(uiState.comments) { buildCommentTree(uiState.comments) }
+
+    var shareTargetPost by remember { mutableStateOf<Post?>(null) }
+    val postTargets = remember {
+        listOf(ShareDropdownOption(id = "feed", label = "Bảng feed"))
+    }
+    val privacyOptions = remember {
+        listOf(
+            ShareDropdownOption(id = "public", label = "Công khai"),
+            ShareDropdownOption(id = "friends", label = "Bạn bè"),
+            ShareDropdownOption(id = "private", label = "Chỉ mình tôi")
+        )
+    }
 
     val mediaPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 20)
@@ -110,7 +129,7 @@ fun PostDetailScreen(
         },
         bottomBar = {
             CommentInputBar(
-                avatarUrl = "",
+                avatarUrl = currentUser?.avatarUrl.orEmpty(),
                 input = uiState.commentInput,
                 onInputChange = { viewModel.onCommentInputChange(it) },
                 selectedMediaUris = uiState.selectedMediaUris,
@@ -129,153 +148,185 @@ fun PostDetailScreen(
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { padding ->
-        LazyColumn(
-            state = listState,
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-        ) {
-            // ── Bài đăng gốc ──────────────────────────────────────────────
-            item {
-                uiState.post?.let { post ->
-                    PostDetailHeader(
-                        post = post,
-                        isLiked = uiState.isLiked,
-                        likeCount = uiState.likeCount,
-                        commentCount = uiState.commentCount,
-                        onLikeClick = { viewModel.toggleLike() }
-                    )
-                }
-            }
-
-            // ── Divider + tiêu đề phần bình luận ──────────────────────────
-            item {
-                HorizontalDivider(
-                    modifier = Modifier.padding(horizontal = 16.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant
-                )
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "${uiState.commentCount} bình luận",
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 15.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                }
-            }
-
-            // ── Loading skeleton ───────────────────────────────────────────
-            if (uiState.isLoadingComments) {
+        Box(modifier = Modifier.fillMaxSize().padding(padding)) {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                // ── Bài đăng gốc ──────────────────────────────────────────────
                 item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(32.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = OrangePrimary)
-                    }
-                }
-            }
-
-            // ── Danh sách comment ──────────────────────────────────────────
-            items(commentItems, key = { it.comment.id }) { item ->
-                val comment = item.comment
-                CommentItem(
-                    comment = comment,
-                    level = item.level,
-                    onReply = { viewModel.onReplyToComment(comment) }
-                )
-                HorizontalDivider(
-                    modifier = Modifier.padding(
-                        start = 68.dp + (item.level * 18).dp,
-                        end = 16.dp
-                    ),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
-                )
-            }
-
-            if (uiState.isLoadingMoreComments) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 12.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(
-                            color = OrangePrimary,
-                            modifier = Modifier.size(24.dp),
-                            strokeWidth = 2.dp
+                    uiState.post?.let { post ->
+                        PostDetailHeader(
+                            post = post,
+                            isLiked = uiState.isLiked,
+                            likeCount = uiState.likeCount,
+                            commentCount = uiState.commentCount,
+                            onLikeClick = { viewModel.toggleLike() },
+                            onShareClick = {
+                                shareTargetPost = post
+                                viewModel.loadShareFriends(currentUser?.id.orEmpty())
+                            }
                         )
                     }
                 }
-            }
 
-            if (uiState.commentsError && uiState.comments.isNotEmpty()) {
+                // ── Divider + tiêu đề phần bình luận ──────────────────────────
                 item {
+                    HorizontalDivider(
+                        modifier = Modifier.padding(horizontal = 16.dp),
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(16.dp),
-                        horizontalArrangement = Arrangement.Center,
+                            .padding(horizontal = 16.dp, vertical = 8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Tải thêm bình luận thất bại.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 13.sp
+                            text = "${uiState.commentCount} bình luận",
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp,
+                            color = MaterialTheme.colorScheme.onSurface
                         )
-                        Spacer(Modifier.width(8.dp))
-                        TextButton(onClick = { viewModel.loadMoreComments() }) {
-                            Text("Thử lại")
+                    }
+                }
+
+                // ── Loading skeleton ───────────────────────────────────────────
+                if (uiState.isLoadingComments) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(32.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = OrangePrimary)
+                        }
+                    }
+                }
+
+                // ── Danh sách comment ──────────────────────────────────────────
+                items(commentItems, key = { it.comment.id }) { item ->
+                    val comment = item.comment
+                    CommentItem(
+                        comment = comment,
+                        level = item.level,
+                        onReply = { viewModel.onReplyToComment(comment) }
+                    )
+                    HorizontalDivider(
+                        modifier = Modifier.padding(
+                            start = 68.dp + (item.level * 18).dp,
+                            end = 16.dp
+                        ),
+                        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)
+                    )
+                }
+
+                if (uiState.isLoadingMoreComments) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 12.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(
+                                color = OrangePrimary,
+                                modifier = Modifier.size(24.dp),
+                                strokeWidth = 2.dp
+                            )
+                        }
+                    }
+                }
+
+                if (uiState.commentsError && uiState.comments.isNotEmpty()) {
+                    item {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                            horizontalArrangement = Arrangement.Center,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Tải thêm bình luận thất bại.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 13.sp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            TextButton(onClick = { viewModel.loadMoreComments() }) {
+                                Text("Thử lại")
+                            }
+                        }
+                    }
+                }
+
+                // ── Empty / Error state ────────────────────────────────────────
+                if (!uiState.isLoadingComments && uiState.comments.isEmpty()) {
+                    item {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 48.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Chưa có bình luận nào.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 14.sp
+                            )
+                        }
+                    }
+                }
+
+                if (!uiState.isLoadingComments && uiState.commentsError && uiState.comments.isEmpty()) {
+                    item {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally
+                        ) {
+                            Text(
+                                text = "Không thể tải bình luận.",
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 14.sp
+                            )
+                            Spacer(Modifier.height(8.dp))
+                            Button(onClick = { viewModel.retryLoadComments() }) {
+                                Text("Tải lại")
+                            }
                         }
                     }
                 }
             }
 
-            // ── Empty / Error state ────────────────────────────────────────
-            if (!uiState.isLoadingComments && uiState.comments.isEmpty()) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 48.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Chưa có bình luận nào.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp
+            shareTargetPost?.let { post ->
+                SharePostCaptionDialog(
+                    post = post,
+                    currentUserId = currentUser?.id.orEmpty(),
+                    currentUserName = currentUser?.displayName ?: "Người dùng",
+                    currentUserAvatarUrl = currentUser?.avatarUrl,
+                    postTargets = postTargets,
+                    privacyOptions = privacyOptions,
+                    friends = shareFriendsState.friends.map { friend ->
+                        ShareFriendItem(
+                            id = friend.id,
+                            name = friend.displayName,
+                            avatarUrl = friend.avatarUrl
                         )
+                    },
+                    isFriendsLoading = shareFriendsState.isLoading,
+                    friendsError = shareFriendsState.error,
+                    onRetryLoadFriends = {
+                        viewModel.loadShareFriends(currentUser?.id.orEmpty(), forceRefresh = true)
+                    },
+                    onDismiss = { shareTargetPost = null },
+                    onConfirmShare = { shareData ->
+                        viewModel.sharePost(shareData)
+                        shareTargetPost = null
                     }
-                }
-            }
-
-            if (!uiState.isLoadingComments && uiState.commentsError && uiState.comments.isEmpty()) {
-                item {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = "Không thể tải bình luận.",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontSize = 14.sp
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Button(onClick = { viewModel.retryLoadComments() }) {
-                            Text("Tải lại")
-                        }
-                    }
-                }
+                )
             }
         }
     }
@@ -326,7 +377,8 @@ private fun PostDetailHeader(
     isLiked: Boolean,
     likeCount: Int,
     commentCount: Int,
-    onLikeClick: () -> Unit
+    onLikeClick: () -> Unit,
+    onShareClick: () -> Unit
 ) {
     val mediaItems = post.toMediaItems()
 
@@ -430,13 +482,17 @@ private fun PostDetailHeader(
 
             Spacer(Modifier.width(20.dp))
 
-            Icon(
-                painter = painterResource(R.drawable.icon_share),
-                contentDescription = "Chia sẻ",
-                modifier = Modifier.size(22.dp),
-                tint = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-            Spacer(Modifier.width(6.dp))
+            IconButton(
+                onClick = onShareClick,
+                modifier = Modifier.size(36.dp)
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.icon_share),
+                    contentDescription = "Chia sẻ",
+                    modifier = Modifier.size(22.dp),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
             Text(
                 text = post.shareCount.toString(),
                 fontSize = 13.sp,

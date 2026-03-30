@@ -359,6 +359,7 @@ fun AppNavGraph(
                 composable(Routes.POST_DETAIL) { backStackEntry ->
                     val postId = backStackEntry.arguments?.getString("postId")?.let(Uri::decode)
                     PostDetailScreen(
+                        currentUser = currentUser,
                         postId = postId,
                         onBack = { navController.popBackStack() }
                     )
@@ -764,4 +765,3 @@ fun AppNavGraph(
         )
     }
 }
-
