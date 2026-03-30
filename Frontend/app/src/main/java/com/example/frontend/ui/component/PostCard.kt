@@ -66,6 +66,7 @@ import androidx.compose.material.icons.filled.Replay
 import androidx.compose.material.icons.filled.Replay5
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material.icons.filled.VolumeOff
 import androidx.compose.material.icons.filled.VolumeUp
@@ -282,6 +283,8 @@ fun PostCard(
     if (showMoreSheet) {
         PostActionBottomSheet(
             isOwnPost = isOwnPost,
+            adminMode = adminMode,
+            isHiddenByAdmin = isHiddenByAdmin,
             onDismiss = { showMoreSheet = false },
             onEditPost = onEditPostRequest,
             onDeletePost = {
@@ -352,6 +355,8 @@ private val REPORT_REASONS = listOf(
 @Composable
 private fun PostActionBottomSheet(
     isOwnPost: Boolean,
+    adminMode: Boolean,
+    isHiddenByAdmin: Boolean,
     onDismiss: () -> Unit,
     onEditPost: (() -> Unit)?,
     onDeletePost: (() -> Unit)?,
@@ -394,15 +399,17 @@ private fun PostActionBottomSheet(
                 )
             }
 
-            PostActionRow(
-                icon = Icons.Default.VisibilityOff,
-                label = "Ẩn bài viết",
-                enabled = onHidePost != null,
-                onClick = {
-                    onDismiss()
-                    onHidePost?.invoke()
-                }
-            )
+            if (adminMode) {
+                PostActionRow(
+                    icon = if (isHiddenByAdmin) Icons.Default.Visibility else Icons.Default.VisibilityOff,
+                    label = if (isHiddenByAdmin) "Hiện bài viết" else "Ẩn bài viết",
+                    enabled = onHidePost != null,
+                    onClick = {
+                        onDismiss()
+                        onHidePost?.invoke()
+                    }
+                )
+            }
 
             PostActionRow(
                 icon = Icons.Default.Link,
@@ -413,7 +420,7 @@ private fun PostActionBottomSheet(
                 }
             )
 
-            if (!isOwnPost) {
+            if (!isOwnPost && !adminMode) {
                 PostActionRow(
                     icon = Icons.Default.Flag,
                     label = "Báo cáo bài viết",
