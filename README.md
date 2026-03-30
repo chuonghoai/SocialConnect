@@ -1,4 +1,4 @@
-# SocialConnect - Ứng dụng Mạng xã hội hiện đại
+# SocialConnect - Ứng dụng Tương tác Mạng xã hội
 
 **SocialConnect** là một ứng dụng di động mạng xã hội đa tính năng, tập trung vào trải nghiệm người dùng hiện đại, kết nối cộng đồng thông qua các bài viết, hình ảnh, video và giao tiếp thời gian thực. Dự án được phát triển theo tiêu chuẩn Clean Architecture giúp mã nguồn dễ dàng mở rộng và bảo trì.
 
