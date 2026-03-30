@@ -23,7 +23,7 @@ data class CallResponseEvent(
 
 data class WebRTCEvent(
     val senderId: String,
-    val data: JSONObject // sdp or candidate
+    val data: JSONObject
 )
 
 @Singleton

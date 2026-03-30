@@ -51,9 +51,7 @@ fun CreatePostScreen(
 
     Scaffold(
         topBar = {
-            // Top bar
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
-                // Nút Back
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -88,7 +86,6 @@ fun CreatePostScreen(
             }
         },
         bottomBar = {
-            // Bottom bar
             Column(modifier = Modifier.background(MaterialTheme.colorScheme.background)) {
                 Divider(color = Color.LightGray.copy(alpha = 0.3f))
                 Row(
@@ -98,14 +95,12 @@ fun CreatePostScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Visibility mode
                     VisibilityDropdown(
                         selectedOption = state.visibility,
                         onOptionSelected = viewModel::onVisibilityChange
                     )
                     Spacer(modifier = Modifier.weight(1f))
 
-                    // Button add media
                     IconButton(
                         onClick = {
                             photoPickerLauncher.launch(
@@ -121,7 +116,6 @@ fun CreatePostScreen(
                         )
                     }
 
-                    // button post
                     Button(
                         onClick = { viewModel.createPost(onSuccess = onSuccess) },
                         enabled = state.content.isNotBlank() || state.selectedMediaUris.isNotEmpty(),
@@ -134,7 +128,6 @@ fun CreatePostScreen(
             }
         }
     ) { innerPadding ->
-        // Post content
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -164,7 +157,6 @@ fun CreatePostScreen(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            // Show image
             if (state.selectedMediaUris.isNotEmpty()) {
                 val context = LocalContext.current
 

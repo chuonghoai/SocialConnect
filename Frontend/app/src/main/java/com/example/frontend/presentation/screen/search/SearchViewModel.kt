@@ -54,8 +54,6 @@ class SearchViewModel @Inject constructor(
         loadHistory()
     }
 
-    // ──────────────────────────── Lịch sử ────────────────────────────
-
     private fun loadHistory() {
         viewModelScope.launch {
             val history = getSearchHistoryUseCase()
@@ -77,12 +75,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    // ──────────────────────────── Query ────────────────────────────
-
-    /**
-     * Gọi mỗi khi text trong ô search thay đổi.
-     * Reset kết quả cũ để tránh hiển thị stale data.
-     */
     fun onQueryChange(query: String) {
         _uiState.update {
             it.copy(
@@ -98,9 +90,6 @@ class SearchViewModel @Inject constructor(
         _uiState.update { it.copy(scope = scope) }
     }
 
-    /**
-     * Chọn một mục trong lịch sử: điền vào ô search rồi tìm ngay.
-     */
     fun selectHistory(keyword: String) {
         _uiState.update {
             it.copy(
@@ -204,12 +193,11 @@ class SearchViewModel @Inject constructor(
             when (rejectFriendRequestUseCase(userId)) {
                 is ApiResult.Success -> {
                     updateFriendshipStatusLocal(userId, "NONE")
-                    // Xóa user khỏi danh sách pending
                     _uiState.update {
                         it.copy(pendingIncomingFriendIds = it.pendingIncomingFriendIds - userId)
                     }
                 }
-                is ApiResult.Error -> { /* Xử lý hiển thị lỗi nếu cần */ }
+                is ApiResult.Error -> { }
             }
         }
     }
@@ -218,7 +206,6 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             when (acceptFriendRequestUseCase(userId)) {
                 is ApiResult.Success -> {
-                    // Chấp nhận thành công, cập nhật isFriend = true và status = FRIEND
                     _uiState.update { state ->
                         val updatedResults = state.results?.copy(
                             users = state.results.users.map { user ->
@@ -233,7 +220,7 @@ class SearchViewModel @Inject constructor(
                         )
                     }
                 }
-                is ApiResult.Error -> { /* Xử lý hiển thị lỗi nếu cần */ }
+                is ApiResult.Error -> { }
             }
         }
     }
@@ -243,12 +230,11 @@ class SearchViewModel @Inject constructor(
             when (cancelFriendRequestUseCase(userId)) {
                 is ApiResult.Success -> {
                     updateFriendshipStatusLocal(userId, "NONE")
-                    // Xóa user khỏi danh sách đã gửi
                     _uiState.update {
                         it.copy(pendingSentFriendIds = it.pendingSentFriendIds - userId)
                     }
                 }
-                is ApiResult.Error -> { /* Xử lý hiển thị lỗi nếu cần */ }
+                is ApiResult.Error -> { }
             }
         }
     }
@@ -297,11 +283,6 @@ class SearchViewModel @Inject constructor(
         }
     }
 
-    // ──────────────────────────── Search ────────────────────────────
-
-    /**
-     * Gửi keyword tới backend, lưu lịch sử, cập nhật UI.
-     */
     fun search() {
         val keyword = _uiState.value.query.trim()
         if (keyword.isBlank()) return
@@ -309,7 +290,6 @@ class SearchViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null, hasSearched = true) }
 
-            // Lưu lịch sử trước khi gọi API
             addSearchHistoryUseCase(keyword)
             loadHistory()
 

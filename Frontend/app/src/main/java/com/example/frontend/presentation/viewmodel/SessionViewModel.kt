@@ -2,41 +2,27 @@ package com.example.frontend.presentation.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.example.frontend.core.network.ApiResult
-import com.example.frontend.core.network.WebSocketManager
+import com.example.frontend.core.session.SessionManager
 import com.example.frontend.domain.model.User
-import com.example.frontend.domain.usecase.UserUseCase.GetMeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
 class SessionViewModel @Inject constructor(
-    private val getMeUseCase: GetMeUseCase,
-    private val webSocketManager: WebSocketManager
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
-    private val _currentUser = MutableStateFlow<User?>(null)
-    val currentUser: StateFlow<User?> = _currentUser.asStateFlow()
+    val currentUser: StateFlow<User?> = sessionManager.currentUser
 
     fun fetchCurrentUser() {
         viewModelScope.launch {
-            when (val result = getMeUseCase()) {
-                is ApiResult.Success -> {
-                    _currentUser.value = result.data
-                    webSocketManager.connect();
-                }
-                is ApiResult.Error -> {
-                    _currentUser.value = null
-                }
-            }
+            sessionManager.fetchCurrentUser()
         }
     }
 
     fun clearSession() {
-        _currentUser.value = null
+        sessionManager.clearSession()
     }
 }

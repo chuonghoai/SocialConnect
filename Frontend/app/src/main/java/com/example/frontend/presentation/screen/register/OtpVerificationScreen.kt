@@ -102,7 +102,6 @@ fun OtpVerificationScreen(
 
             Spacer(Modifier.height(50.dp))
 
-            // Otp input
             OtpInputField(
                 otpText = state.otp,
                 onOtpChange = { newValue ->

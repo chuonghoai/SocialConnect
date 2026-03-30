@@ -56,7 +56,6 @@ fun ConversationScreen(
     val currentUser by sessionViewModel.currentUser.collectAsState()
     val onlineUsers by webSocketViewModel.onlineUsers.collectAsState()
 
-    // State cho tính năng tìm kiếm
     val searchResults by viewModel.searchResults.collectAsState()
     val isSearching by viewModel.isSearching.collectAsState()
 
@@ -71,7 +70,6 @@ fun ConversationScreen(
         viewModel.loadConversations()
     }
 
-    // Hàm gọi search
     val performSearch = {
         keyboardController?.hide()
         if (searchInput.isNotBlank()) {
@@ -82,7 +80,7 @@ fun ConversationScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFF2F0F4)) // Màu nền chung của màn hình
+            .background(Color(0xFFF2F0F4))
     ) {
         ConversationHeader(
             onBackClick = onBackClick,
@@ -100,9 +98,7 @@ fun ConversationScreen(
         )
 
         Box(modifier = Modifier.fillMaxSize()) {
-            // HIỂN THỊ KHI ĐANG Ở CHẾ ĐỘ TÌM KIẾM
             if (isSearchMode) {
-                // Background che đi list cũ
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
@@ -147,7 +143,6 @@ fun ConversationScreen(
                     }
                 }
             }
-            // HIỂN THỊ LIST BÌNH THƯỜNG KHI KHÔNG TÌM KIẾM
             else {
                 if ((uiState.isLoading && uiState.conversations.isEmpty()) || currentUser == null) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -202,7 +197,6 @@ private fun ConversationHeader(
             .padding(horizontal = 18.dp, vertical = 12.dp)
     ) {
         if (!isSearchMode) {
-            // HIỂN THỊ HEADER BÌNH THƯỜNG
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -228,7 +222,6 @@ private fun ConversationHeader(
 
             Spacer(Modifier.height(12.dp))
 
-            // Nút bấm giả làm ô tìm kiếm
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -253,7 +246,6 @@ private fun ConversationHeader(
                 )
             }
         } else {
-            // HIỂN THỊ Ô TÌM KIẾM ACTIVE Ở TRÊN CÙNG
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -403,7 +395,6 @@ fun getSnippetText(lastMessage: LastMessage?, isMe: Boolean): String {
     return when {
         lastMessage.isRecall -> "$prefix Đã thu hồi tin nhắn"
         lastMessage.type == "MEDIA" -> {
-            // Sử dụng safe call ?. và elvis operator ?: để tránh crash nếu media list là null hoặc trống
             val firstMediaType = lastMessage.media?.firstOrNull()?.type ?: "IMAGE"
             when (firstMediaType) {
                 "VIDEO" -> "$prefix Đã gửi video"

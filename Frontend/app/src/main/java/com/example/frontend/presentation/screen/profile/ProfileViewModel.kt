@@ -210,7 +210,6 @@ class ProfileViewModel @Inject constructor(
                 }
 
                 is ApiResult.Error -> {
-                    // keep current data, skip hard error UI
                 }
             }
         }

@@ -116,7 +116,6 @@ private fun Map<String, Any?>.toOriginalPostOrNull(): OriginalPost? {
 private fun Map<String, Any?>.extractMediaFromRoot(): List<PostMedia> {
     val results = linkedMapOf<String, ParsedMediaMeta>()
 
-    // 1) Scan likely media containers first.
     for ((key, value) in this) {
         val normalizedKey = key.lowercase()
         if (MEDIA_CONTAINER_EXCLUDES.any { normalizedKey.contains(it) }) continue
@@ -130,7 +129,6 @@ private fun Map<String, Any?>.extractMediaFromRoot(): List<PostMedia> {
         collectMediaCandidates(value, defaultKind, null, results)
     }
 
-    // 2) Fallback for simple top-level URL keys.
     for (key in MEDIA_URL_KEYS) {
         val value = this.entries.firstOrNull { it.key.equals(key, ignoreCase = true) }?.value
         collectMediaCandidates(value, null, null, results)
@@ -175,13 +173,11 @@ private fun collectMediaCandidates(
                 .ifBlank { inheritedPublicId.orEmpty() }
                 .ifBlank { null }
 
-            // Direct URL-like fields inside this object.
             for (key in MEDIA_URL_KEYS) {
                 val direct = map.entries.firstOrNull { it.key.equals(key, ignoreCase = true) }?.value
                 collectMediaCandidates(direct, localKind ?: inheritedKind, localPublicId, results)
             }
 
-            // Continue scanning nested media-ish branches.
             map.forEach { (k, v) ->
                 val normalizedKey = k.lowercase()
                 if (MEDIA_CONTAINER_EXCLUDES.any { normalizedKey.contains(it) }) return@forEach

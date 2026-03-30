@@ -150,7 +150,6 @@ fun RegisterScreen(
                 Spacer(Modifier.height(10.dp))
             }
 
-            // "Bạn đã có tài khoản? Đăng nhập"
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
@@ -203,29 +202,6 @@ fun RegisterScreen(
             }
 
             Spacer(Modifier.height(22.dp))
-
-            // Social register (Google)
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // Nút tròn nền trắng sau icon Google
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
-                        .border(1.dp, Color(0xFFEDEDED), CircleShape)
-                        .clickable { /* ... */ },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Image(
-                        painter = painterResource(R.drawable.icon_google),
-                        contentDescription = "Google",
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            }
         }
     }
 }

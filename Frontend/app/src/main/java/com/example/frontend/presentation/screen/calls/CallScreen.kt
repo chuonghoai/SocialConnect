@@ -62,14 +62,12 @@ fun CallScreen(
 ) {
     val context = LocalContext.current
 
-    // 1. Khởi tạo danh sách quyền cần thiết dựa trên loại cuộc gọi
     val requiredPermissions = if (isVideoCall) {
         arrayOf(Manifest.permission.CAMERA, Manifest.permission.RECORD_AUDIO)
     } else {
         arrayOf(Manifest.permission.RECORD_AUDIO)
     }
 
-    // 2. Kiểm tra trạng thái quyền hiện tại
     var hasAllPermissions by remember {
         mutableStateOf(
             requiredPermissions.all {
@@ -78,14 +76,11 @@ fun CallScreen(
         )
     }
 
-    // Biến để hiển thị thông báo nếu người dùng từ chối quyền
     var permissionDenied by remember { mutableStateOf(false) }
 
-    // 3. Khai báo Launcher để bung popup xin quyền
     val permissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestMultiplePermissions()
     ) { permissionsMap ->
-        // Kiểm tra xem tất cả các quyền được yêu cầu đã được cấp chưa
         val allGranted = requiredPermissions.all { permissionsMap[it] == true }
         hasAllPermissions = allGranted
         permissionDenied = !allGranted
@@ -95,16 +90,13 @@ fun CallScreen(
         }
     }
 
-    // 4. Tự động yêu cầu quyền khi mở màn hình (nếu chưa có)
     LaunchedEffect(Unit) {
         if (!hasAllPermissions) {
             permissionLauncher.launch(requiredPermissions)
         }
     }
 
-    // 5. Xử lý UI dựa trên trạng thái quyền
     if (!hasAllPermissions) {
-        // Giao diện chờ cấp quyền hoặc khi bị từ chối
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -155,7 +147,6 @@ fun CallScreen(
             .fillMaxSize()
             .background(BgColor)
     ) {
-        // 1. BACKGROUND VIDEO (Đối phương) - Chỉ hiện khi Video Call VÀ đã Accept
         if (isVideoCall && isAccepted) {
             if (remoteVideoTrack != null) {
                 WebRTCVideoView(
@@ -174,7 +165,6 @@ fun CallScreen(
             }
         }
 
-        // 2. GIAO DIỆN NGƯỜI NHẬN - LÚC ĐANG ĐỔ CHUÔNG (HOẶC TỪ CHỐI)
         if (isIncoming && (status == "ringing" || status == "rejected")) {
             Column(
                 modifier = Modifier
@@ -219,10 +209,9 @@ fun CallScreen(
                     )
                 }
             }
-            return@Box // Dừng vẽ các thành phần khác nếu đang ở màn hình gọi đến
+            return@Box
         }
 
-        // 3. THÔNG TIN NGƯỜI GỌI (Avatar, Tên) KHI CHƯA NHẤC MÁY HOẶC CHỈ GỌI THOẠI
         if (!isVideoCall || !isAccepted) {
             Column(
                 modifier = Modifier
@@ -246,7 +235,6 @@ fun CallScreen(
             }
         }
 
-        // 4. THÔNG TIN NHỎ GÓC TRÊN KHI ĐANG CALL VIDEO (Đã nhấc máy)
         if (isVideoCall && isAccepted) {
             Column(
                 modifier = Modifier
@@ -266,7 +254,6 @@ fun CallScreen(
             }
         }
 
-        // 5. LOCAL CAMERA (Camera của mình - Phải đè lên trên)
         if (isVideoCall && isCamOn && localVideoTrack != null) {
             Box(
                 modifier = Modifier
@@ -287,7 +274,6 @@ fun CallScreen(
             }
         }
 
-        // 6. CÁC NÚT ĐIỀU KHIỂN DƯỚI ĐÁY
         Row(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
@@ -315,12 +301,11 @@ fun CallScreen(
                 )
                 ControlButton(
                     icon = Icons.Filled.FlipCameraAndroid,
-                    isActive = false, // Nút lật cam thường không có state active
+                    isActive = false,
                     onClick = onSwitchCamera
                 )
             }
 
-            // Nút kết thúc
             IconButton(
                 onClick = onEndCall,
                 modifier = Modifier
@@ -333,8 +318,6 @@ fun CallScreen(
         }
     }
 }
-
-// --- Các Composable Component Phụ ---
 
 @Composable
 fun CallAvatar(url: String) {
@@ -389,8 +372,6 @@ fun ControlButton(icon: androidx.compose.ui.graphics.vector.ImageVector, isActiv
     }
 }
 
-// --- Trình render WebRTC dùng AndroidView ---
-
 @Composable
 fun WebRTCVideoView(
     videoTrack: VideoTrack,
@@ -398,11 +379,8 @@ fun WebRTCVideoView(
     eglBaseContext: EglBase.Context,
     modifier: Modifier = Modifier
 ) {
-    // Dùng DisposableEffect để đảm bảo renderer được giải phóng đúng cách
-    // khi composable bị removed khỏi tree (khi từ chối / kết thúc cuộc gọi)
     DisposableEffect(videoTrack) {
         onDispose {
-            // Không làm gì ở đây, việc cleanup renderer được xử lý bên dưới
         }
     }
 
@@ -416,21 +394,16 @@ fun WebRTCVideoView(
                     setMirror(true)
                     setZOrderMediaOverlay(true)
                 }
-                // Thêm sink ngay tại factory để tránh double-add trong update
                 videoTrack.addSink(this)
             }
         },
         update = { renderer ->
-            // Không cần addSink ở đây nữa vì đã làm trong factory
-            // Tránh addSink nhiều lần (gây duplicate frame)
         },
         onRelease = { renderer ->
-            // Được gọi khi AndroidView bị remove khỏi composition
             try {
                 videoTrack.removeSink(renderer)
                 renderer.release()
             } catch (e: Exception) {
-                // Bỏ qua lỗi nếu track đã bị dispose trước
             }
         },
         modifier = modifier

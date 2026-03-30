@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.frontend.core.network.ApiResult
+import com.example.frontend.core.session.SessionManager
 import com.example.frontend.domain.model.User
 import com.example.frontend.domain.usecase.AuthUseCase.UpdateProfileUseCase
 import com.example.frontend.domain.usecase.MediaUseCase.UploadMediaUrlUseCase
@@ -17,7 +18,8 @@ import javax.inject.Inject
 @HiltViewModel
 class EditProfileViewModel @Inject constructor(
     private val updateProfileUseCase: UpdateProfileUseCase,
-    private val uploadMediaUrlUseCase: UploadMediaUrlUseCase
+    private val uploadMediaUrlUseCase: UploadMediaUrlUseCase,
+    private val sessionManager: SessionManager
 ) : ViewModel() {
 
     var displayName by mutableStateOf("")
@@ -36,7 +38,7 @@ class EditProfileViewModel @Inject constructor(
         if (user != null && !isInitialized) {
             displayName = user.displayName
             email = user.email
-            dob = "01/01/2000" // temporary mock
+            dob = "01/01/2000"
             currentAvatarUrl = user.avatarUrl
             isInitialized = true
         }
@@ -55,7 +57,7 @@ class EditProfileViewModel @Inject constructor(
                         finalAvatarToSubmit = uploadRes.data
                     }
                     is ApiResult.Error -> {
-                        error = "Loi tai anh len: ${uploadRes.message}"
+                        error = "Lỗi tải ảnh lên: ${uploadRes.message}"
                         isLoading = false
                         return@launch
                     }
@@ -63,7 +65,12 @@ class EditProfileViewModel @Inject constructor(
             }
 
             when (val result = updateProfileUseCase(displayName, dob, email, finalAvatarToSubmit)) {
-                is ApiResult.Success -> onSuccess()
+                is ApiResult.Success -> {
+                    sessionManager.fetchCurrentUser(isRefresh = true)
+                    isInitialized = false
+                    selectedAvatarUri = null
+                    onSuccess()
+                }
                 is ApiResult.Error -> error = result.message
             }
 

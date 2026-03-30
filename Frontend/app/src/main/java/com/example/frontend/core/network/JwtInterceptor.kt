@@ -10,8 +10,6 @@ class JwtInterceptor(
 ) : Interceptor {
 
     override fun intercept(chain: Interceptor.Chain): Response {
-        // Prefer in-memory cache first. If cache is still empty, read once from DataStore
-        // to avoid first-request 401 due to missing Authorization header.
         val token = tokenProvider.getCachedToken() ?: runBlocking {
             tokenProvider.getAccessToken()
         }

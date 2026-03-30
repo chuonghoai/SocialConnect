@@ -68,7 +68,7 @@ class WebRtcClient @Inject constructor(
             surfaceTextureHelper = SurfaceTextureHelper.create("CaptureThread", eglBaseContext)
             val videoSource = factory.createVideoSource(videoCapturer!!.isScreencast)
             videoCapturer?.initialize(surfaceTextureHelper, context, videoSource.capturerObserver)
-            videoCapturer?.startCapture(1280, 720, 30) // HD 720p 30fps
+            videoCapturer?.startCapture(1280, 720, 30)
 
             localVideoTrack = factory.createVideoTrack("ARDAMSv0", videoSource)
             localVideoTrack?.setEnabled(true)

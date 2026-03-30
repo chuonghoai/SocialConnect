@@ -142,7 +142,7 @@ class CallViewModel @Inject constructor(
             callerName = name,
             callerAvatarUrl = avatar,
             isIncomingCall = false,
-            isSpeakerOn = isVideoCall // Video call mặc định bật loa ngoài
+            isSpeakerOn = isVideoCall
         )
         audioManager.isSpeakerphoneOn = isVideoCall
         

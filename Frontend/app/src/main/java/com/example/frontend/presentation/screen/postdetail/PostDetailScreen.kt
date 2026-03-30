@@ -153,7 +153,6 @@ fun PostDetailScreen(
                 state = listState,
                 modifier = Modifier.fillMaxSize()
             ) {
-                // ── Bài đăng gốc ──────────────────────────────────────────────
                 item {
                     uiState.post?.let { post ->
                         PostDetailHeader(
@@ -170,7 +169,6 @@ fun PostDetailScreen(
                     }
                 }
 
-                // ── Divider + tiêu đề phần bình luận ──────────────────────────
                 item {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -191,7 +189,6 @@ fun PostDetailScreen(
                     }
                 }
 
-                // ── Loading skeleton ───────────────────────────────────────────
                 if (uiState.isLoadingComments) {
                     item {
                         Box(
@@ -205,7 +202,6 @@ fun PostDetailScreen(
                     }
                 }
 
-                // ── Danh sách comment ──────────────────────────────────────────
                 items(commentItems, key = { it.comment.id }) { item ->
                     val comment = item.comment
                     CommentItem(
@@ -261,7 +257,6 @@ fun PostDetailScreen(
                     }
                 }
 
-                // ── Empty / Error state ────────────────────────────────────────
                 if (!uiState.isLoadingComments && uiState.comments.isEmpty()) {
                     item {
                         Box(
@@ -332,9 +327,6 @@ fun PostDetailScreen(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Post chi tiết (header + content + actions)
-// ─────────────────────────────────────────────────────────────────────────────
 private data class CommentUiItem(
     val comment: Comment,
     val level: Int
@@ -387,7 +379,6 @@ private fun PostDetailHeader(
             .fillMaxWidth()
             .padding(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 8.dp)
     ) {
-        // Avatar + Tên + Thời gian
         Row(verticalAlignment = Alignment.CenterVertically) {
             AsyncImage(
                 model = post.userAvatar,
@@ -417,7 +408,6 @@ private fun PostDetailHeader(
 
         Spacer(Modifier.height(8.dp))
 
-        // Nội dung bài đăng (full, không truncate)
         Text(
             text = post.content,
             fontSize = 15.sp,
@@ -425,7 +415,6 @@ private fun PostDetailHeader(
             color = MaterialTheme.colorScheme.onSurface
         )
 
-        // Media (ảnh / video)
         if (mediaItems.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
             Box(
@@ -445,9 +434,7 @@ private fun PostDetailHeader(
 
         Spacer(Modifier.height(8.dp))
 
-        // Actions: Like / Comment / Share
         Row(verticalAlignment = Alignment.CenterVertically) {
-            // Like button (có animation)
             IconButton(
                 onClick = onLikeClick,
                 modifier = Modifier.size(36.dp)
@@ -504,9 +491,6 @@ private fun PostDetailHeader(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Item comment đơn
-// ─────────────────────────────────────────────────────────────────────────────
 @Composable
 private fun CommentItem(
     comment: Comment,
@@ -532,7 +516,6 @@ private fun CommentItem(
             ),
         verticalAlignment = Alignment.Top
     ) {
-        // Avatar
         AsyncImage(
             model = comment.avatarUrl,
             contentDescription = null,
@@ -546,7 +529,6 @@ private fun CommentItem(
 
         Spacer(Modifier.width(12.dp))
 
-        // Nội dung comment
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -574,9 +556,7 @@ private fun CommentItem(
                 PostMediaPreview(mediaItems = commentMedia)
             }
             Spacer(Modifier.height(6.dp))
-            // Like + Reply
             Row(verticalAlignment = Alignment.CenterVertically) {
-                // Like
                 IconButton(
                     onClick = {
                         isLiked = !isLiked
@@ -614,9 +594,6 @@ private fun CommentItem(
     }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Bottom bar nhập comment
-// ─────────────────────────────────────────────────────────────────────────────
 private fun resolveCommentMedia(comment: Comment): List<PostMedia> {
     val fromServer = comment.media
         .mapNotNull { mediaItem ->
@@ -738,7 +715,6 @@ private fun CommentInputBar(
             Row(
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Avatar của current user
                 AsyncImage(
                     model = avatarUrl,
                     contentDescription = null,
@@ -752,7 +728,6 @@ private fun CommentInputBar(
 
                 Spacer(Modifier.width(10.dp))
 
-                // TextField
                 OutlinedTextField(
                     value = input,
                     onValueChange = onInputChange,
@@ -784,7 +759,6 @@ private fun CommentInputBar(
                     )
                 }
 
-                // Send button
                 IconButton(
                     onClick = onSend,
                     enabled = !isSending && (input.isNotBlank() || selectedMediaUris.isNotEmpty())

@@ -98,9 +98,7 @@ fun ProfileScreen(
     }
 
     LaunchedEffect(Unit) {
-        if (uiState is ProfileUiState.Loading) {
-            viewModel.load()
-        }
+        viewModel.load(isRefresh = true)
     }
 
     Column(modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)) {
@@ -277,7 +275,6 @@ fun ProfileScreen(
                                 "selectedFriendIds=${shareData.selectedFriendIds.joinToString()}, " +
                                 "currentUserId=${shareData.currentUserId}"
                         )
-                        // TODO(BE): hỗ trợ gửi caption + selectedFriendIds trong endpoint share/message để FE nối payload đầy đủ.
                         viewModel.sharePost(shareData)
                         shareTargetPost = null
                     }

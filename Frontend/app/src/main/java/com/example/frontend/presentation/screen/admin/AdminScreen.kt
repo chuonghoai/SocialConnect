@@ -78,7 +78,7 @@ fun AdminScreen(
         containerColor = BackgroundLightGray,
         topBar = {
             TopAppBar(
-                windowInsets = WindowInsets(0.dp), // KHẮC PHỤC DOUBLE PADDING HEADER
+                windowInsets = WindowInsets(0.dp),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.White,
                     titleContentColor = Color.Black,
@@ -126,7 +126,7 @@ fun AdminScreen(
         },
         bottomBar = {
             NavigationBar(
-                windowInsets = WindowInsets(0.dp), // KHẮC PHỤC DOUBLE PADDING BOTTOM BAR
+                windowInsets = WindowInsets(0.dp),
                 containerColor = Color.White,
                 tonalElevation = 8.dp
             ) {

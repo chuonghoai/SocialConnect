@@ -76,7 +76,6 @@ class ConversationViewModel @Inject constructor(
                         val event = gson.fromJson(json, NewMessageEvent::class.java)
                         val updatedConversation = event.conversation
 
-                        // Đẩy conversation vừa có tin nhắn lên đầu
                         val currentList = _uiState.value.conversations.toMutableList()
                         currentList.removeAll { it.id == updatedConversation.id }
                         currentList.add(0, updatedConversation)
